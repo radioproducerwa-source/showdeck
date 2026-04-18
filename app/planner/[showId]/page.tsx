@@ -22,6 +22,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [episodeId, setEpisodeId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const saveTimers = useRef<any>({})
+  const titleTimer = useRef<any>(null)
 
   useEffect(() => {
     init()
@@ -34,7 +35,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
     setShow(showData)
 
-    const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local time
+    const today = new Date().toLocaleDateString('en-CA')
     console.log('Today:', today, 'ShowId:', showId)
 
     let { data: episodes } = await supabase
@@ -76,6 +77,19 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         setContent(map)
       }
     }
+  }
+
+  const updateTitle = (value: string) => {
+    setEpTitle(value)
+    setSaveStatus('unsaved')
+    clearTimeout(titleTimer.current)
+    titleTimer.current = setTimeout(async () => {
+      if (!episodeId) return
+      setSaveStatus('saving')
+      const { error } = await supabase.from('episodes').update({ title: value }).eq('id', episodeId)
+      console.log('Title save:', error ? error.message : 'OK')
+      setSaveStatus(error ? 'unsaved' : 'saved')
+    }, 800)
   }
 
   const updateContent = (sectionName: string, role: string, value: string) => {
@@ -152,7 +166,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         <input
           type="text"
           value={epTitle}
-          onChange={e => { setEpTitle(e.target.value); if (episodeId) supabase.from('episodes').update({ title: e.target.value }).eq('id', episodeId) }}
+          onChange={e => updateTitle(e.target.value)}
           placeholder="EPISODE TITLE..."
           className="bg-transparent border-none text-3xl font-bold text-white tracking-widest outline-none w-full mb-8 placeholder-[#2a2a32]"
         />
