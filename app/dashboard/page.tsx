@@ -79,7 +79,7 @@ export default function Dashboard() {
                 </div>
                 {episodes[show.id] && episodes[show.id].length > 0 && (
                   <div className="border-t border-[#2a2a32]">
-                    <div className="px-6 py-3 text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</div>
+                    <div className="px-6 py-3 text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">📺 Episode Archive</div>
                     <div className="divide-y divide-[#2a2a32]">
                       {episodes[show.id].map((ep: any) => (
                         <a key={ep.id} href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-[#1c1c21] transition-colors group">
