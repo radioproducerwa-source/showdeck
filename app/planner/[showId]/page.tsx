@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState, use, useRef } from 'react'
 import { supabase } from '../../../lib/supabase'
 
 const DEFAULT_SECTIONS = [
@@ -19,26 +19,88 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [show, setShow] = useState<any>(null)
   const [content, setContent] = useState<any>({})
   const [epTitle, setEpTitle] = useState('')
-  const [mounted, setMounted] = useState(false)
+  const [episodeId, setEpisodeId] = useState<string | null>(null)
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const saveTimers = useRef<any>({})
 
   useEffect(() => {
-    setMounted(true)
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) window.location.href = '/'
-      else {
-        supabase.from('shows').select('*').eq('id', showId).single()
-          .then(({ data: show }) => setShow(show))
-      }
-    })
+    init()
   }, [])
+
+  const init = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { window.location.href = '/'; return }
+
+    const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
+    setShow(showData)
+
+    const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local time
+    console.log('Today:', today, 'ShowId:', showId)
+
+    let { data: episodes } = await supabase
+      .from('episodes')
+      .select('*')
+      .eq('show_id', showId)
+      .eq('episode_date', today)
+
+    console.log('Episodes found:', episodes)
+
+    let episode = episodes?.[0]
+
+    if (!episode) {
+      const { data: newEp, error } = await supabase
+        .from('episodes')
+        .insert({ show_id: showId, title: '', episode_date: today })
+        .select()
+        .single()
+      console.log('Created episode:', newEp, error)
+      episode = newEp
+    }
+
+    if (episode) {
+      setEpisodeId(episode.id)
+      setEpTitle(episode.title || '')
+
+      const { data: saved } = await supabase
+        .from('section_content')
+        .select('*')
+        .eq('episode_id', episode.id)
+
+      console.log('Saved content rows:', saved)
+
+      if (saved && saved.length > 0) {
+        const map: any = {}
+        saved.forEach((row: any) => {
+          map[`${row.section_name}-${row.role}`] = row.content
+        })
+        setContent(map)
+      }
+    }
+  }
 
   const updateContent = (sectionName: string, role: string, value: string) => {
     setContent((prev: any) => ({ ...prev, [`${sectionName}-${role}`]: value }))
+    setSaveStatus('unsaved')
+    const key = `${sectionName}-${role}`
+    clearTimeout(saveTimers.current[key])
+    saveTimers.current[key] = setTimeout(() => saveContent(sectionName, role, value), 800)
   }
 
-  const getContent = (sectionName: string, role: string) => {
-    return content[`${sectionName}-${role}`] || ''
+  const saveContent = async (sectionName: string, role: string, value: string) => {
+    if (!episodeId) return
+    setSaveStatus('saving')
+    const { error } = await supabase.from('section_content').upsert({
+      episode_id: episodeId,
+      section_name: sectionName,
+      role,
+      content: value,
+    }, { onConflict: 'episode_id,section_name,role' })
+    console.log('Save result:', error ? error.message : 'OK')
+    setSaveStatus(error ? 'unsaved' : 'saved')
   }
+
+  const getContent = (sectionName: string, role: string) =>
+    content[`${sectionName}-${role}`] || ''
 
   const getStatus = (sectionName: string) => {
     const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length
@@ -53,7 +115,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       text += `${s.icon} ${s.name.toUpperCase()}\n${'─'.repeat(40)}\n`
       text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
       text += `${show?.host2_name}:\n${getContent(s.name, 'host2') || '—'}\n\n`
-      if (show?.has_producer) text += `${show?.producer_name}:\n${getContent(s.name, 'producer') || '—'}\n\n`
     })
     const blob = new Blob([text], { type: 'text/plain' })
     const a = document.createElement('a')
@@ -62,7 +123,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     a.click()
   }
 
-  if (!mounted || !show) return (
+  if (!show) return (
     <div className="min-h-screen bg-[#0d0d0f] flex items-center justify-center">
       <div className="text-[#6b6b7a]">Loading...</div>
     </div>
@@ -77,16 +138,21 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           <span className="text-[#00e5a0] font-bold tracking-widest text-sm">SHOWDECK</span>
           <span className="text-[#6b6b7a] text-xs border-l border-[#2a2a32] pl-3">{show.name}</span>
         </div>
-        <button onClick={exportRunsheet} className="text-[#6b6b7a] border border-[#2a2a32] rounded-lg px-4 py-1.5 text-sm hover:text-white transition-colors">
-          Export Runsheet
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-[#6b6b7a]">
+            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? '✓ Saved' : '● Unsaved'}
+          </span>
+          <button onClick={exportRunsheet} className="text-[#6b6b7a] border border-[#2a2a32] rounded-lg px-4 py-1.5 text-sm hover:text-white transition-colors">
+            Export Runsheet
+          </button>
+        </div>
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-6">
         <input
           type="text"
           value={epTitle}
-          onChange={e => setEpTitle(e.target.value)}
+          onChange={e => { setEpTitle(e.target.value); if (episodeId) supabase.from('episodes').update({ title: e.target.value }).eq('id', episodeId) }}
           placeholder="EPISODE TITLE..."
           className="bg-transparent border-none text-3xl font-bold text-white tracking-widest outline-none w-full mb-8 placeholder-[#2a2a32]"
         />
@@ -101,56 +167,30 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                   <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${status.cls}`}>{status.label}</span>
                 </div>
                 <div className="divide-y divide-[#2a2a32]">
-                  <div className="flex">
-                    <div className="w-28 flex-shrink-0 px-3 py-3 bg-black/20 border-r border-[#2a2a32] flex items-start gap-2">
-                      <div className="w-5 h-5 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-xs font-bold flex-shrink-0 mt-0.5">{show.host1_name?.[0]}</div>
-                      <div>
-                        <div className="text-xs font-semibold">{show.host1_name}</div>
-                        <div className="text-[10px] text-[#6b6b7a]">Host 1</div>
-                      </div>
-                    </div>
-                    <textarea
-                      value={getContent(section.name, 'host1')}
-                      onChange={e => updateContent(section.name, 'host1', e.target.value)}
-                      placeholder="Your notes..."
-                      className="flex-1 bg-transparent text-sm text-white px-4 py-3 outline-none resize-none min-h-[60px] placeholder-[#3a3a45]"
-                      rows={2}
-                    />
-                  </div>
-                  <div className="flex">
-                    <div className="w-28 flex-shrink-0 px-3 py-3 bg-black/20 border-r border-[#2a2a32] flex items-start gap-2">
-                      <div className="w-5 h-5 rounded-full bg-[#ff5c3a] flex items-center justify-center text-black text-xs font-bold flex-shrink-0 mt-0.5">{show.host2_name?.[0]}</div>
-                      <div>
-                        <div className="text-xs font-semibold">{show.host2_name}</div>
-                        <div className="text-[10px] text-[#6b6b7a]">Host 2</div>
-                      </div>
-                    </div>
-                    <textarea
-                      value={getContent(section.name, 'host2')}
-                      onChange={e => updateContent(section.name, 'host2', e.target.value)}
-                      placeholder="Your notes..."
-                      className="flex-1 bg-transparent text-sm text-white px-4 py-3 outline-none resize-none min-h-[60px] placeholder-[#3a3a45]"
-                      rows={2}
-                    />
-                  </div>
-                  {show.has_producer && (
-                    <div className="flex">
-                      <div className="w-28 flex-shrink-0 px-3 py-3 bg-black/20 border-r border-[#2a2a32] flex items-start gap-2">
-                        <div className="w-5 h-5 rounded-full bg-[#a78bfa] flex items-center justify-center text-black text-xs font-bold flex-shrink-0 mt-0.5">{show.producer_name?.[0]}</div>
-                        <div>
-                          <div className="text-xs font-semibold">{show.producer_name}</div>
-                          <div className="text-[10px] text-[#6b6b7a]">Producer</div>
+                  {['host1', 'host2'].map((role) => {
+                    const isHost1 = role === 'host1'
+                    const name = isHost1 ? show.host1_name : show.host2_name
+                    const color = isHost1 ? 'bg-[#00e5a0]' : 'bg-[#ff5c3a]'
+                    const label = isHost1 ? 'Host 1' : 'Host 2'
+                    return (
+                      <div key={role} className="flex">
+                        <div className="w-28 flex-shrink-0 px-3 py-3 bg-black/20 border-r border-[#2a2a32] flex items-start gap-2">
+                          <div className={`w-5 h-5 rounded-full ${color} flex items-center justify-center text-black text-xs font-bold flex-shrink-0 mt-0.5`}>{name?.[0]}</div>
+                          <div>
+                            <div className="text-xs font-semibold">{name}</div>
+                            <div className="text-[10px] text-[#6b6b7a]">{label}</div>
+                          </div>
                         </div>
+                        <textarea
+                          value={getContent(section.name, role)}
+                          onChange={e => updateContent(section.name, role, e.target.value)}
+                          placeholder="Your notes..."
+                          className="flex-1 bg-transparent text-sm text-white px-4 py-3 outline-none resize-none min-h-[60px] placeholder-[#3a3a45]"
+                          rows={2}
+                        />
                       </div>
-                      <textarea
-                        value={getContent(section.name, 'producer')}
-                        onChange={e => updateContent(section.name, 'producer', e.target.value)}
-                        placeholder="Producer notes..."
-                        className="flex-1 bg-transparent text-sm text-white px-4 py-3 outline-none resize-none min-h-[60px] placeholder-[#3a3a45]"
-                        rows={2}
-                      />
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
               </div>
             )
