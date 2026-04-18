@@ -14,13 +14,20 @@ const DEFAULT_SECTIONS = [
   { name: '$100 to $1000 Challenge', icon: '📈' },
 ]
 
+const IMPORT_MAP: Record<string, string> = {
+  "Last Week's Betting": 'AFL Multis',
+  'Racing Bets': 'Racing Bets',
+}
+
 export default function Planner({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
   const [show, setShow] = useState<any>(null)
   const [content, setContent] = useState<any>({})
   const [epTitle, setEpTitle] = useState('')
   const [episodeId, setEpisodeId] = useState<string | null>(null)
+  const [episodeDate, setEpisodeDate] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [importing, setImporting] = useState<string | null>(null)
   const saveTimers = useRef<any>({})
   const titleTimer = useRef<any>(null)
 
@@ -36,7 +43,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     setShow(showData)
 
     const today = new Date().toLocaleDateString('en-CA')
-    console.log('Today:', today, 'ShowId:', showId)
 
     let { data: episodes } = await supabase
       .from('episodes')
@@ -44,30 +50,26 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       .eq('show_id', showId)
       .eq('episode_date', today)
 
-    console.log('Episodes found:', episodes)
-
     let episode = episodes?.[0]
 
     if (!episode) {
-      const { data: newEp, error } = await supabase
+      const { data: newEp } = await supabase
         .from('episodes')
         .insert({ show_id: showId, title: '', episode_date: today })
         .select()
         .single()
-      console.log('Created episode:', newEp, error)
       episode = newEp
     }
 
     if (episode) {
       setEpisodeId(episode.id)
+      setEpisodeDate(episode.episode_date)
       setEpTitle(episode.title || '')
 
       const { data: saved } = await supabase
         .from('section_content')
         .select('*')
         .eq('episode_id', episode.id)
-
-      console.log('Saved content rows:', saved)
 
       if (saved && saved.length > 0) {
         const map: any = {}
@@ -79,6 +81,49 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     }
   }
 
+  const importFromLastWeek = async (sectionName: string) => {
+    if (!episodeDate) return
+    setImporting(sectionName)
+
+    const sourceSectionName = IMPORT_MAP[sectionName]
+
+    const { data: prevEpisodes } = await supabase
+      .from('episodes')
+      .select('*')
+      .eq('show_id', showId)
+      .lt('episode_date', episodeDate)
+      .order('episode_date', { ascending: false })
+      .limit(1)
+
+    if (!prevEpisodes || prevEpisodes.length === 0) {
+      alert('No previous episode found to import from.')
+      setImporting(null)
+      return
+    }
+
+    const prevEpisode = prevEpisodes[0]
+
+    const { data: prevContent } = await supabase
+      .from('section_content')
+      .select('*')
+      .eq('episode_id', prevEpisode.id)
+      .eq('section_name', sourceSectionName)
+
+    if (!prevContent || prevContent.length === 0) {
+      alert(`No content found in "${sourceSectionName}" from the previous episode.`)
+      setImporting(null)
+      return
+    }
+
+    for (const row of prevContent) {
+      await saveContent(sectionName, row.role, row.content)
+      setContent((prev: any) => ({ ...prev, [`${sectionName}-${row.role}`]: row.content }))
+    }
+
+    setImporting(null)
+    setSaveStatus('saved')
+  }
+
   const updateTitle = (value: string) => {
     setEpTitle(value)
     setSaveStatus('unsaved')
@@ -87,7 +132,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (!episodeId) return
       setSaveStatus('saving')
       const { error } = await supabase.from('episodes').update({ title: value }).eq('id', episodeId)
-      console.log('Title save:', error ? error.message : 'OK')
       setSaveStatus(error ? 'unsaved' : 'saved')
     }, 800)
   }
@@ -109,7 +153,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       role,
       content: value,
     }, { onConflict: 'episode_id,section_name,role' })
-    console.log('Save result:', error ? error.message : 'OK')
     setSaveStatus(error ? 'unsaved' : 'saved')
   }
 
@@ -173,11 +216,21 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         <div className="flex flex-col gap-4">
           {DEFAULT_SECTIONS.map((section) => {
             const status = getStatus(section.name)
+            const canImport = section.name in IMPORT_MAP
             return (
               <div key={section.name} className="bg-[#141417] border border-[#2a2a32] rounded-xl overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 bg-[#1c1c21] border-b border-[#2a2a32]">
                   <span>{section.icon}</span>
                   <span className="font-semibold text-sm flex-1">{section.name}</span>
+                  {canImport && (
+                    <button
+                      onClick={() => importFromLastWeek(section.name)}
+                      disabled={importing === section.name}
+                      className="text-xs text-[#00e5a0] border border-[#00e5a0]/30 rounded-full px-3 py-0.5 hover:bg-[#00e5a0]/10 transition-colors disabled:opacity-50 mr-2"
+                    >
+                      {importing === section.name ? 'Importing...' : '↓ Import last week'}
+                    </button>
+                  )}
                   <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${status.cls}`}>{status.label}</span>
                 </div>
                 <div className="divide-y divide-[#2a2a32]">
