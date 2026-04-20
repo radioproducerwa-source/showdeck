@@ -239,7 +239,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                     return (
                       <div key={role} className="flex">
                         <div className="w-28 flex-shrink-0 px-3 py-3 bg-white border-r border-[#e2e4e8] flex items-start gap-2">
-                          <div className={`w-5 h-5 rounded-full ${color} flex items-center justify-center text-black text-xs font-bold flex-shrink-0 mt-0.5`}>{name?.[0]}</div>
+                          <div className={`w-6 h-6 rounded-full overflow-hidden flex-shrink-0 mt-0.5`}>
+                            {(isHost1 ? show.host1_avatar : show.host2_avatar)
+                              ? <img src={isHost1 ? show.host1_avatar : show.host2_avatar} alt={name} className="w-full h-full object-cover" />
+                              : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-xs font-bold`}>{name?.[0]}</div>
+                            }
+                          </div>
                           <div>
                             <div className="text-xs font-semibold">{name}</div>
                             <div className="text-[10px] text-[#6b6b7a]">{label}</div>

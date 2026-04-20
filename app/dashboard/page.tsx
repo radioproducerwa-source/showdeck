@@ -62,6 +62,20 @@ export default function Dashboard() {
     setUploading(null)
   }
 
+  const uploadAvatar = async (showId: string, slot: 'host1' | 'host2', file: File) => {
+    const key = `${showId}-${slot}`
+    setUploading(key)
+    const ext = file.name.split('.').pop()
+    const path = `${showId}-${slot}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('show-logos').upload(path, file, { upsert: true })
+    if (uploadError) { alert('Upload failed: ' + uploadError.message); setUploading(null); return }
+    const { data: { publicUrl } } = supabase.storage.from('show-logos').getPublicUrl(path)
+    const field = slot === 'host1' ? 'host1_avatar' : 'host2_avatar'
+    await supabase.from('shows').update({ [field]: publicUrl }).eq('id', showId)
+    setShows(prev => prev.map(s => s.id === showId ? { ...s, [field]: publicUrl } : s))
+    setUploading(null)
+  }
+
   if (!user) return <div className="min-h-screen bg-white"></div>
 
   return (
@@ -113,8 +127,32 @@ export default function Dashboard() {
                       />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold mb-1">{show.name}</h3>
-                      <p className="text-[#6b6b7a] text-sm">{show.host1_name} & {show.host2_name}{show.has_producer ? ` · ${show.producer_name}` : ''}</p>
+                      <h3 className="text-xl font-bold mb-2">{show.name}</h3>
+                      <div className="flex items-center gap-3">
+                        {(['host1', 'host2'] as const).map(slot => {
+                          const name = slot === 'host1' ? show.host1_name : show.host2_name
+                          const avatar = slot === 'host1' ? show.host1_avatar : show.host2_avatar
+                          const color = slot === 'host1' ? 'bg-[#00e5a0]' : 'bg-[#ff5c3a]'
+                          const inputKey = `${show.id}-${slot}`
+                          return (
+                            <div key={slot} className="flex items-center gap-1.5 group/avatar cursor-pointer" onClick={() => fileInputs.current[inputKey]?.click()} title={`Upload ${name}'s photo`}>
+                              <div className="relative w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                                {avatar
+                                  ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                                  : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-xs font-bold`}>{name?.[0]}</div>
+                                }
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                                  <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
+                                </div>
+                              </div>
+                              <span className="text-[#6b6b7a] text-sm">{name}</span>
+                              <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
+                                onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(show.id, slot, f) }} />
+                            </div>
+                          )
+                        })}
+                        {show.has_producer && <span className="text-[#6b6b7a] text-sm">· {show.producer_name}</span>}
+                      </div>
                     </div>
                   </div>
                   <a href={`/planner/${show.id}`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
