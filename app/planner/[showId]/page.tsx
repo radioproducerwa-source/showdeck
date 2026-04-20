@@ -5,14 +5,12 @@ import Logo from '../../../components/Logo'
 
 const DEFAULT_SECTIONS = [
   { name: 'Show Intro', icon: '🎙️' },
-  { name: 'Weekend Recap', icon: '📅' },
-  { name: "Last Week's Betting", icon: '🎰' },
-  { name: 'Hero of the Week', icon: '⭐' },
-  { name: 'Next Round of AFL Games', icon: '🏉' },
-  { name: 'AFL Multis', icon: '🎯' },
-  { name: 'Racing', icon: '🐎' },
-  { name: 'Racing Bets', icon: '💰' },
-  { name: '$100 to $1000 Challenge', icon: '📈' },
+  { name: 'News & Updates', icon: '📰' },
+  { name: 'Main Topic', icon: '🎯' },
+  { name: 'Guest / Interview', icon: '🎤' },
+  { name: 'Listener Questions', icon: '❓' },
+  { name: 'Picks & Recommendations', icon: '👍' },
+  { name: 'Wrap Up', icon: '👋' },
 ]
 
 const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
@@ -71,8 +69,14 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
       let { data: existingSections } = await supabase.from('sections').select('*').eq('episode_id', episode.id)
       if (!existingSections || existingSections.length === 0) {
-        const toInsert = DEFAULT_SECTIONS.map(s => ({ episode_id: episode.id, name: s.name, icon: s.icon }))
-        const { data: inserted } = await supabase.from('sections').insert(toInsert).select()
+        // Copy sections from the most recent previous episode, or fall back to generic defaults
+        const { data: prevEps } = await supabase.from('episodes').select('id').eq('show_id', showId).neq('id', episode.id).order('episode_date', { ascending: false }).limit(1)
+        let sectionSource: { name: string; icon: string }[] = DEFAULT_SECTIONS
+        if (prevEps && prevEps.length > 0) {
+          const { data: prevSections } = await supabase.from('sections').select('name, icon').eq('episode_id', prevEps[0].id)
+          if (prevSections && prevSections.length > 0) sectionSource = prevSections
+        }
+        const { data: inserted } = await supabase.from('sections').insert(sectionSource.map(s => ({ episode_id: episode.id, name: s.name, icon: s.icon }))).select()
         existingSections = inserted || []
       }
       setSections(existingSections)
