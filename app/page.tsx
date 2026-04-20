@@ -39,6 +39,7 @@ export default function Home() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+            autoComplete="email"
             placeholder="you@example.com"
           />
         </div>
@@ -49,6 +50,7 @@ export default function Home() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+            autoComplete="current-password"
             placeholder="••••••••"
             onKeyDown={e => e.key === 'Enter' && handleAuth()}
           />
