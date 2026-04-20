@@ -17,9 +17,8 @@ const DEFAULT_SECTIONS = [
 
 const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
 
-const IMPORT_MAP: Record<string, string> = {
-  "Last Week's Betting": 'AFL Multis',
-  'Racing Bets': 'Racing Bets',
+const IMPORT_MAP: Record<string, string[]> = {
+  "Last Week's Betting": ['AFL Multis', 'Racing Bets'],
 }
 
 export default function Planner({ params }: { params: Promise<{ showId: string }> }) {
@@ -113,15 +112,28 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const importFromLastWeek = async (sectionName: string) => {
     if (!episodeDate) return
     setImporting(sectionName)
-    const sourceSectionName = IMPORT_MAP[sectionName]
+    const sourceSections = IMPORT_MAP[sectionName]
     const { data: prevEpisodes } = await supabase.from('episodes').select('*').eq('show_id', showId).lt('episode_date', episodeDate).order('episode_date', { ascending: false }).limit(1)
     if (!prevEpisodes || prevEpisodes.length === 0) { alert('No previous episode found to import from.'); setImporting(null); return }
     const prevEpisode = prevEpisodes[0]
-    const { data: prevContent } = await supabase.from('section_content').select('*').eq('episode_id', prevEpisode.id).eq('section_name', sourceSectionName)
-    if (!prevContent || prevContent.length === 0) { alert(`No content found in "${sourceSectionName}" from the previous episode.`); setImporting(null); return }
-    for (const row of prevContent) {
-      await saveContent(sectionName, row.role, row.content)
-      setContent((prev: any) => ({ ...prev, [`${sectionName}-${row.role}`]: row.content }))
+    const { data: prevContent } = await supabase.from('section_content').select('*').eq('episode_id', prevEpisode.id).in('section_name', sourceSections)
+    if (!prevContent || prevContent.length === 0) { alert('No bet content found in the previous episode.'); setImporting(null); return }
+
+    // Combine content from all source sections per role, in order
+    const combined: Record<string, string> = {}
+    for (const source of sourceSections) {
+      for (const role of ['host1', 'host2']) {
+        const row = prevContent.find(r => r.section_name === source && r.role === role)
+        if (row?.content) {
+          const label = `${source}:\n${row.content}`
+          combined[role] = combined[role] ? `${combined[role]}\n\n${label}` : label
+        }
+      }
+    }
+
+    for (const [role, text] of Object.entries(combined)) {
+      await saveContent(sectionName, role, text)
+      setContent((prev: any) => ({ ...prev, [`${sectionName}-${role}`]: text }))
     }
     setImporting(null); setSaveStatus('saved')
   }
