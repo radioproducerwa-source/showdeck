@@ -14,6 +14,8 @@ const DEFAULT_SECTIONS = [
   { name: '$100 to $1000 Challenge', icon: '📈' },
 ]
 
+const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
+
 const IMPORT_MAP: Record<string, string> = {
   "Last Week's Betting": 'AFL Multis',
   'Racing Bets': 'Racing Bets',
@@ -22,12 +24,16 @@ const IMPORT_MAP: Record<string, string> = {
 export default function Planner({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
   const [show, setShow] = useState<any>(null)
+  const [sections, setSections] = useState<any[]>([])
   const [content, setContent] = useState<any>({})
   const [epTitle, setEpTitle] = useState('')
   const [episodeId, setEpisodeId] = useState<string | null>(null)
   const [episodeDate, setEpisodeDate] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [importing, setImporting] = useState<string | null>(null)
+  const [addingSection, setAddingSection] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newIcon, setNewIcon] = useState('📝')
   const saveTimers = useRef<any>({})
   const titleTimer = useRef<any>(null)
 
@@ -42,23 +48,22 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
     setShow(showData)
 
-    const today = new Date().toLocaleDateString('en-CA')
+    const searchParams = new URLSearchParams(window.location.search)
+    const existingEpisodeId = searchParams.get('episodeId')
 
-    let { data: episodes } = await supabase
-      .from('episodes')
-      .select('*')
-      .eq('show_id', showId)
-      .eq('episode_date', today)
+    let episode: any = null
 
-    let episode = episodes?.[0]
-
-    if (!episode) {
-      const { data: newEp } = await supabase
-        .from('episodes')
-        .insert({ show_id: showId, title: '', episode_date: today })
-        .select()
-        .single()
-      episode = newEp
+    if (existingEpisodeId) {
+      const { data } = await supabase.from('episodes').select('*').eq('id', existingEpisodeId).single()
+      episode = data
+    } else {
+      const today = new Date().toLocaleDateString('en-CA')
+      let { data: episodes } = await supabase.from('episodes').select('*').eq('show_id', showId).eq('episode_date', today)
+      episode = episodes?.[0]
+      if (!episode) {
+        const { data: newEp } = await supabase.from('episodes').insert({ show_id: showId, title: '', episode_date: today }).select().single()
+        episode = newEp
+      }
     }
 
     if (episode) {
@@ -66,60 +71,51 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       setEpisodeDate(episode.episode_date)
       setEpTitle(episode.title || '')
 
-      const { data: saved } = await supabase
-        .from('section_content')
-        .select('*')
-        .eq('episode_id', episode.id)
+      // Load or seed sections
+      let { data: existingSections } = await supabase.from('sections').select('*').eq('episode_id', episode.id)
+      if (!existingSections || existingSections.length === 0) {
+        const toInsert = DEFAULT_SECTIONS.map(s => ({ episode_id: episode.id, name: s.name, icon: s.icon }))
+        const { data: inserted } = await supabase.from('sections').insert(toInsert).select()
+        existingSections = inserted || []
+      }
+      setSections(existingSections)
 
+      const { data: saved } = await supabase.from('section_content').select('*').eq('episode_id', episode.id)
       if (saved && saved.length > 0) {
         const map: any = {}
-        saved.forEach((row: any) => {
-          map[`${row.section_name}-${row.role}`] = row.content
-        })
+        saved.forEach((row: any) => { map[`${row.section_name}-${row.role}`] = row.content })
         setContent(map)
       }
     }
   }
 
+  const removeSection = async (sectionId: string) => {
+    await supabase.from('sections').delete().eq('id', sectionId)
+    setSections(prev => prev.filter(s => s.id !== sectionId))
+  }
+
+  const addSection = async () => {
+    if (!newName.trim() || !episodeId) return
+    const { data } = await supabase.from('sections').insert({ episode_id: episodeId, name: newName.trim(), icon: newIcon }).select().single()
+    if (data) setSections(prev => [...prev, data])
+    setNewName('')
+    setNewIcon('📝')
+    setAddingSection(false)
+  }
+
   const importFromLastWeek = async (sectionName: string) => {
     if (!episodeDate) return
     setImporting(sectionName)
-
     const sourceSectionName = IMPORT_MAP[sectionName]
-
-    const { data: prevEpisodes } = await supabase
-      .from('episodes')
-      .select('*')
-      .eq('show_id', showId)
-      .lt('episode_date', episodeDate)
-      .order('episode_date', { ascending: false })
-      .limit(1)
-
-    if (!prevEpisodes || prevEpisodes.length === 0) {
-      alert('No previous episode found to import from.')
-      setImporting(null)
-      return
-    }
-
+    const { data: prevEpisodes } = await supabase.from('episodes').select('*').eq('show_id', showId).lt('episode_date', episodeDate).order('episode_date', { ascending: false }).limit(1)
+    if (!prevEpisodes || prevEpisodes.length === 0) { alert('No previous episode found to import from.'); setImporting(null); return }
     const prevEpisode = prevEpisodes[0]
-
-    const { data: prevContent } = await supabase
-      .from('section_content')
-      .select('*')
-      .eq('episode_id', prevEpisode.id)
-      .eq('section_name', sourceSectionName)
-
-    if (!prevContent || prevContent.length === 0) {
-      alert(`No content found in "${sourceSectionName}" from the previous episode.`)
-      setImporting(null)
-      return
-    }
-
+    const { data: prevContent } = await supabase.from('section_content').select('*').eq('episode_id', prevEpisode.id).eq('section_name', sourceSectionName)
+    if (!prevContent || prevContent.length === 0) { alert(`No content found in "${sourceSectionName}" from the previous episode.`); setImporting(null); return }
     for (const row of prevContent) {
       await saveContent(sectionName, row.role, row.content)
       setContent((prev: any) => ({ ...prev, [`${sectionName}-${row.role}`]: row.content }))
     }
-
     setImporting(null)
     setSaveStatus('saved')
   }
@@ -156,8 +152,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     setSaveStatus(error ? 'unsaved' : 'saved')
   }
 
-  const getContent = (sectionName: string, role: string) =>
-    content[`${sectionName}-${role}`] || ''
+  const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
 
   const getStatus = (sectionName: string) => {
     const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length
@@ -168,7 +163,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const exportRunsheet = () => {
     let text = `${show?.name?.toUpperCase()} — EPISODE RUNSHEET\n${'='.repeat(50)}\n${epTitle || 'Untitled Episode'}\n${'='.repeat(50)}\n\n`
-    DEFAULT_SECTIONS.forEach(s => {
+    sections.forEach(s => {
       text += `${s.icon} ${s.name.toUpperCase()}\n${'─'.repeat(40)}\n`
       text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
       text += `${show?.host2_name}:\n${getContent(s.name, 'host2') || '—'}\n\n`
@@ -217,11 +212,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           className="bg-transparent border-none text-3xl font-bold text-white tracking-widest outline-none w-full mb-8 placeholder-[#2a2a32]"
         />
         <div className="flex flex-col gap-4">
-          {DEFAULT_SECTIONS.map((section) => {
+          {sections.map((section) => {
             const status = getStatus(section.name)
             const canImport = section.name in IMPORT_MAP
+            const locked = LOCKED_SECTIONS.has(section.name)
             return (
-              <div key={section.name} className="bg-[#141417] border border-[#2a2a32] rounded-xl overflow-hidden">
+              <div key={section.id} className="bg-[#141417] border border-[#2a2a32] rounded-xl overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 bg-[#1c1c21] border-b border-[#2a2a32]">
                   <span>{section.icon}</span>
                   <span className="font-semibold text-sm flex-1">{section.name}</span>
@@ -235,6 +231,17 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                     </button>
                   )}
                   <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${status.cls}`}>{status.label}</span>
+                  {locked ? (
+                    <span className="text-[#3a3a45] text-xs ml-2" title="This section is locked">🔒</span>
+                  ) : (
+                    <button
+                      onClick={() => removeSection(section.id)}
+                      className="text-[#3a3a45] hover:text-[#ff5c3a] text-sm ml-2 transition-colors leading-none"
+                      title="Remove section"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
                 <div className="divide-y divide-[#2a2a32]">
                   {['host1', 'host2'].map((role) => {
@@ -265,6 +272,36 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
               </div>
             )
           })}
+
+          {addingSection ? (
+            <div className="bg-[#141417] border border-[#2a2a32] rounded-xl p-4 flex items-center gap-3">
+              <input
+                type="text"
+                value={newIcon}
+                onChange={e => setNewIcon(e.target.value)}
+                className="w-12 bg-[#1c1c21] border border-[#2a2a32] rounded-lg text-center text-lg outline-none"
+                maxLength={2}
+              />
+              <input
+                type="text"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addSection(); if (e.key === 'Escape') setAddingSection(false) }}
+                placeholder="Section name..."
+                autoFocus
+                className="flex-1 bg-[#1c1c21] border border-[#2a2a32] rounded-lg px-3 py-2 text-sm text-white outline-none placeholder-[#3a3a45]"
+              />
+              <button onClick={addSection} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-2 text-sm hover:bg-[#00ffc0] transition-colors">Add</button>
+              <button onClick={() => setAddingSection(false)} className="text-[#6b6b7a] hover:text-white text-sm transition-colors">Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingSection(true)}
+              className="border border-dashed border-[#2a2a32] rounded-xl py-3 text-[#6b6b7a] text-sm hover:border-[#00e5a0] hover:text-[#00e5a0] transition-colors"
+            >
+              + Add Section
+            </button>
+          )}
         </div>
       </div>
     </main>
