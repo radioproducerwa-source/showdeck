@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import Logo from '../../components/Logo'
 
 export default function CreateShow() {
   const [user, setUser] = useState<any>(null)
@@ -51,7 +52,7 @@ export default function CreateShow() {
   return (
     <main className="min-h-screen bg-[#0d0d0f] flex items-center justify-center p-4">
       <div className="bg-[#141417] border border-[#2a2a32] rounded-2xl p-10 w-full max-w-lg">
-        <h1 className="text-4xl font-bold text-[#00e5a0] tracking-widest mb-1">SHOWDECK</h1>
+        <div className="mb-1"><Logo size={0.9} /></div>
         <p className="text-[#6b6b7a] text-sm mb-8">Set up your show to get started</p>
         <div className="mb-5">
           <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Show Name</label>

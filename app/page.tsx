@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Logo from '../components/Logo'
 
 export default function Home() {
   const [email, setEmail] = useState('')
@@ -27,7 +28,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0d0d0f] flex items-center justify-center p-4">
       <div className="bg-[#141417] border border-[#2a2a32] rounded-2xl p-10 w-full max-w-md">
-        <h1 className="text-5xl font-bold text-[#00e5a0] tracking-widest mb-1">SHOWDECK</h1>
+        <div className="mb-1"><Logo size={1.1} /></div>
         <p className="text-[#6b6b7a] text-sm mb-8">The collaborative show planning workspace</p>
         <div className="mb-4">
           <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Email</label>

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, use, useRef } from 'react'
 import { supabase } from '../../../lib/supabase'
+import Logo from '../../../components/Logo'
 
 const DEFAULT_SECTIONS = [
   { name: 'Show Intro', icon: '🎙️' },
@@ -187,7 +188,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         <div className="flex items-center gap-3">
           <a href="/dashboard" className="text-[#6b6b7a] hover:text-white text-sm">Back</a>
           <span className="text-[#2a2a32]">|</span>
-          <span className="text-[#00e5a0] font-bold tracking-widest text-sm">SHOWDECK</span>
+          <Logo size={0.55} />
           <span className="text-[#2a2a32] border-l border-[#2a2a32] pl-3 flex items-center gap-2">
             {show.logo_url && <img src={show.logo_url} alt="logo" className="w-6 h-6 rounded object-cover" />}
             <span className="text-[#6b6b7a] text-xs">{show.name}</span>

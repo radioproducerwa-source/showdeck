@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import Logo from '../../components/Logo'
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
@@ -59,7 +60,7 @@ export default function Dashboard() {
     <main className="min-h-screen bg-[#0d0d0f] text-white p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-12">
-          <h1 className="text-4xl font-bold text-[#00e5a0] tracking-widest">SHOWDECK</h1>
+          <Logo size={0.9} />
           <div className="flex items-center gap-4">
             <span className="text-[#6b6b7a] text-sm">{user.email}</span>
             <button onClick={signOut} className="text-[#6b6b7a] border border-[#2a2a32] rounded-lg px-4 py-2 text-sm hover:text-white transition-colors">Sign out</button>
