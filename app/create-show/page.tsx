@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo'
 
@@ -12,10 +13,11 @@ export default function CreateShow() {
   const [producer, setProducer] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) window.location.href = '/'
+      if (!data.user) router.push('/')
       else setUser(data.user)
     })
   }, [])
@@ -43,7 +45,7 @@ export default function CreateShow() {
       setMessage(error.message)
       setLoading(false)
     } else {
-      window.location.href = '/dashboard'
+      router.push('/dashboard')
     }
   }
 

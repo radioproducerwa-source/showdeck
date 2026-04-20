@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, use, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo, { LogoIcon } from '../../../components/Logo'
 
@@ -36,12 +37,13 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [newIcon, setNewIcon] = useState('📝')
   const saveTimers = useRef<any>({})
   const titleTimer = useRef<any>(null)
+  const router = useRouter()
 
   useEffect(() => { init() }, [])
 
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { window.location.href = '/'; return }
+    if (!user) { router.push('/'); return }
 
     const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
     setShow(showData)
@@ -170,7 +172,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
 
   const getStatus = (sectionName: string) => {
-    const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length
+    const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
     if (total === 0) return { label: 'EMPTY', cls: 'text-[#6b6b7a] border-[#e2e4e8] bg-[#eeeef2]' }
     if (total < 20) return { label: 'DRAFT', cls: 'text-[#d49c00] border-[#f5c842]/40 bg-[#f5c842]/10' }
     return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/10' }
@@ -182,6 +184,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       text += `${s.icon} ${s.name.toUpperCase()}\n${'─'.repeat(40)}\n`
       text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
       text += `${show?.host2_name}:\n${getContent(s.name, 'host2') || '—'}\n\n`
+      if (show?.has_producer) text += `${show?.producer_name} (Producer):\n${getContent(s.name, 'producer') || '—'}\n\n`
     })
     const blob = new Blob([text], { type: 'text/plain' })
     const a = document.createElement('a')
@@ -251,17 +254,19 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                   )}
                 </div>
                 <div className="divide-y divide-[#e2e4e8]">
-                  {['host1', 'host2'].map((role) => {
+                  {(['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[]).map((role) => {
                     const isHost1 = role === 'host1'
-                    const name = isHost1 ? show.host1_name : show.host2_name
-                    const color = isHost1 ? 'bg-[#00e5a0]' : 'bg-[#ff5c3a]'
-                    const label = isHost1 ? 'Host 1' : 'Host 2'
+                    const isProducer = role === 'producer'
+                    const name = isHost1 ? show.host1_name : isProducer ? show.producer_name : show.host2_name
+                    const avatar = isHost1 ? show.host1_avatar : isProducer ? null : show.host2_avatar
+                    const color = isHost1 ? 'bg-[#00e5a0]' : isProducer ? 'bg-[#a78bfa]' : 'bg-[#ff5c3a]'
+                    const label = isHost1 ? 'Host 1' : isProducer ? 'Producer' : 'Host 2'
                     return (
                       <div key={role} className="flex">
                         <div className="w-28 flex-shrink-0 px-3 py-3 bg-white border-r border-[#e2e4e8] flex items-start gap-2">
-                          <div className={`w-6 h-6 rounded-full overflow-hidden flex-shrink-0 mt-0.5`}>
-                            {(isHost1 ? show.host1_avatar : show.host2_avatar)
-                              ? <img src={isHost1 ? show.host1_avatar : show.host2_avatar} alt={name} className="w-full h-full object-cover" />
+                          <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 mt-0.5">
+                            {avatar
+                              ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
                               : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-xs font-bold`}>{name?.[0]}</div>
                             }
                           </div>

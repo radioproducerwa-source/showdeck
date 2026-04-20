@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo'
 
@@ -10,10 +11,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
+  const router = useRouter()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) window.location.href = '/'
+      if (!data.user) router.push('/')
       else {
         setUser(data.user)
         supabase.from('shows').select('*').eq('owner_id', data.user.id)
@@ -34,7 +36,7 @@ export default function Dashboard() {
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    window.location.href = '/'
+    router.push('/')
   }
 
   const formatDate = (dateStr: string) => {

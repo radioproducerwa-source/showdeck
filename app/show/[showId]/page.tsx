@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 
@@ -9,12 +10,13 @@ export default function Whiteboard({ params }: { params: Promise<{ showId: strin
   const [episode, setEpisode] = useState<any>(null)
   const [sections, setSections] = useState<any[]>([])
   const [content, setContent] = useState<any>({})
+  const router = useRouter()
 
   useEffect(() => { init() }, [])
 
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { window.location.href = '/'; return }
+    if (!user) { router.push('/'); return }
 
     const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
     setShow(showData)
