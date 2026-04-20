@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, use, useRef } from 'react'
 import { supabase } from '../../../lib/supabase'
-import Logo from '../../../components/Logo'
+import Logo, { LogoIcon } from '../../../components/Logo'
 
 const DEFAULT_SECTIONS = [
   { name: 'Show Intro', icon: '🎙️' },
@@ -212,7 +212,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
             return (
               <div key={section.id} className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 bg-[#eeeef2] border-b border-[#e2e4e8]">
-                  <span>{section.icon}</span>
+                  <LogoIcon size={14} />
                   <span className="font-semibold text-sm flex-1">{section.name}</span>
                   {canImport && (
                     <button onClick={() => importFromLastWeek(section.name)} disabled={importing === section.name}
