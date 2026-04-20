@@ -42,6 +42,14 @@ export default function Dashboard() {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   }
 
+  const deleteEpisode = async (showId: string, episodeId: string, title: string) => {
+    if (!confirm(`Delete "${title || 'Untitled Episode'}"? This can't be undone.`)) return
+    await supabase.from('section_content').delete().eq('episode_id', episodeId)
+    await supabase.from('sections').delete().eq('episode_id', episodeId)
+    await supabase.from('episodes').delete().eq('id', episodeId)
+    setEpisodes((prev: any) => ({ ...prev, [showId]: prev[showId].filter((e: any) => e.id !== episodeId) }))
+  }
+
   const uploadLogo = async (showId: string, file: File) => {
     setUploading(showId)
     const ext = file.name.split('.').pop()
@@ -116,13 +124,20 @@ export default function Dashboard() {
                     <div className="px-6 py-3 text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</div>
                     <div className="divide-y divide-[#e2e4e8]">
                       {episodes[show.id].map((ep: any) => (
-                        <a key={ep.id} href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-[#eeeef2] transition-colors group">
-                          <div>
-                            <div className="font-semibold text-sm group-hover:text-[#00c988] transition-colors">{ep.title || 'Untitled Episode'}</div>
-                            <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDate(ep.episode_date)}</div>
-                          </div>
-                          <span className="text-[#c8cad0] group-hover:text-[#00c988] transition-colors">→</span>
-                        </a>
+                        <div key={ep.id} className="flex items-center justify-between px-6 py-4 hover:bg-[#eeeef2] transition-colors group">
+                          <a href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex-1 flex items-center justify-between">
+                            <div>
+                              <div className="font-semibold text-sm group-hover:text-[#00c988] transition-colors">{ep.title || 'Untitled Episode'}</div>
+                              <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDate(ep.episode_date)}</div>
+                            </div>
+                            <span className="text-[#c8cad0] group-hover:text-[#00c988] transition-colors mr-4">→</span>
+                          </a>
+                          <button
+                            onClick={() => deleteEpisode(show.id, ep.id, ep.title)}
+                            className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete episode"
+                          >×</button>
+                        </div>
                       ))}
                     </div>
                   </div>
