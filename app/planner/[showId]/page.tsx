@@ -49,11 +49,17 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
     const searchParams = new URLSearchParams(window.location.search)
     const existingEpisodeId = searchParams.get('episodeId')
+    const forceNew = searchParams.get('new') === 'true'
     let episode: any = null
 
     if (existingEpisodeId) {
       const { data } = await supabase.from('episodes').select('*').eq('id', existingEpisodeId).single()
       episode = data
+    } else if (forceNew) {
+      const today = new Date().toLocaleDateString('en-CA')
+      const { data: newEp } = await supabase.from('episodes').insert({ show_id: showId, title: '', episode_date: today }).select().single()
+      episode = newEp
+      window.history.replaceState({}, '', `/planner/${showId}?episodeId=${newEp?.id}`)
     } else {
       const today = new Date().toLocaleDateString('en-CA')
       let { data: episodes } = await supabase.from('episodes').select('*').eq('show_id', showId).eq('episode_date', today)

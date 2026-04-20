@@ -157,7 +157,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <a href={`/show/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Whiteboard</a>
-                    <a href={`/planner/${show.id}`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
+                    <a href={`/planner/${show.id}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
                   </div>
                 </div>
                 {episodes[show.id] && episodes[show.id].length > 0 && (
