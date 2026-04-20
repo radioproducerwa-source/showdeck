@@ -54,16 +54,16 @@ export default function Dashboard() {
     setUploading(null)
   }
 
-  if (!user) return <div className="min-h-screen bg-[#0d0d0f]"></div>
+  if (!user) return <div className="min-h-screen bg-white"></div>
 
   return (
-    <main className="min-h-screen bg-[#0d0d0f] text-white p-8">
+    <main className="min-h-screen bg-white text-[#0d0d0f] p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-12">
           <Logo size={0.9} />
           <div className="flex items-center gap-4">
             <span className="text-[#6b6b7a] text-sm">{user.email}</span>
-            <button onClick={signOut} className="text-[#6b6b7a] border border-[#2a2a32] rounded-lg px-4 py-2 text-sm hover:text-white transition-colors">Sign out</button>
+            <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
           </div>
         </div>
         <div className="flex items-center justify-between mb-6">
@@ -73,7 +73,7 @@ export default function Dashboard() {
         {loading ? (
           <div className="text-[#6b6b7a]">Loading...</div>
         ) : shows.length === 0 ? (
-          <div className="bg-[#141417] border border-[#2a2a32] rounded-2xl p-8 text-center">
+          <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-8 text-center">
             <div className="text-4xl mb-4">🎙️</div>
             <h2 className="text-xl font-bold mb-2">No shows yet</h2>
             <p className="text-[#6b6b7a] mb-6">Create your first show to get started</p>
@@ -82,11 +82,11 @@ export default function Dashboard() {
         ) : (
           <div className="flex flex-col gap-6">
             {shows.map(show => (
-              <div key={show.id} className="bg-[#141417] border border-[#2a2a32] rounded-2xl overflow-hidden">
+              <div key={show.id} className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl overflow-hidden">
                 <div className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-[#2a2a32] bg-[#1c1c21] flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group relative"
+                      className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-[#e2e4e8] bg-white flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group relative"
                       onClick={() => fileInputs.current[show.id]?.click()}
                       title="Upload logo"
                     >
@@ -95,14 +95,12 @@ export default function Dashboard() {
                       ) : (
                         <span className="text-2xl">🎙️</span>
                       )}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <span className="text-white text-xs font-bold">{uploading === show.id ? '...' : '↑'}</span>
                       </div>
                       <input
                         ref={el => { fileInputs.current[show.id] = el }}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
+                        type="file" accept="image/*" className="hidden"
                         onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(show.id, f) }}
                       />
                     </div>
@@ -114,23 +112,23 @@ export default function Dashboard() {
                   <a href={`/planner/${show.id}`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
                 </div>
                 {episodes[show.id] && episodes[show.id].length > 0 && (
-                  <div className="border-t border-[#2a2a32]">
+                  <div className="border-t border-[#e2e4e8]">
                     <div className="px-6 py-3 text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</div>
-                    <div className="divide-y divide-[#2a2a32]">
+                    <div className="divide-y divide-[#e2e4e8]">
                       {episodes[show.id].map((ep: any) => (
-                        <a key={ep.id} href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-[#1c1c21] transition-colors group">
+                        <a key={ep.id} href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-[#eeeef2] transition-colors group">
                           <div>
-                            <div className="font-semibold text-sm group-hover:text-[#00e5a0] transition-colors">{ep.title || 'Untitled Episode'}</div>
+                            <div className="font-semibold text-sm group-hover:text-[#00c988] transition-colors">{ep.title || 'Untitled Episode'}</div>
                             <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDate(ep.episode_date)}</div>
                           </div>
-                          <span className="text-[#3a3a45] group-hover:text-[#00e5a0] transition-colors">→</span>
+                          <span className="text-[#c8cad0] group-hover:text-[#00c988] transition-colors">→</span>
                         </a>
                       ))}
                     </div>
                   </div>
                 )}
                 {episodes[show.id] && episodes[show.id].length === 0 && (
-                  <div className="border-t border-[#2a2a32] px-6 py-4 text-[#6b6b7a] text-sm">No episodes yet — hit New Episode to start planning.</div>
+                  <div className="border-t border-[#e2e4e8] px-6 py-4 text-[#6b6b7a] text-sm">No episodes yet — hit New Episode to start planning.</div>
                 )}
               </div>
             ))}

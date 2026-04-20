@@ -26,8 +26,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0d0d0f] flex items-center justify-center p-4">
-      <div className="bg-[#141417] border border-[#2a2a32] rounded-2xl p-10 w-full max-w-md">
+    <main className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-10 w-full max-w-md">
         <div className="mb-1"><Logo size={1.1} /></div>
         <p className="text-[#6b6b7a] text-sm mb-8">The collaborative show planning workspace</p>
         <div className="mb-4">
@@ -36,7 +36,7 @@ export default function Home() {
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="w-full bg-[#1c1c21] border border-[#2a2a32] rounded-lg text-white px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+            className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
             placeholder="you@example.com"
           />
         </div>
@@ -46,14 +46,12 @@ export default function Home() {
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="w-full bg-[#1c1c21] border border-[#2a2a32] rounded-lg text-white px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+            className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
             placeholder="••••••••"
             onKeyDown={e => e.key === 'Enter' && handleAuth()}
           />
         </div>
-        {message && (
-          <p className="text-sm mb-4 text-[#00e5a0]">{message}</p>
-        )}
+        {message && <p className="text-sm mb-4 text-[#00e5a0]">{message}</p>}
         <button
           onClick={handleAuth}
           disabled={loading}
@@ -63,7 +61,7 @@ export default function Home() {
         </button>
         <button
           onClick={() => setIsSignUp(!isSignUp)}
-          className="w-full bg-transparent text-[#6b6b7a] border border-[#2a2a32] rounded-xl py-3 text-sm hover:text-white transition-colors"
+          className="w-full bg-transparent text-[#6b6b7a] border border-[#e2e4e8] rounded-xl py-3 text-sm hover:text-[#0d0d0f] transition-colors"
         >
           {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
         </button>
