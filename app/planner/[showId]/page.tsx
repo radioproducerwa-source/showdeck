@@ -55,6 +55,47 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         .single()
       console.log('Created episode:', newEp, error)
       episode = newEp
+
+      // Carry last episode's bets forward into "Last Week's Betting"
+      if (newEp) {
+        const { data: prevEpisodes } = await supabase
+          .from('episodes')
+          .select('id')
+          .eq('show_id', showId)
+          .neq('id', newEp.id)
+          .order('episode_date', { ascending: false })
+          .limit(1)
+
+        const prevEpId = prevEpisodes?.[0]?.id
+        if (prevEpId) {
+          const { data: prevBets } = await supabase
+            .from('section_content')
+            .select('*')
+            .eq('episode_id', prevEpId)
+            .in('section_name', ['AFL Multis', 'Racing Bets'])
+
+          if (prevBets && prevBets.length > 0) {
+            const byRole: Record<string, string[]> = { host1: [], host2: [] }
+            for (const role of ['host1', 'host2']) {
+              const multis = prevBets.find(r => r.section_name === 'AFL Multis' && r.role === role)?.content
+              const racing = prevBets.find(r => r.section_name === 'Racing Bets' && r.role === role)?.content
+              if (multis) byRole[role].push(`AFL Multis:\n${multis}`)
+              if (racing) byRole[role].push(`Racing Bets:\n${racing}`)
+            }
+            const inserts = (['host1', 'host2'] as const)
+              .filter(role => byRole[role].length > 0)
+              .map(role => ({
+                episode_id: newEp.id,
+                section_name: "Last Week's Betting",
+                role,
+                content: byRole[role].join('\n\n'),
+              }))
+            if (inserts.length > 0) {
+              await supabase.from('section_content').insert(inserts)
+            }
+          }
+        }
+      }
     }
 
     if (episode) {
