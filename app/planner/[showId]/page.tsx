@@ -212,7 +212,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
             const canImport = section.name in IMPORT_MAP
             const locked = LOCKED_SECTIONS.has(section.name)
             return (
-              <div key={section.id} className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl overflow-hidden">
+              <div key={section.id} id={section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')} className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl overflow-hidden">
                 <div className="flex items-center gap-3 px-4 py-3 bg-[#eeeef2] border-b border-[#e2e4e8]">
                   <LogoIcon size={14} />
                   <span className="font-semibold text-sm flex-1">{section.name}</span>
