@@ -193,7 +193,10 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           <a href="/dashboard" className="text-[#6b6b7a] hover:text-white text-sm">Back</a>
           <span className="text-[#2a2a32]">|</span>
           <span className="text-[#00e5a0] font-bold tracking-widest text-sm">SHOWDECK</span>
-          <span className="text-[#6b6b7a] text-xs border-l border-[#2a2a32] pl-3">{show.name}</span>
+          <span className="text-[#2a2a32] border-l border-[#2a2a32] pl-3 flex items-center gap-2">
+            {show.logo_url && <img src={show.logo_url} alt="logo" className="w-6 h-6 rounded object-cover" />}
+            <span className="text-[#6b6b7a] text-xs">{show.name}</span>
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-[#6b6b7a]">

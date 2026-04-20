@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 
 export default function Dashboard() {
@@ -7,6 +7,8 @@ export default function Dashboard() {
   const [shows, setShows] = useState<any[]>([])
   const [episodes, setEpisodes] = useState<any>({})
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState<string | null>(null)
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -39,6 +41,18 @@ export default function Dashboard() {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   }
 
+  const uploadLogo = async (showId: string, file: File) => {
+    setUploading(showId)
+    const ext = file.name.split('.').pop()
+    const path = `${showId}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('show-logos').upload(path, file, { upsert: true })
+    if (uploadError) { alert('Upload failed: ' + uploadError.message); setUploading(null); return }
+    const { data: { publicUrl } } = supabase.storage.from('show-logos').getPublicUrl(path)
+    await supabase.from('shows').update({ logo_url: publicUrl }).eq('id', showId)
+    setShows(prev => prev.map(s => s.id === showId ? { ...s, logo_url: publicUrl } : s))
+    setUploading(null)
+  }
+
   if (!user) return <div className="min-h-screen bg-[#0d0d0f]"></div>
 
   return (
@@ -69,9 +83,32 @@ export default function Dashboard() {
             {shows.map(show => (
               <div key={show.id} className="bg-[#141417] border border-[#2a2a32] rounded-2xl overflow-hidden">
                 <div className="p-6 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold mb-1">{show.name}</h3>
-                    <p className="text-[#6b6b7a] text-sm">{show.host1_name} & {show.host2_name}{show.has_producer ? ` · ${show.producer_name}` : ''}</p>
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-[#2a2a32] bg-[#1c1c21] flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group relative"
+                      onClick={() => fileInputs.current[show.id]?.click()}
+                      title="Upload logo"
+                    >
+                      {show.logo_url ? (
+                        <img src={show.logo_url} alt="logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-2xl">🎙️</span>
+                      )}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">{uploading === show.id ? '...' : '↑'}</span>
+                      </div>
+                      <input
+                        ref={el => { fileInputs.current[show.id] = el }}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(show.id, f) }}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold mb-1">{show.name}</h3>
+                      <p className="text-[#6b6b7a] text-sm">{show.host1_name} & {show.host2_name}{show.has_producer ? ` · ${show.producer_name}` : ''}</p>
+                    </div>
                   </div>
                   <a href={`/planner/${show.id}`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
                 </div>
