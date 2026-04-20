@@ -2,10 +2,10 @@
 
 // Direction 3: stacked lines (waveform/deck vibe)
 function LogoD3({ size = 1 }: { size?: number }) {
-  const w = 140 * size
+  const w = 220 * size
   const h = 36 * size
   return (
-    <svg width={w} height={h} viewBox="0 0 140 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={w} height={h} viewBox="0 0 220 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Stacked bar icon */}
       <rect x="0" y="4" width="6" height="28" rx="1.5" fill="#00e5a0" />
       <rect x="10" y="10" width="6" height="16" rx="1.5" fill="#00e5a0" opacity="0.7" />
@@ -19,10 +19,10 @@ function LogoD3({ size = 1 }: { size?: number }) {
 
 // Direction 5: typography wordmark — stylised SHOWDECK with accent on the S
 function LogoD5({ size = 1 }: { size?: number }) {
-  const w = 180 * size
+  const w = 240 * size
   const h = 36 * size
   return (
-    <svg width={w} height={h} viewBox="0 0 180 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={w} height={h} viewBox="0 0 240 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* S in green, rest in white */}
       <text x="0" y="28" fontFamily="monospace" fontWeight="900" fontSize="26" letterSpacing="1" fill="#00e5a0">S</text>
       <text x="18" y="28" fontFamily="monospace" fontWeight="900" fontSize="26" letterSpacing="1" fill="white">HOWDECK</text>
