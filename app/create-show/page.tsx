@@ -45,7 +45,7 @@ export default function CreateShow() {
       setMessage(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     }
   }
 

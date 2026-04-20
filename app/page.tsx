@@ -22,7 +22,7 @@ export default function Home() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
-      else router.push('/dashboard')
+      else window.location.href = '/dashboard'
     }
     setLoading(false)
   }
