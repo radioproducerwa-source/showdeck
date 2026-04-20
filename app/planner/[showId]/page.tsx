@@ -5,12 +5,14 @@ import Logo, { LogoIcon } from '../../../components/Logo'
 
 const DEFAULT_SECTIONS = [
   { name: 'Show Intro', icon: '🎙️' },
-  { name: 'News & Updates', icon: '📰' },
-  { name: 'Main Topic', icon: '🎯' },
-  { name: 'Guest / Interview', icon: '🎤' },
-  { name: 'Listener Questions', icon: '❓' },
-  { name: 'Picks & Recommendations', icon: '👍' },
-  { name: 'Wrap Up', icon: '👋' },
+  { name: 'Weekend Recap', icon: '📅' },
+  { name: "Last Week's Betting", icon: '🎰' },
+  { name: 'Hero of the Week', icon: '⭐' },
+  { name: 'Next Round of AFL Games', icon: '🏉' },
+  { name: 'AFL Multis', icon: '🎯' },
+  { name: 'Racing', icon: '🐎' },
+  { name: 'Racing Bets', icon: '💰' },
+  { name: '$100 to $1000 Challenge', icon: '📈' },
 ]
 
 const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
