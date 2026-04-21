@@ -176,10 +176,23 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/10' }
   }
 
+  const socialHandles = () => {
+    const platforms = [
+      { key: 'instagram', label: 'Instagram' },
+      { key: 'tiktok',    label: 'TikTok' },
+      { key: 'facebook',  label: 'Facebook' },
+      { key: 'x_twitter', label: 'X' },
+      { key: 'youtube',   label: 'YouTube' },
+    ]
+    return platforms.filter(p => show?.[p.key]).map(p => `${p.label}: ${show[p.key]}`).join('  ·  ')
+  }
+
   const exportRunsheet = (format: 'txt' | 'md' = 'txt') => {
     const slug = (epTitle || 'runsheet').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const socials = socialHandles()
     if (format === 'md') {
       let md = `# ${show?.name} — ${epTitle || 'Untitled Episode'}\n\n`
+      if (socials) md += `${socials}\n\n`
       sections.forEach(s => {
         md += `## ${s.icon} ${s.name}\n\n`
         md += `**${show?.host1_name}**\n${getContent(s.name, 'host1') || '*No notes*'}\n\n`
@@ -192,7 +205,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       a.download = `${slug}.md`
       a.click()
     } else {
-      let text = `${show?.name?.toUpperCase()} — EPISODE RUNSHEET\n${'='.repeat(50)}\n${epTitle || 'Untitled Episode'}\n${'='.repeat(50)}\n\n`
+      let text = `${show?.name?.toUpperCase()} — EPISODE RUNSHEET\n${'='.repeat(50)}\n${epTitle || 'Untitled Episode'}\n`
+      if (socials) text += `${socials}\n`
+      text += `${'='.repeat(50)}\n\n`
       sections.forEach(s => {
         text += `${s.icon} ${s.name.toUpperCase()}\n${'─'.repeat(40)}\n`
         text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
@@ -244,8 +259,29 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         <input
           type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
           placeholder="EPISODE TITLE..."
-          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-8 placeholder-[#d1d5db]"
+          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-3 placeholder-[#d1d5db]"
         />
+        {(() => {
+          const platforms = [
+            { key: 'instagram', label: 'Instagram', color: '#E1306C' },
+            { key: 'tiktok',    label: 'TikTok',    color: '#000000' },
+            { key: 'facebook',  label: 'Facebook',  color: '#1877F2' },
+            { key: 'x_twitter', label: 'X',         color: '#000000' },
+            { key: 'youtube',   label: 'YouTube',   color: '#FF0000' },
+          ].filter(p => show?.[p.key])
+          if (!platforms.length) return null
+          return (
+            <div className="flex flex-wrap items-center gap-2 mb-8">
+              {platforms.map(p => (
+                <span key={p.key} className="flex items-center gap-1.5 bg-[#f7f8fa] border border-[#e2e4e8] rounded-full px-3 py-1 text-xs font-medium">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                  <span className="text-[#6b6b7a]">{p.label}</span>
+                  <span className="text-[#0d0d0f]">{show[p.key]}</span>
+                </span>
+              ))}
+            </div>
+          )
+        })()}
         <div className="flex flex-col gap-4">
           {sections.map((section) => {
             const status = getStatus(section.name)

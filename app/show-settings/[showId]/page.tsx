@@ -12,6 +12,11 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [host2, setHost2] = useState('')
   const [hasProducer, setHasProducer] = useState(false)
   const [producer, setProducer] = useState('')
+  const [instagram, setInstagram] = useState('')
+  const [tiktok, setTiktok] = useState('')
+  const [facebook, setFacebook] = useState('')
+  const [xTwitter, setXTwitter] = useState('')
+  const [youtube, setYoutube] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
@@ -29,6 +34,11 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
         setHost2(showData.host2_name || '')
         setHasProducer(showData.has_producer || false)
         setProducer(showData.producer_name || '')
+        setInstagram(showData.instagram || '')
+        setTiktok(showData.tiktok || '')
+        setFacebook(showData.facebook || '')
+        setXTwitter(showData.x_twitter || '')
+        setYoutube(showData.youtube || '')
       })
     })
   }, [])
@@ -42,6 +52,11 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       host2_name: host2,
       has_producer: hasProducer,
       producer_name: hasProducer ? producer : null,
+      instagram: instagram || null,
+      tiktok: tiktok || null,
+      facebook: facebook || null,
+      x_twitter: xTwitter || null,
+      youtube: youtube || null,
     }).eq('id', showId)
     setSaving(false)
     setSaved(true)
@@ -144,6 +159,31 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                 <AvatarUpload slot="producer" name={producer || 'Producer'} avatar={show.producer_avatar} color="bg-[#a78bfa]" />
               </div>
             )}
+          </div>
+
+          <div className="border-t border-[#e2e4e8] pt-4">
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-4 block">Social Media</label>
+            <div className="flex flex-col gap-3">
+              {[
+                { label: 'Instagram', value: instagram, set: setInstagram, color: '#E1306C', placeholder: '@yourhandle' },
+                { label: 'TikTok',    value: tiktok,    set: setTiktok,    color: '#000000', placeholder: '@yourhandle' },
+                { label: 'Facebook',  value: facebook,  set: setFacebook,  color: '#1877F2', placeholder: 'Page name or URL' },
+                { label: 'X',         value: xTwitter,  set: setXTwitter,  color: '#000000', placeholder: '@yourhandle' },
+                { label: 'YouTube',   value: youtube,   set: setYoutube,   color: '#FF0000', placeholder: 'Channel name or URL' },
+              ].map(({ label, value, set, color, placeholder }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className="w-20 flex-shrink-0 flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-xs font-semibold text-[#0d0d0f]">{label}</span>
+                  </div>
+                  <input
+                    type="text" value={value} onChange={e => set(e.target.value)}
+                    placeholder={placeholder}
+                    className="flex-1 bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2 text-sm outline-none focus:border-[#00e5a0]"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <button onClick={handleSave} disabled={saving || !showName || !host1 || !host2}
