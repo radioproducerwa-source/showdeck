@@ -110,16 +110,21 @@ export default function Whiteboard({ params }: { params: Promise<{ showId: strin
                 <a
                   key={section.id}
                   href={href}
-                  className="bg-white border border-[#e2e4e8] rounded-xl p-4 flex flex-col gap-3 hover:border-[#00e5a0] hover:shadow-sm transition-all group"
+                  className="bg-white border border-[#e2e4e8] rounded-xl p-4 flex flex-col gap-3 hover:border-[#00e5a0] hover:shadow-sm transition-all group relative"
                 >
-                  <div className="flex items-center justify-between">
+                  {status.label === 'READY' && (
+                    <span className="absolute top-3 right-3 w-5 h-5 bg-[#00e5a0] rounded-full flex items-center justify-center text-black text-[10px] font-bold">✓</span>
+                  )}
+                  <div className="flex items-center justify-between pr-6">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{section.icon}</span>
                       <span className="font-semibold text-sm group-hover:text-[#00a870] transition-colors">{section.name}</span>
                     </div>
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex-shrink-0 ${status.cls}`}>
-                      {status.label}
-                    </span>
+                    {status.label !== 'READY' && (
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border flex-shrink-0 ${status.cls}`}>
+                        {status.label}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-[#6b6b7a] leading-relaxed min-h-[2rem] line-clamp-2">
                     {preview || <span className="italic">No notes yet</span>}

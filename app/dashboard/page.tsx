@@ -12,6 +12,17 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState<string | null>(null)
   const [search, setSearch] = useState<Record<string, string>>({})
   const [archiving, setArchiving] = useState<string | null>(null)
+  const [episodeSections, setEpisodeSections] = useState<Record<string, { sections: any[], content: Record<string, string> }>>({})
+
+  const loadEpisodeSections = async (episodeId: string) => {
+    const [{ data: sections }, { data: content }] = await Promise.all([
+      supabase.from('sections').select('*').eq('episode_id', episodeId),
+      supabase.from('section_content').select('*').eq('episode_id', episodeId)
+    ])
+    const contentMap: Record<string, string> = {}
+    content?.forEach((r: any) => { contentMap[`${r.section_name}-${r.role}`] = r.content })
+    setEpisodeSections(prev => ({ ...prev, [episodeId]: { sections: sections || [], content: contentMap } }))
+  }
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
 
@@ -34,6 +45,7 @@ export default function Dashboard() {
   const loadEpisodes = async (showId: string) => {
     const { data } = await supabase.from('episodes').select('*').eq('show_id', showId).order('episode_date', { ascending: false }).order('id', { ascending: false })
     setEpisodes((prev: any) => ({ ...prev, [showId]: data || [] }))
+    if (data && data[0]) loadEpisodeSections(data[0].id)
   }
 
   const signOut = async () => {
@@ -86,6 +98,15 @@ export default function Dashboard() {
     await supabase.from('shows').update({ [field]: publicUrl }).eq('id', showId)
     setShows(prev => prev.map(s => s.id === showId ? { ...s, [field]: publicUrl } : s))
     setUploading(null)
+  }
+
+  const getSectionStatus = (episodeId: string, sectionName: string) => {
+    const data = episodeSections[episodeId]
+    if (!data) return 'empty'
+    const total = (data.content[`${sectionName}-host1`] || '').length + (data.content[`${sectionName}-host2`] || '').length + (data.content[`${sectionName}-producer`] || '').length
+    if (total === 0) return 'empty'
+    if (total < 20) return 'draft'
+    return 'ready'
   }
 
   if (!user) return <div className="min-h-screen bg-white"></div>
@@ -199,8 +220,8 @@ export default function Dashboard() {
                   return (
                     <>
                       {current ? (
-                        <div className="border-t border-[#e2e4e8] px-6 py-4 bg-white">
-                          <div className="flex items-center justify-between">
+                        <div className="border-t border-[#e2e4e8] bg-white">
+                          <div className="px-6 py-4 flex items-center justify-between">
                             <div>
                               <div className="text-[10px] text-[#00a870] font-semibold uppercase tracking-widest mb-1">Current Episode</div>
                               <div className="font-bold text-base">{current.title || 'Untitled Episode'}</div>
@@ -220,6 +241,24 @@ export default function Dashboard() {
                               </a>
                             </div>
                           </div>
+                          {episodeSections[current.id] && episodeSections[current.id].sections.length > 0 && (
+                            <div className="px-6 pb-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                              {episodeSections[current.id].sections.map((section: any) => {
+                                const status = getSectionStatus(current.id, section.name)
+                                return (
+                                  <a
+                                    key={section.id}
+                                    href={`/planner/${show.id}?episodeId=${current.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                                    className={`relative rounded-lg px-3 py-2 flex items-center gap-2 border text-xs font-medium transition-all hover:border-[#00e5a0] hover:shadow-sm ${status === 'ready' ? 'bg-[#f0fdf4] border-[#00e5a0]/40 text-[#00a870]' : status === 'draft' ? 'bg-[#fefce8] border-[#f5c842]/40 text-[#d49c00]' : 'bg-[#f7f8fa] border-[#e2e4e8] text-[#6b6b7a]'}`}
+                                  >
+                                    <span>{section.icon}</span>
+                                    <span className="truncate">{section.name}</span>
+                                    {status === 'ready' && <span className="ml-auto flex-shrink-0 w-4 h-4 bg-[#00e5a0] rounded-full flex items-center justify-center text-black text-[9px] font-bold">✓</span>}
+                                  </a>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="border-t border-[#e2e4e8] px-6 py-4 bg-white flex items-center justify-between">
