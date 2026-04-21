@@ -2,20 +2,14 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import Logo from '../../components/Logo'
-
-const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
-const ROTATIONS = ['-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1']
+import { LogoIcon } from '../../components/Logo'
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [shows, setShows] = useState<any[]>([])
-  const [activeShowId, setActiveShowId] = useState<string | null>(null)
-  const [currentEpisodes, setCurrentEpisodes] = useState<Record<string, any>>({})
-  const [boardSections, setBoardSections] = useState<Record<string, any[]>>({})
-  const [boardContent, setBoardContent] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState(true)
+  const [filterText, setFilterText] = useState('')
   const [uploading, setUploading] = useState<string | null>(null)
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
@@ -27,55 +21,15 @@ export default function Dashboard() {
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
       if (!profileData) { router.push('/profile/setup'); return }
       setProfile(profileData)
-      supabase.from('shows').select('*').eq('owner_id', data.user.id)
-        .then(({ data: shows }) => {
-          const s = shows || []
-          setShows(s)
-          if (s.length > 0) setActiveShowId(s[0].id)
-          setLoading(false)
-          s.forEach(show => loadShowData(show.id))
-        })
+      const { data: showsData } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
+      setShows(showsData || [])
+      setLoading(false)
     })
   }, [])
-
-  const loadShowData = async (showId: string) => {
-    const { data: episodes } = await supabase.from('episodes').select('*')
-      .eq('show_id', showId).order('episode_date', { ascending: false }).order('id', { ascending: false }).limit(1)
-    const ep = episodes?.[0]
-    if (!ep) return
-    setCurrentEpisodes(prev => ({ ...prev, [showId]: ep }))
-    const [{ data: sections }, { data: contentRows }] = await Promise.all([
-      supabase.from('sections').select('*').eq('episode_id', ep.id),
-      supabase.from('section_content').select('*').eq('episode_id', ep.id)
-    ])
-    const contentMap: Record<string, string> = {}
-    contentRows?.forEach((r: any) => { contentMap[`${r.section_name}-${r.role}`] = r.content })
-    setBoardSections(prev => ({ ...prev, [showId]: sections || [] }))
-    setBoardContent(prev => ({ ...prev, [showId]: contentMap }))
-  }
 
   const signOut = async () => {
     await supabase.auth.signOut()
     router.push('/')
-  }
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return ''
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  }
-
-  const getSectionStatus = (showId: string, sectionName: string) => {
-    const c = boardContent[showId] || {}
-    const total = (c[`${sectionName}-host1`] || '').length + (c[`${sectionName}-host2`] || '').length
-    if (total === 0) return 'empty'
-    if (total < 20) return 'draft'
-    return 'ready'
-  }
-
-  const getSectionPreview = (showId: string, sectionName: string) => {
-    const c = boardContent[showId] || {}
-    const text = (c[`${sectionName}-host1`] || '') || (c[`${sectionName}-host2`] || '')
-    return text.split('\n')[0].slice(0, 80) || null
   }
 
   const uploadLogo = async (showId: string, file: File) => {
@@ -90,259 +44,151 @@ export default function Dashboard() {
     setUploading(null)
   }
 
-  const uploadAvatar = async (showId: string, slot: 'host1' | 'host2' | 'producer', file: File) => {
-    const key = `${showId}-${slot}`
-    setUploading(key)
-    const ext = file.name.split('.').pop()
-    const path = `${showId}-${slot}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('show-logos').upload(path, file, { upsert: true })
-    if (uploadError) { alert('Upload failed: ' + uploadError.message); setUploading(null); return }
-    const { data: { publicUrl } } = supabase.storage.from('show-logos').getPublicUrl(path)
-    const field = slot === 'host1' ? 'host1_avatar' : slot === 'host2' ? 'host2_avatar' : 'producer_avatar'
-    await supabase.from('shows').update({ [field]: publicUrl }).eq('id', showId)
-    setShows(prev => prev.map(s => s.id === showId ? { ...s, [field]: publicUrl } : s))
-    setUploading(null)
-  }
+  const filteredShows = shows.filter(s =>
+    s.name.toLowerCase().includes(filterText.toLowerCase())
+  )
+  const radioShows = filteredShows.filter(s => s.show_type === 'radio')
+  const podcastShows = filteredShows.filter(s => s.show_type !== 'radio')
 
-  if (!user) return <div className="min-h-screen bg-white" />
+  if (!user) return <div className="min-h-screen bg-[#0d0d0f]" />
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f]">
+    <div className="min-h-screen flex flex-col bg-[#0d0d0f]">
 
-      {/* Nav */}
-      <header className="bg-white border-b border-[#e2e4e8] px-8 h-14 flex items-center justify-between">
-        <Logo size={0.75} />
+      {/* Top nav */}
+      <header className="h-14 flex items-center justify-between px-8 flex-shrink-0 border-b border-white/[0.06]">
+        <div className="flex items-center gap-3">
+          <LogoIcon size={22} />
+          <span className="text-white font-bold text-base tracking-[0.18em]" style={{ fontFamily: 'monospace' }}>SHOWDECK</span>
+        </div>
         <div className="flex items-center gap-4">
-          <a href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-[#00e5a0] flex items-center justify-center">
-              {profile?.avatar_url
-                ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
-                : <span className="text-black text-sm font-bold">{profile?.display_name?.[0]?.toUpperCase()}</span>}
-            </div>
-            <div className="hidden sm:block">
-              <div className="text-sm font-semibold text-[#0d0d0f] leading-tight">{profile?.display_name}</div>
-              <div className="text-[10px] text-[#6b6b7a] capitalize leading-tight">{profile?.role}</div>
-            </div>
+          <a href="/create-show"
+            className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-1.5 text-xs tracking-widest hover:bg-[#00ffc0] transition-colors">
+            + NEW SHOW
           </a>
-          <div className="w-px h-5 bg-[#e2e4e8]" />
-          <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
+          <a href="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-[#00e5a0] flex items-center justify-center flex-shrink-0">
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                : <span className="text-black text-xs font-bold">{profile?.display_name?.[0]?.toUpperCase()}</span>}
+            </div>
+            <span className="text-white/60 text-sm hidden sm:block">{profile?.display_name}</span>
+          </a>
+          <button onClick={signOut} className="text-white/30 text-xs hover:text-white/70 transition-colors">Sign out</button>
         </div>
       </header>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-24 text-[#6b6b7a]">Loading...</div>
-      ) : shows.length === 0 ? (
-        <div className="max-w-lg mx-auto mt-24 bg-white border border-[#e2e4e8] rounded-2xl p-10 text-center">
-          <div className="text-4xl mb-4">🎙️</div>
-          <h2 className="text-xl font-bold mb-2">No shows yet</h2>
-          <p className="text-[#6b6b7a] mb-6">Create your first show to get started</p>
-          <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-xl px-8 py-3 hover:bg-[#00ffc0] transition-colors">Create Show</a>
-        </div>
-      ) : (
-        <>
-          {/* ── Show Tabs ── */}
-          <div className="bg-white border-b border-[#e2e4e8] px-6 flex items-center">
-            <div className="flex items-center flex-1 overflow-x-auto">
-              {shows.map(show => (
-                <button
-                  key={show.id}
-                  onClick={() => setActiveShowId(show.id)}
-                  className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                    activeShowId === show.id
-                      ? 'border-[#00e5a0] text-[#0d0d0f]'
-                      : 'border-transparent text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#e2e4e8]'
-                  }`}
-                >
-                  {show.logo_url
-                    ? <img src={show.logo_url} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />
-                    : <span className="text-xs">{show.show_type === 'radio' ? '📻' : '🎙️'}</span>}
-                  {show.name}
-                </button>
-              ))}
+      {/* Page content */}
+      <main className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-32 text-white/30 text-sm">Loading...</div>
+        ) : shows.length === 0 ? (
+          <div className="max-w-sm mx-auto mt-32 text-center">
+            <div className="text-5xl mb-4">🎙️</div>
+            <h2 className="text-xl font-bold mb-2 text-white">No shows yet</h2>
+            <p className="text-white/40 text-sm mb-6">Create your first show to get started</p>
+            <a href="/create-show" className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-8 py-3 text-sm hover:bg-[#00ffc0] transition-colors">Create Show</a>
+          </div>
+        ) : (
+          <div className="max-w-6xl mx-auto px-8 py-10">
+
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="text-white text-2xl font-bold">Your shows</h1>
+              <input
+                type="text"
+                placeholder="Search shows…"
+                value={filterText}
+                onChange={e => setFilterText(e.target.value)}
+                className="w-56 bg-white/[0.06] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-[#00e5a0]/50 placeholder-white/25"
+              />
             </div>
-            <a href="/create-show" className="ml-4 flex-shrink-0 text-[#6b6b7a] text-sm hover:text-[#0d0d0f] transition-colors py-4">+ New Show</a>
-          </div>
 
-          <div className="max-w-4xl mx-auto px-6 py-8">
-          {shows.filter(show => show.id === activeShowId).map(show => {
-            const currentEp = currentEpisodes[show.id]
-            const sections = boardSections[show.id] || []
-
-            return (
-              <div key={show.id}>
-
-                {/* ── Show Info ── */}
-                <div className="bg-white border border-[#e2e4e8] rounded-2xl p-6 mb-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <h1 className="text-2xl font-bold">{show.name}</h1>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${show.show_type === 'radio' ? 'bg-[#a78bfa]/15 text-[#7c3aed]' : 'bg-[#00e5a0]/15 text-[#00a870]'}`}>
-                          {show.show_type === 'radio' ? '📻 Radio' : '🎙️ Podcast'}
-                        </span>
-                      </div>
-                      {/* Contributors row: logo + avatars */}
-                      <div className="flex flex-wrap items-center gap-4">
-                        {/* Logo */}
-                        <div
-                          className="relative w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 border border-[#e2e4e8] bg-[#f7f8fa] flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group"
-                          onClick={() => fileInputs.current[show.id]?.click()}
-                          title="Upload logo"
-                        >
-                          {show.logo_url
-                            ? <img src={show.logo_url} alt="logo" className="w-full h-full object-cover" />
-                            : <span className="text-base">🎙️</span>}
-                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white text-[9px] font-bold">{uploading === show.id ? '...' : '↑'}</span>
-                          </div>
-                          <input ref={el => { fileInputs.current[show.id] = el }} type="file" accept="image/*" className="hidden"
-                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(show.id, f) }} />
-                        </div>
-                          {(['host1', 'host2'] as const).map(slot => {
-                            const name = slot === 'host1' ? show.host1_name : show.host2_name
-                            const avatar = slot === 'host1' ? show.host1_avatar : show.host2_avatar
-                            const color = slot === 'host1' ? 'bg-[#00e5a0]' : 'bg-[#ff5c3a]'
-                            const label = slot === 'host1' ? 'Host 1' : 'Host 2'
-                            const inputKey = `${show.id}-${slot}`
-                            return (
-                              <div key={slot} className="flex items-center gap-2 group/av cursor-pointer" onClick={() => fileInputs.current[inputKey]?.click()} title={`Upload ${name}'s photo`}>
-                                <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0">
-                                  {avatar
-                                    ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                                    : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-sm font-bold`}>{name?.[0]}</div>}
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-sm font-semibold leading-tight">{name}</div>
-                                  <div className="text-[10px] text-[#6b6b7a]">{label}</div>
-                                </div>
-                                <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
-                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(show.id, slot, f) }} />
-                              </div>
-                            )
-                          })}
-                          {show.has_producer && (() => {
-                            const inputKey = `${show.id}-producer`
-                            return (
-                              <div className="flex items-center gap-2 group/av cursor-pointer" onClick={() => fileInputs.current[inputKey]?.click()} title={`Upload ${show.producer_name}'s photo`}>
-                                <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0">
-                                  {show.producer_avatar
-                                    ? <img src={show.producer_avatar} alt={show.producer_name} className="w-full h-full object-cover" />
-                                    : <div className="w-full h-full bg-[#a78bfa] flex items-center justify-center text-black text-sm font-bold">{show.producer_name?.[0]}</div>}
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-sm font-semibold leading-tight">{show.producer_name}</div>
-                                  <div className="text-[10px] text-[#6b6b7a]">Producer</div>
-                                </div>
-                                <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
-                                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(show.id, 'producer', f) }} />
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <a href={`/show-settings/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Settings</a>
-                      <a href={`/planner/${show.id}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
-                    </div>
-                  </div>
-                </div>
-
-
-                {/* ── Current Episode ── */}
-                {currentEp ? (
-                  <div className="relative bg-gradient-to-r from-[#edfdf6] to-white border border-[#00e5a0]/40 rounded-2xl px-6 py-5 mb-4 flex items-center justify-between overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00e5a0] rounded-l-2xl" />
-                    <div className="pl-3">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#00a870] mb-1.5">{show.show_type === 'radio' ? 'Current Broadcast' : 'Current Episode'}</div>
-                      <div className="text-xl font-bold leading-snug">{currentEp.title || 'Untitled Episode'}</div>
-                      <div className="text-sm text-[#6b6b7a] mt-1">{formatDate(currentEp.episode_date)}</div>
-                    </div>
-                    <a href={`/planner/${show.id}?episodeId=${currentEp.id}`}
-                      className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#00ffc0] transition-colors flex-shrink-0 shadow-sm">
-                      Open Planner →
-                    </a>
-                  </div>
-                ) : (
-                  <div className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-5 mb-4 flex items-center justify-between">
-                    <span className="text-[#6b6b7a] text-sm">No episodes yet</span>
-                    <a href={`/planner/${show.id}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
-                  </div>
+            {filteredShows.length === 0 ? (
+              <p className="text-white/40 text-sm">No shows match your search.</p>
+            ) : (
+              <>
+                {radioShows.length > 0 && (
+                  <ShowGroup label="Radio" icon="📻" shows={radioShows} uploading={uploading} fileInputs={fileInputs} onUpload={uploadLogo} />
                 )}
-
-                {/* ── Whiteboard ── */}
-                {currentEp && sections.length > 0 && (
-                  <div className="mb-4 rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]" style={{ border: '10px solid #2e2e2e', outline: '2px solid #444' }}>
-                    <div className="bg-[#252525] h-2.5" />
-                    <div className="bg-[#fafaf7] p-6"
-                      style={{ backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #ece8e0 39px, #ece8e0 40px)' }}>
-                      <div className="flex items-center justify-between mb-6">
-                        <p className="text-xs text-[#b0a898] uppercase tracking-widest font-medium">{show.name} Whiteboard</p>
-                        <a href={`/show/${show.id}`} className="text-[#9a9080] border border-[#d8d0c4] rounded-lg px-3 py-1.5 text-xs hover:text-[#1a1a1a] transition-colors">
-                          Full Whiteboard →
-                        </a>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {sections.map((section: any, i: number) => {
-                          const status = getSectionStatus(show.id, section.name)
-                          const preview = getSectionPreview(show.id, section.name)
-                          const rotation = ROTATIONS[i % ROTATIONS.length]
-                          const bgColor = NOTE_COLORS[i % 2]
-                          return (
-                            <a key={section.id}
-                              href={`/planner/${show.id}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                              className={`relative flex flex-col p-4 pt-7 shadow-[2px_3px_10px_rgba(0,0,0,0.12)] hover:shadow-[3px_5px_16px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 transition-all ${rotation}`}
-                              style={{ backgroundColor: bgColor, minHeight: '120px' }}>
-                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-                                <div className="w-4 h-4 rounded-full shadow flex items-center justify-center"
-                                  style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18' }}>
-                                  <div className="w-1 h-1 rounded-full bg-white/40" />
-                                </div>
-                              </div>
-                              <p className="text-[8px] font-bold uppercase tracking-widest text-[#a89880] mb-1.5">Segment {i + 1}</p>
-                              <div className="flex items-start gap-1.5 mb-2">
-                                <span className="text-sm leading-none mt-0.5 flex-shrink-0">{section.icon}</span>
-                                <span className="font-bold text-xs text-[#1a1a1a] leading-snug">{section.name}</span>
-                              </div>
-                              <p className="text-[10px] text-[#4a4040] leading-relaxed flex-1 line-clamp-3">
-                                {preview || <span className="italic text-[#a89880]">No notes</span>}
-                              </p>
-                              {status === 'ready' && (
-                                <div className="mt-2">
-                                  <span className="w-3.5 h-3.5 bg-[#00a870] rounded-full flex items-center justify-center text-white text-[8px] font-bold inline-flex">✓</span>
-                                </div>
-                              )}
-                            </a>
-                          )
-                        })}
-                      </div>
-                    </div>
-                    <div className="bg-[#252525] h-4" />
-                  </div>
+                {podcastShows.length > 0 && (
+                  <ShowGroup label="Podcasts" icon="🎙️" shows={podcastShows} uploading={uploading} fileInputs={fileInputs} onUpload={uploadLogo} />
                 )}
-
-                {/* ── Episode Archive link ── */}
-                <a href={`/archive/${show.id}`}
-                  className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-2xl px-6 py-4 hover:border-[#00e5a0] hover:bg-[#f7fffe] transition-colors group">
-                  <div>
-                    <div className="text-sm font-semibold group-hover:text-[#00a870] transition-colors">{show.show_type === 'radio' ? 'Broadcast Archive' : 'Episode Archive'}</div>
-                    <div className="text-xs text-[#6b6b7a] mt-0.5">{show.show_type === 'radio' ? 'Browse and open past broadcasts' : 'Browse and open past episodes'}</div>
-                  </div>
-                  <span className="text-[#c8cad0] group-hover:text-[#00a870] transition-colors text-lg">→</span>
-                </a>
-
-              </div>
-            )
-          })}
+              </>
+            )}
           </div>
-        </>
-      )}
-    </main>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function ShowGroup({ label, icon, shows, uploading, fileInputs, onUpload }: {
+  label: string
+  icon: string
+  shows: any[]
+  uploading: string | null
+  fileInputs: React.RefObject<Record<string, HTMLInputElement | null>>
+  onUpload: (showId: string, file: File) => void
+}) {
+  return (
+    <div className="mb-12">
+      <div className="flex items-center gap-2 mb-5">
+        <span className="text-base">{icon}</span>
+        <h2 className="text-sm font-semibold text-white/40 uppercase tracking-widest">{label}</h2>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+        {shows.map(show => (
+          <ShowCard key={show.id} show={show} uploading={uploading} fileInputs={fileInputs} onUpload={onUpload} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ShowCard({ show, uploading, fileInputs, onUpload }: {
+  show: any
+  uploading: string | null
+  fileInputs: React.RefObject<Record<string, HTMLInputElement | null>>
+  onUpload: (showId: string, file: File) => void
+}) {
+  return (
+    <div className="group flex flex-col">
+      <a href={`/planner/${show.id}`} className="block relative aspect-square rounded-2xl overflow-hidden bg-white/[0.06] border border-white/[0.08] hover:border-white/20 hover:scale-[1.02] transition-all duration-200">
+        {show.logo_url ? (
+          <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-5xl opacity-60">{show.show_type === 'radio' ? '📻' : '🎙️'}</span>
+          </div>
+        )}
+        {/* Upload overlay */}
+        <div
+          className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-2 cursor-pointer"
+          onClick={e => { e.preventDefault(); fileInputs.current[show.id]?.click() }}
+        >
+          <span className="text-white text-[10px] font-bold bg-black/60 rounded px-1.5 py-0.5">
+            {uploading === show.id ? '…' : 'Change art'}
+          </span>
+        </div>
+        <input
+          ref={el => { fileInputs.current[show.id] = el }}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(show.id, f) }}
+        />
+      </a>
+      <div className="mt-3 px-0.5">
+        <a href={`/planner/${show.id}`} className="text-sm font-semibold text-white/90 hover:text-white transition-colors line-clamp-2 leading-snug block">
+          {show.name}
+        </a>
+        <div className="flex items-center gap-2 mt-1.5">
+          <a href={`/planner/${show.id}?new=true`} className="text-[10px] text-[#00e5a0]/70 font-medium hover:text-[#00e5a0] transition-colors">+ Episode</a>
+          <span className="text-white/10">·</span>
+          <a href={`/show-settings/${show.id}`} className="text-[10px] text-white/30 hover:text-white/60 transition-colors">Settings</a>
+        </div>
+      </div>
+    </div>
   )
 }
