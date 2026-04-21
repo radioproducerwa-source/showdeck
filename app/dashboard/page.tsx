@@ -9,6 +9,7 @@ const ROTATIONS = ['-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1'
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
   const [shows, setShows] = useState<any[]>([])
   const [currentEpisodes, setCurrentEpisodes] = useState<Record<string, any>>({})
   const [boardSections, setBoardSections] = useState<Record<string, any[]>>({})
@@ -19,18 +20,19 @@ export default function Dashboard() {
   const router = useRouter()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.push('/')
-      else {
-        setUser(data.user)
-        supabase.from('shows').select('*').eq('owner_id', data.user.id)
-          .then(({ data: shows }) => {
-            const s = shows || []
-            setShows(s)
-            setLoading(false)
-            s.forEach(show => loadShowData(show.id))
-          })
-      }
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.push('/'); return }
+      setUser(data.user)
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+      if (!profileData) { router.push('/profile/setup'); return }
+      setProfile(profileData)
+      supabase.from('shows').select('*').eq('owner_id', data.user.id)
+        .then(({ data: shows }) => {
+          const s = shows || []
+          setShows(s)
+          setLoading(false)
+          s.forEach(show => loadShowData(show.id))
+        })
     })
   }, [])
 
@@ -109,7 +111,18 @@ export default function Dashboard() {
       <header className="bg-white border-b border-[#e2e4e8] px-8 h-14 flex items-center justify-between">
         <Logo size={0.75} />
         <div className="flex items-center gap-4">
-          <span className="text-[#6b6b7a] text-sm hidden sm:block">{user.email}</span>
+          <a href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-[#00e5a0] flex items-center justify-center">
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                : <span className="text-black text-sm font-bold">{profile?.display_name?.[0]?.toUpperCase()}</span>}
+            </div>
+            <div className="hidden sm:block">
+              <div className="text-sm font-semibold text-[#0d0d0f] leading-tight">{profile?.display_name}</div>
+              <div className="text-[10px] text-[#6b6b7a] capitalize leading-tight">{profile?.role}</div>
+            </div>
+          </a>
+          <div className="w-px h-5 bg-[#e2e4e8]" />
           <a href="/create-show" className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">+ New Show</a>
           <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
         </div>

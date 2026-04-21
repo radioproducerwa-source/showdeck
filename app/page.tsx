@@ -20,9 +20,12 @@ export default function Home() {
       if (error) setMessage(error.message)
       else setMessage('Check your email to confirm your account!')
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
-      else window.location.href = '/dashboard'
+      else {
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', data.user.id).single()
+        window.location.href = profile ? '/dashboard' : '/profile/setup'
+      }
     }
     setLoading(false)
   }
