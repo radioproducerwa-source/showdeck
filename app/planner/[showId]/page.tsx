@@ -32,6 +32,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
   const [newName, setNewName] = useState('')
   const [newIcon, setNewIcon] = useState('📝')
+  const [links, setLinks] = useState<Record<string, { id: string; url: string }[]>>({})
+  const [addingLink, setAddingLink] = useState<Record<string, boolean>>({})
+  const [linkInput, setLinkInput] = useState<Record<string, string>>({})
   const saveTimers = useRef<any>({})
   const titleTimer = useRef<any>(null)
   const router = useRouter()
@@ -87,18 +90,53 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       }
       setSections(existingSections)
 
-      const { data: saved } = await supabase.from('section_content').select('*').eq('episode_id', episode.id)
+      const [{ data: saved }, { data: savedLinks }] = await Promise.all([
+        supabase.from('section_content').select('*').eq('episode_id', episode.id),
+        supabase.from('section_links').select('*').eq('episode_id', episode.id)
+      ])
       if (saved && saved.length > 0) {
         const map: any = {}
         saved.forEach((row: any) => { map[`${row.section_name}-${row.role}`] = row.content })
         setContent(map)
       }
+      if (savedLinks && savedLinks.length > 0) {
+        const map: Record<string, { id: string; url: string }[]> = {}
+        savedLinks.forEach((l: any) => {
+          if (!map[l.section_name]) map[l.section_name] = []
+          map[l.section_name].push({ id: l.id, url: l.url })
+        })
+        setLinks(map)
+      }
     }
   }
 
-  const removeSection = async (sectionId: string) => {
+  const removeSection = async (sectionId: string, sectionName: string) => {
+    if (episodeId) await supabase.from('section_links').delete().eq('episode_id', episodeId).eq('section_name', sectionName)
     await supabase.from('sections').delete().eq('id', sectionId)
     setSections(prev => prev.filter(s => s.id !== sectionId))
+    setLinks(prev => { const n = { ...prev }; delete n[sectionName]; return n })
+  }
+
+  const addLink = async (sectionName: string) => {
+    const raw = (linkInput[sectionName] || '').trim()
+    if (!raw || !episodeId) return
+    const url = raw.startsWith('http') ? raw : `https://${raw}`
+    const { data } = await supabase.from('section_links').insert({ episode_id: episodeId, section_name: sectionName, url }).select().single()
+    if (data) {
+      setLinks(prev => ({ ...prev, [sectionName]: [...(prev[sectionName] || []), { id: data.id, url: data.url }] }))
+      setLinkInput(prev => ({ ...prev, [sectionName]: '' }))
+      setAddingLink(prev => ({ ...prev, [sectionName]: false }))
+    }
+  }
+
+  const removeLink = async (linkId: string, sectionName: string) => {
+    await supabase.from('section_links').delete().eq('id', linkId)
+    setLinks(prev => ({ ...prev, [sectionName]: (prev[sectionName] || []).filter(l => l.id !== linkId) }))
+  }
+
+  const getDomain = (url: string) => {
+    try { return new URL(url).hostname.replace('www.', '') }
+    catch { return url.slice(0, 30) }
   }
 
   const addSection = async () => {
@@ -198,6 +236,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         md += `**${show?.host1_name}**\n${getContent(s.name, 'host1') || '*No notes*'}\n\n`
         md += `**${show?.host2_name}**\n${getContent(s.name, 'host2') || '*No notes*'}\n\n`
         if (show?.has_producer) md += `**${show?.producer_name} (Producer)**\n${getContent(s.name, 'producer') || '*No notes*'}\n\n`
+        if ((links[s.name] || []).length > 0) md += `🔗 **Weblink attached** ✓\n\n`
       })
       const blob = new Blob([md], { type: 'text/markdown' })
       const a = document.createElement('a')
@@ -213,6 +252,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
         text += `${show?.host2_name}:\n${getContent(s.name, 'host2') || '—'}\n\n`
         if (show?.has_producer) text += `${show?.producer_name} (Producer):\n${getContent(s.name, 'producer') || '—'}\n\n`
+        if ((links[s.name] || []).length > 0) text += `🔗 Weblink attached ✓\n\n`
       })
       const blob = new Blob([text], { type: 'text/plain' })
       const a = document.createElement('a')
@@ -302,7 +342,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                   {locked ? (
                     <span className="text-[#c8cad0] text-xs ml-2" title="This section is locked">🔒</span>
                   ) : (
-                    <button onClick={() => removeSection(section.id)}
+                    <button onClick={() => removeSection(section.id, section.name)}
                       className="text-[#c8cad0] hover:text-[#ff5c3a] text-sm ml-2 transition-colors leading-none" title="Remove section">
                       ×
                     </button>
@@ -338,6 +378,53 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                     )
                   })}
                 </div>
+
+                {/* Links row */}
+                <div className="border-t border-[#e2e4e8] bg-white px-4 py-2.5 flex items-center gap-2 flex-wrap">
+                  <span className="text-[#6b6b7a] text-xs flex items-center gap-1.5 flex-shrink-0 mr-1">
+                    🔗 <span className="font-semibold">Links</span>
+                  </span>
+                  {(links[section.name] || []).map(link => (
+                    <span key={link.id} className="flex items-center gap-1 bg-[#f7f8fa] border border-[#e2e4e8] rounded-full px-2.5 py-0.5 text-xs">
+                      <a href={link.url} target="_blank" rel="noopener noreferrer"
+                        className="text-[#0d0d0f] hover:text-[#00a870] transition-colors max-w-[180px] truncate">
+                        {getDomain(link.url)}
+                      </a>
+                      <button onClick={() => removeLink(link.id, section.name)}
+                        className="text-[#c8cad0] hover:text-[#ff5c3a] transition-colors leading-none ml-0.5 flex-shrink-0">×</button>
+                    </span>
+                  ))}
+                  {addingLink[section.name] ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="url"
+                        value={linkInput[section.name] || ''}
+                        onChange={e => setLinkInput(prev => ({ ...prev, [section.name]: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') addLink(section.name)
+                          if (e.key === 'Escape') setAddingLink(prev => ({ ...prev, [section.name]: false }))
+                        }}
+                        placeholder="Paste a URL..."
+                        autoFocus
+                        className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] w-52 placeholder-[#c8cad0]"
+                      />
+                      <button onClick={() => addLink(section.name)}
+                        className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">
+                        Add
+                      </button>
+                      <button onClick={() => setAddingLink(prev => ({ ...prev, [section.name]: false }))}
+                        className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setAddingLink(prev => ({ ...prev, [section.name]: true }))}
+                      className="text-[#6b6b7a] text-xs hover:text-[#00a870] transition-colors">
+                      + Add link
+                    </button>
+                  )}
+                </div>
+
               </div>
             )
           })}
