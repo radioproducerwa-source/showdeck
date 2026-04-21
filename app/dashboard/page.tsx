@@ -135,27 +135,26 @@ export default function Dashboard() {
 
                 {/* ── Show Info ── */}
                 <div className="bg-white border border-[#e2e4e8] rounded-2xl p-6 mb-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-5">
-                      {/* Logo */}
-                      <div
-                        className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border border-[#e2e4e8] bg-[#f7f8fa] flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group relative"
-                        onClick={() => fileInputs.current[show.id]?.click()}
-                        title="Upload logo"
-                      >
-                        {show.logo_url
-                          ? <img src={show.logo_url} alt="logo" className="w-full h-full object-cover" />
-                          : <span className="text-3xl">🎙️</span>}
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">{uploading === show.id ? '...' : '↑'}</span>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h1 className="text-2xl font-bold mb-3">{show.name}</h1>
+                      {/* Contributors row: logo + avatars */}
+                      <div className="flex flex-wrap items-center gap-4">
+                        {/* Logo */}
+                        <div
+                          className="relative w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 border border-[#e2e4e8] bg-[#f7f8fa] flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group"
+                          onClick={() => fileInputs.current[show.id]?.click()}
+                          title="Upload logo"
+                        >
+                          {show.logo_url
+                            ? <img src={show.logo_url} alt="logo" className="w-full h-full object-cover" />
+                            : <span className="text-base">🎙️</span>}
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white text-[9px] font-bold">{uploading === show.id ? '...' : '↑'}</span>
+                          </div>
+                          <input ref={el => { fileInputs.current[show.id] = el }} type="file" accept="image/*" className="hidden"
+                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(show.id, f) }} />
                         </div>
-                        <input ref={el => { fileInputs.current[show.id] = el }} type="file" accept="image/*" className="hidden"
-                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(show.id, f) }} />
-                      </div>
-                      {/* Show name + contributors */}
-                      <div>
-                        <h1 className="text-2xl font-bold mb-3">{show.name}</h1>
-                        <div className="flex flex-wrap items-center gap-4">
                           {(['host1', 'host2'] as const).map(slot => {
                             const name = slot === 'host1' ? show.host1_name : show.host2_name
                             const avatar = slot === 'host1' ? show.host1_avatar : show.host2_avatar
@@ -204,7 +203,6 @@ export default function Dashboard() {
                           })()}
                         </div>
                       </div>
-                    </div>
                     {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <a href={`/show-settings/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Settings</a>
@@ -212,6 +210,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+
 
                 {/* ── Current Episode ── */}
                 {currentEp ? (
