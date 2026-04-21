@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo'
 
-const ROTATIONS = ['-rotate-1', 'rotate-2', '-rotate-2', 'rotate-1', 'rotate-0', 'rotate-2', '-rotate-1']
-const EMPTY_COLORS = ['#fef9c3', '#dbeafe', '#ede9fe', '#ffedd5', '#fce7f3', '#e0f2fe', '#fef3c7']
+const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
+const ROTATIONS = ['-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1']
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
@@ -245,38 +245,34 @@ export default function Dashboard() {
                           Full Whiteboard →
                         </a>
                       </div>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-5">
+                      <div className="grid grid-cols-3 gap-6">
                         {sections.map((section: any, i: number) => {
                           const status = getSectionStatus(show.id, section.name)
                           const preview = getSectionPreview(show.id, section.name)
                           const rotation = ROTATIONS[i % ROTATIONS.length]
-                          const bgColor = status === 'ready' ? '#d1fae5' : status === 'draft' ? '#fef3c7' : EMPTY_COLORS[i % EMPTY_COLORS.length]
+                          const bgColor = NOTE_COLORS[i % 2]
                           return (
                             <a key={section.id}
                               href={`/planner/${show.id}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                              className={`relative flex flex-col p-3 pt-6 shadow-[2px_3px_8px_rgba(0,0,0,0.12)] hover:shadow-[3px_5px_14px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 transition-all ${rotation}`}
-                              style={{ backgroundColor: bgColor, minHeight: '110px' }}>
-                              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10">
+                              className={`relative flex flex-col p-4 pt-7 shadow-[2px_3px_10px_rgba(0,0,0,0.12)] hover:shadow-[3px_5px_16px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 transition-all ${rotation}`}
+                              style={{ backgroundColor: bgColor, minHeight: '120px' }}>
+                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
                                 <div className="w-4 h-4 rounded-full shadow flex items-center justify-center"
                                   style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18' }}>
                                   <div className="w-1 h-1 rounded-full bg-white/40" />
                                 </div>
                               </div>
-                              <div className="flex items-start gap-1.5 mb-1.5">
-                                <span className="text-base leading-none mt-0.5">{section.icon}</span>
+                              <div className="flex items-start gap-1.5 mb-2">
+                                <span className="text-sm leading-none mt-0.5 flex-shrink-0">{section.icon}</span>
                                 <span className="font-bold text-xs text-[#1a1a1a] leading-snug">{section.name}</span>
                               </div>
-                              <p className="text-[10px] text-[#4a4040] leading-relaxed flex-1 line-clamp-2">
-                                {preview || <span className="italic text-[#b0a898]">No notes</span>}
+                              <p className="text-[10px] text-[#4a4040] leading-relaxed flex-1 line-clamp-3">
+                                {preview || <span className="italic text-[#a89880]">No notes</span>}
                               </p>
                               {status === 'ready' && (
-                                <div className="mt-1.5 flex items-center gap-1">
-                                  <span className="w-3.5 h-3.5 bg-[#00a870] rounded-full flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0">✓</span>
-                                  <span className="text-[9px] text-[#00a870] font-semibold uppercase tracking-wide">Ready</span>
+                                <div className="mt-2">
+                                  <span className="w-3.5 h-3.5 bg-[#00a870] rounded-full flex items-center justify-center text-white text-[8px] font-bold inline-flex">✓</span>
                                 </div>
-                              )}
-                              {status === 'draft' && (
-                                <span className="mt-1.5 text-[9px] text-[#d49c00] font-semibold uppercase tracking-wide">Draft</span>
                               )}
                             </a>
                           )

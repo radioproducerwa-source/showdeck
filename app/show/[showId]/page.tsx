@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 
-const ROTATIONS = ['-rotate-1', 'rotate-2', '-rotate-2', 'rotate-1', 'rotate-0', 'rotate-2', '-rotate-1']
-const EMPTY_COLORS = ['#fef9c3', '#dbeafe', '#ede9fe', '#ffedd5', '#fce7f3', '#e0f2fe', '#fef3c7']
+const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
+const ROTATIONS = ['-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1', 'rotate-1', '-rotate-1']
 
 export default function Whiteboard({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -112,33 +112,28 @@ export default function Whiteboard({ params }: { params: Promise<{ showId: strin
                 </h1>
                 {episode && <p className="text-[#9a9080] text-sm mt-1">{formatDate(episode.episode_date)}</p>}
               </div>
-              <div className="flex items-center gap-2 text-xs text-[#b0a898]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#d1fae5] border border-[#6ee7b7] inline-block" /> Ready
-                <span className="w-2.5 h-2.5 rounded-full bg-[#fef3c7] border border-[#fcd34d] inline-block ml-2" /> Draft
-                <span className="w-2.5 h-2.5 rounded-full bg-white border border-[#e2e4e8] inline-block ml-2" /> Empty
-              </div>
             </div>
 
             {sections.length === 0 ? (
               <div className="text-[#b0a898] text-sm italic">No sections found for this episode.</div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8">
+              <div className="grid grid-cols-3 gap-8">
                 {sections.map((section, i) => {
                   const status = getStatus(section.name)
                   const preview = getPreview(section.name)
                   const href = `/planner/${showId}?episodeId=${episode.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
                   const rotation = ROTATIONS[i % ROTATIONS.length]
-                  const bgColor = status === 'ready' ? '#d1fae5' : status === 'draft' ? '#fef3c7' : EMPTY_COLORS[i % EMPTY_COLORS.length]
+                  const bgColor = NOTE_COLORS[i % 2]
 
                   return (
                     <a
                       key={section.id}
                       href={href}
-                      className={`relative flex flex-col p-4 pt-7 shadow-[3px_4px_12px_rgba(0,0,0,0.15)] hover:shadow-[4px_6px_18px_rgba(0,0,0,0.22)] hover:-translate-y-1 transition-all ${rotation} cursor-pointer`}
-                      style={{ backgroundColor: bgColor, minHeight: '150px' }}
+                      className={`relative flex flex-col p-5 pt-8 shadow-[3px_4px_14px_rgba(0,0,0,0.13)] hover:shadow-[4px_7px_20px_rgba(0,0,0,0.18)] hover:-translate-y-1 transition-all ${rotation} cursor-pointer`}
+                      style={{ backgroundColor: bgColor, minHeight: '160px' }}
                     >
                       {/* Pin */}
-                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
+                      <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10">
                         <div className="w-5 h-5 rounded-full shadow-md flex items-center justify-center"
                           style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18' }}>
                           <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
@@ -146,26 +141,20 @@ export default function Whiteboard({ params }: { params: Promise<{ showId: strin
                       </div>
 
                       {/* Section icon + name */}
-                      <div className="flex items-start gap-2 mb-2">
-                        <span className="text-lg leading-none mt-0.5">{section.icon}</span>
+                      <div className="flex items-start gap-2 mb-3">
+                        <span className="text-lg leading-none mt-0.5 flex-shrink-0">{section.icon}</span>
                         <span className="font-bold text-sm text-[#1a1a1a] leading-snug">{section.name}</span>
                       </div>
 
                       {/* Preview */}
-                      <p className="text-xs text-[#4a4040] leading-relaxed flex-1 line-clamp-3">
-                        {preview || <span className="italic text-[#b0a898]">No notes yet</span>}
+                      <p className="text-xs text-[#4a4040] leading-relaxed flex-1 line-clamp-4">
+                        {preview || <span className="italic text-[#a89880]">No notes yet</span>}
                       </p>
 
-                      {/* Status */}
+                      {/* Ready tick */}
                       {status === 'ready' && (
-                        <div className="mt-2 flex items-center gap-1.5">
+                        <div className="mt-3 flex items-center gap-1.5">
                           <span className="w-4 h-4 bg-[#00a870] rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">✓</span>
-                          <span className="text-[10px] text-[#00a870] font-semibold uppercase tracking-wide">Ready</span>
-                        </div>
-                      )}
-                      {status === 'draft' && (
-                        <div className="mt-2">
-                          <span className="text-[10px] text-[#d49c00] font-semibold uppercase tracking-wide">Draft</span>
                         </div>
                       )}
                     </a>
