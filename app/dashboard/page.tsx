@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [search, setSearch] = useState<Record<string, string>>({})
+  const [archiving, setArchiving] = useState<string | null>(null)
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
 
@@ -51,6 +52,14 @@ export default function Dashboard() {
     await supabase.from('sections').delete().eq('episode_id', episodeId)
     await supabase.from('episodes').delete().eq('id', episodeId)
     setEpisodes((prev: any) => ({ ...prev, [showId]: prev[showId].filter((e: any) => e.id !== episodeId) }))
+  }
+
+  const archiveAndNew = async (showId: string) => {
+    setArchiving(showId)
+    const today = new Date().toLocaleDateString('en-CA')
+    const { data: newEp } = await supabase.from('episodes').insert({ show_id: showId, title: '', episode_date: today }).select().single()
+    if (newEp) setEpisodes((prev: any) => ({ ...prev, [showId]: [newEp, ...(prev[showId] || [])] }))
+    setArchiving(null)
   }
 
   const uploadLogo = async (showId: string, file: File) => {
@@ -179,47 +188,84 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <a href={`/show-settings/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Settings</a>
                     <a href={`/show/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Whiteboard</a>
-                    <a href={`/planner/${show.id}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
                   </div>
                 </div>
-                {episodes[show.id] && episodes[show.id].length > 0 && (
-                  <div className="border-t border-[#e2e4e8]">
-                    <div className="px-6 py-3 flex items-center justify-between">
-                      <span className="text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</span>
-                      <input
-                        type="text"
-                        value={search[show.id] || ''}
-                        onChange={e => setSearch(prev => ({ ...prev, [show.id]: e.target.value }))}
-                        placeholder="Search episodes..."
-                        className="bg-white border border-[#e2e4e8] rounded-lg px-3 py-1 text-xs text-[#0d0d0f] outline-none focus:border-[#00e5a0] w-48 placeholder-[#c8cad0]"
-                      />
-                    </div>
-                    <div className="divide-y divide-[#e2e4e8]">
-                      {episodes[show.id].filter((ep: any) => {
-                        const q = (search[show.id] || '').toLowerCase()
-                        return !q || (ep.title || '').toLowerCase().includes(q) || formatDate(ep.episode_date).toLowerCase().includes(q)
-                      }).map((ep: any) => (
-                        <div key={ep.id} className="flex items-center justify-between px-6 py-4 hover:bg-[#eeeef2] transition-colors group">
-                          <a href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex-1 flex items-center justify-between">
+
+                {/* Current episode */}
+                {(() => {
+                  const allEps = episodes[show.id] || []
+                  const current = allEps[0]
+                  const archived = allEps.slice(1)
+                  return (
+                    <>
+                      {current ? (
+                        <div className="border-t border-[#e2e4e8] px-6 py-4 bg-white">
+                          <div className="flex items-center justify-between">
                             <div>
-                              <div className="font-semibold text-sm group-hover:text-[#00c988] transition-colors">{ep.title || 'Untitled Episode'}</div>
-                              <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDate(ep.episode_date)}</div>
+                              <div className="text-[10px] text-[#00a870] font-semibold uppercase tracking-widest mb-1">Current Episode</div>
+                              <div className="font-bold text-base">{current.title || 'Untitled Episode'}</div>
+                              <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDate(current.episode_date)}</div>
                             </div>
-                            <span className="text-[#c8cad0] group-hover:text-[#00c988] transition-colors mr-4">→</span>
-                          </a>
-                          <button
-                            onClick={() => deleteEpisode(show.id, ep.id, ep.title)}
-                            className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none opacity-0 group-hover:opacity-100 transition-all"
-                            title="Delete episode"
-                          >×</button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => archiveAndNew(show.id)}
+                                disabled={archiving === show.id}
+                                className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors disabled:opacity-50"
+                                title="Archive this episode and start a new one"
+                              >
+                                {archiving === show.id ? 'Archiving...' : 'Archive Episode'}
+                              </button>
+                              <a href={`/planner/${show.id}?episodeId=${current.id}`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">
+                                Open →
+                              </a>
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {episodes[show.id] && episodes[show.id].length === 0 && (
-                  <div className="border-t border-[#e2e4e8] px-6 py-4 text-[#6b6b7a] text-sm">No episodes yet — hit New Episode to start planning.</div>
-                )}
+                      ) : (
+                        <div className="border-t border-[#e2e4e8] px-6 py-4 bg-white flex items-center justify-between">
+                          <span className="text-[#6b6b7a] text-sm">No episodes yet</span>
+                          <a href={`/planner/${show.id}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
+                        </div>
+                      )}
+
+                      {archived.length > 0 && (
+                        <div className="border-t border-[#e2e4e8]">
+                          <div className="px-6 py-3 flex items-center justify-between">
+                            <span className="text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</span>
+                            <input
+                              type="text"
+                              value={search[show.id] || ''}
+                              onChange={e => setSearch(prev => ({ ...prev, [show.id]: e.target.value }))}
+                              placeholder="Search episodes..."
+                              className="bg-white border border-[#e2e4e8] rounded-lg px-3 py-1 text-xs text-[#0d0d0f] outline-none focus:border-[#00e5a0] w-48 placeholder-[#c8cad0]"
+                            />
+                          </div>
+                          <div className="divide-y divide-[#e2e4e8]">
+                            {archived.filter((ep: any) => {
+                              const q = (search[show.id] || '').toLowerCase()
+                              return !q || (ep.title || '').toLowerCase().includes(q) || formatDate(ep.episode_date).toLowerCase().includes(q)
+                            }).map((ep: any) => (
+                              <div key={ep.id} className="flex items-center justify-between px-6 py-4 hover:bg-[#eeeef2] transition-colors group">
+                                <a href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex-1 flex items-center justify-between">
+                                  <div>
+                                    <div className="font-semibold text-sm group-hover:text-[#00c988] transition-colors">{ep.title || 'Untitled Episode'}</div>
+                                    <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDate(ep.episode_date)}</div>
+                                  </div>
+                                  <span className="text-[#c8cad0] group-hover:text-[#00c988] transition-colors mr-4">→</span>
+                                </a>
+                                <button
+                                  onClick={() => deleteEpisode(show.id, ep.id, ep.title)}
+                                  className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none opacity-0 group-hover:opacity-100 transition-all"
+                                  title="Delete episode"
+                                >×</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             ))}
           </div>
