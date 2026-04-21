@@ -240,7 +240,7 @@ export default function Dashboard() {
                     <div className="bg-[#fafaf7] p-6"
                       style={{ backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #ece8e0 39px, #ece8e0 40px)' }}>
                       <div className="flex items-center justify-between mb-6">
-                        <p className="text-xs text-[#b0a898] uppercase tracking-widest font-medium">Episode Plan</p>
+                        <p className="text-xs text-[#b0a898] uppercase tracking-widest font-medium">{show.name} Whiteboard</p>
                         <a href={`/show/${show.id}`} className="text-[#9a9080] border border-[#d8d0c4] rounded-lg px-3 py-1.5 text-xs hover:text-[#1a1a1a] transition-colors">
                           Full Whiteboard →
                         </a>
