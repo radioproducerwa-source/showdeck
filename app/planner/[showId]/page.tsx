@@ -2,7 +2,7 @@
 import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import Logo, { LogoIcon } from '../../../components/Logo'
+import Logo from '../../../components/Logo'
 
 const DEFAULT_SECTIONS = [
   { name: 'Introduction', icon: '🎙️' },
@@ -229,11 +229,16 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
   const getStatus = (sectionName: string) => {
     const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
-    if (total === 0) return { label: 'EMPTY', cls: 'text-[#6b6b7a] border-[#e2e4e8] bg-[#eeeef2]' }
-    if (total < 20) return { label: 'DRAFT', cls: 'text-[#d49c00] border-[#f5c842]/40 bg-[#f5c842]/10' }
-    return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/10' }
+    if (total === 0) return { label: 'EMPTY', cls: 'text-[#6b6b7a] border-[#e2e4e8] bg-[#f0f0f4]', border: '#e2e4e8' }
+    if (total < 20) return { label: 'DRAFT', cls: 'text-[#d49c00] border-[#f5c842]/40 bg-[#f5c842]/10', border: '#f5c842' }
+    return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/10', border: '#00e5a0' }
   }
 
   const socialHandles = () => {
@@ -303,8 +308,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[#6b6b7a]">
-            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? '✓ Saved' : '● Unsaved'}
+          <span className={`text-xs flex items-center gap-1.5 ${saveStatus === 'saved' ? 'text-[#00a870]' : saveStatus === 'saving' ? 'text-[#6b6b7a]' : 'text-[#f59e0b]'}`}>
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${saveStatus === 'saved' ? 'bg-[#00a870]' : saveStatus === 'saving' ? 'bg-[#c8cad0] animate-pulse' : 'bg-[#f59e0b]'}`} />
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Unsaved'}
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => exportRunsheet('txt')} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-l-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors border-r-0">
@@ -321,8 +327,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         <input
           type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
           placeholder="EPISODE TITLE..."
-          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-3 placeholder-[#d1d5db]"
+          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-1 placeholder-[#d1d5db]"
         />
+        {episodeDate && (
+          <p className="text-[#6b6b7a] text-sm mb-6">{formatDate(episodeDate)}</p>
+        )}
         {(() => {
           const platforms = [
             { key: 'instagram', label: 'Instagram', color: '#E1306C' },
@@ -350,9 +359,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
             const canImport = section.name in IMPORT_MAP
             const locked = LOCKED_SECTIONS.has(section.name)
             return (
-              <div key={section.id} id={section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')} className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl overflow-hidden">
-                <div className="flex items-center gap-3 px-4 py-3 bg-[#eeeef2] border-b border-[#e2e4e8]">
-                  <LogoIcon size={14} />
+              <div key={section.id} id={section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+                className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl overflow-hidden border-l-4"
+                style={{ borderLeftColor: status.border }}>
+                <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-[#e2e4e8]">
+                  <span className="text-lg leading-none flex-shrink-0">{section.icon}</span>
                   <span className="font-semibold text-sm flex-1">{section.name}</span>
                   {canImport && (
                     <button onClick={() => importFromLastWeek(section.name)} disabled={importing === section.name}
@@ -394,8 +405,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                         </div>
                         <textarea value={getContent(section.name, role)} onChange={e => updateContent(section.name, role, e.target.value)}
                           placeholder="Your notes..."
-                          className="flex-1 bg-transparent text-sm text-[#0d0d0f] px-4 py-3 outline-none resize-none min-h-[60px] placeholder-[#c8cad0]"
-                          rows={2} />
+                          className="flex-1 bg-transparent text-sm text-[#0d0d0f] px-4 py-3 outline-none resize-none min-h-[80px] placeholder-[#c8cad0]"
+                          rows={3} />
                       </div>
                     )
                   })}
@@ -457,7 +468,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                 className="w-12 bg-white border border-[#e2e4e8] rounded-lg text-center text-lg outline-none" maxLength={2} />
               <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') addSection(); if (e.key === 'Escape') setAddingSection(false) }}
-                placeholder="Section name..." autoFocus
+                placeholder="Segment name..." autoFocus
                 className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]" />
               <button onClick={addSection} disabled={addingSection === 'saving'} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-2 text-sm hover:bg-[#00ffc0] transition-colors disabled:opacity-50">{addingSection === 'saving' ? 'Adding...' : 'Add'}</button>
               <button onClick={() => setAddingSection(false)} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">Cancel</button>

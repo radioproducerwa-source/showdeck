@@ -117,7 +117,7 @@ export default function Whiteboard({ params }: { params: Promise<{ showId: strin
             {sections.length === 0 ? (
               <div className="text-[#b0a898] text-sm italic">No sections found for this episode.</div>
             ) : (
-              <div className="grid grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {sections.map((section, i) => {
                   const status = getStatus(section.name)
                   const preview = getPreview(section.name)

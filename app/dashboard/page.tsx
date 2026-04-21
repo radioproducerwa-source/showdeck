@@ -214,14 +214,15 @@ export default function Dashboard() {
 
                 {/* ── Current Episode ── */}
                 {currentEp ? (
-                  <div className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-5 mb-4 flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#00a870] mb-1">Current Episode</div>
-                      <div className="text-xl font-bold">{currentEp.title || 'Untitled Episode'}</div>
-                      <div className="text-sm text-[#6b6b7a] mt-0.5">{formatDate(currentEp.episode_date)}</div>
+                  <div className="relative bg-gradient-to-r from-[#edfdf6] to-white border border-[#00e5a0]/40 rounded-2xl px-6 py-5 mb-4 flex items-center justify-between overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00e5a0] rounded-l-2xl" />
+                    <div className="pl-3">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#00a870] mb-1.5">Current Episode</div>
+                      <div className="text-xl font-bold leading-snug">{currentEp.title || 'Untitled Episode'}</div>
+                      <div className="text-sm text-[#6b6b7a] mt-1">{formatDate(currentEp.episode_date)}</div>
                     </div>
                     <a href={`/planner/${show.id}?episodeId=${currentEp.id}`}
-                      className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#00ffc0] transition-colors flex-shrink-0">
+                      className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#00ffc0] transition-colors flex-shrink-0 shadow-sm">
                       Open Planner →
                     </a>
                   </div>
@@ -244,7 +245,7 @@ export default function Dashboard() {
                           Full Whiteboard →
                         </a>
                       </div>
-                      <div className="grid grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {sections.map((section: any, i: number) => {
                           const status = getSectionStatus(show.id, section.name)
                           const preview = getSectionPreview(show.id, section.name)

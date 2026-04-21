@@ -84,8 +84,17 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
           </div>
 
           {filtered.length === 0 ? (
-            <div className="px-6 py-10 text-center text-[#6b6b7a] text-sm">
-              {search ? 'No episodes match your search.' : 'No episodes yet.'}
+            <div className="px-6 py-14 text-center">
+              <div className="text-4xl mb-3">🎙️</div>
+              <p className="text-[#6b6b7a] text-sm mb-5">
+                {search ? 'No episodes match your search.' : "No episodes yet. Create your first one!"}
+              </p>
+              {!search && (
+                <a href={`/planner/${showId}?new=true`}
+                  className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
+                  + New Episode
+                </a>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-[#e2e4e8]">
