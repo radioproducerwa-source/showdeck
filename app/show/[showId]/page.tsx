@@ -140,6 +140,9 @@ export default function Whiteboard({ params }: { params: Promise<{ showId: strin
                         </div>
                       </div>
 
+                      {/* Section number */}
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-[#a89880] mb-2">Section {i + 1}</p>
+
                       {/* Section icon + name */}
                       <div className="flex items-start gap-2 mb-3">
                         <span className="text-lg leading-none mt-0.5 flex-shrink-0">{section.icon}</span>
