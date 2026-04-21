@@ -60,7 +60,7 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
         </div>
         {show && (
           <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-1.5 text-sm hover:bg-[#00ffc0] transition-colors">
-            + New Episode
+            + {show.show_type === 'radio' ? 'New Broadcast' : 'New Episode'}
           </a>
         )}
       </header>
@@ -69,7 +69,9 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
         <div className="mb-8">
           {show?.logo_url && <img src={show.logo_url} alt="logo" className="w-10 h-10 rounded-lg object-cover mb-3" />}
           <h1 className="text-2xl font-bold">{show?.name}</h1>
-          <p className="text-[#6b6b7a] text-sm mt-1">Episode Archive · {episodes.length} episode{episodes.length !== 1 ? 's' : ''}</p>
+          <p className="text-[#6b6b7a] text-sm mt-1">
+            {show?.show_type === 'radio' ? 'Broadcast Archive' : 'Episode Archive'} · {episodes.length} {show?.show_type === 'radio' ? `broadcast${episodes.length !== 1 ? 's' : ''}` : `episode${episodes.length !== 1 ? 's' : ''}`}
+          </p>
         </div>
 
         <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
@@ -92,7 +94,7 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
               {!search && (
                 <a href={`/planner/${showId}?new=true`}
                   className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
-                  + New Episode
+                  + {show?.show_type === 'radio' ? 'New Broadcast' : 'New Episode'}
                 </a>
               )}
             </div>

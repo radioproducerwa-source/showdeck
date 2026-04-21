@@ -4,8 +4,29 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo, { LogoIcon } from '../../components/Logo'
 
+const SHOW_TYPES = [
+  {
+    value: 'podcast',
+    label: 'Podcast',
+    icon: '🎙️',
+    description: 'Flexible episode planning for podcast teams',
+    color: '#00e5a0',
+    features: ['Host-led segments', 'Episode archive', 'Export runsheets'],
+  },
+  {
+    value: 'radio',
+    label: 'Radio Show',
+    icon: '📻',
+    description: 'Structured broadcast planning for on-air teams',
+    color: '#a78bfa',
+    features: ['Broadcast segments', 'News, sport, weather & more', 'Live runsheet format'],
+  },
+]
+
 export default function CreateShow() {
   const [user, setUser] = useState<any>(null)
+  const [step, setStep] = useState<'type' | 'details'>('type')
+  const [showType, setShowType] = useState<'podcast' | 'radio' | null>(null)
   const [showName, setShowName] = useState('')
   const [host1, setHost1] = useState('')
   const [host2, setHost2] = useState('')
@@ -24,106 +45,158 @@ export default function CreateShow() {
 
   const handleCreate = async () => {
     if (!showName || !host1 || !host2) {
-      setMessage('Please fill in show name and both host names')
+      setMessage('Please fill in show name and both names')
       return
     }
     setLoading(true)
-    const { data, error } = await supabase
-      .from('shows')
-      .insert({
-        name: showName,
-        owner_id: user.id,
-        host1_name: host1,
-        host2_name: host2,
-        has_producer: hasProducer,
-        producer_name: hasProducer ? producer : null
-      })
-      .select()
-      .single()
-
-    if (error) {
-      setMessage(error.message)
-      setLoading(false)
-    } else {
-      window.location.href = '/dashboard'
-    }
+    const { error } = await supabase.from('shows').insert({
+      name: showName,
+      owner_id: user.id,
+      show_type: showType,
+      host1_name: host1,
+      host2_name: host2,
+      has_producer: hasProducer,
+      producer_name: hasProducer ? producer : null,
+    })
+    if (error) { setMessage(error.message); setLoading(false) }
+    else window.location.href = '/dashboard'
   }
 
-  if (!user) return <div className="min-h-screen bg-[#f7f8fa]"></div>
+  const isRadio = showType === 'radio'
+  const host1Label = isRadio ? 'Presenter 1 Name' : 'Host 1 Name'
+  const host2Label = isRadio ? 'Presenter 2 Name' : 'Host 2 Name'
+  const host1Placeholder = isRadio ? 'Lead presenter' : 'Your name'
+  const host2Placeholder = isRadio ? 'Co-presenter' : 'Co-host name'
+
+  const leftPanelContent = showType ? SHOW_TYPES.find(t => t.value === showType) : null
+
+  if (!user) return <div className="min-h-screen bg-[#f7f8fa]" />
 
   return (
     <main className="min-h-screen flex">
 
-      {/* Left: branding panel */}
+      {/* Left panel */}
       <div className="hidden lg:flex flex-col w-[460px] flex-shrink-0 bg-[#0d0d0f] p-12 relative overflow-hidden">
         <div className="flex items-center gap-3 mb-auto">
           <LogoIcon size={28} />
           <span className="text-white font-bold text-xl tracking-[0.2em]" style={{ fontFamily: 'monospace' }}>SHOWDECK</span>
         </div>
         <div className="mt-auto">
-          <h2 className="text-white text-4xl font-bold leading-tight mb-4">Your show.<br />Your way.</h2>
-          <p className="text-white/50 text-sm leading-relaxed mb-10">Give your podcast a home in Showdeck. You can add avatars and social handles from settings any time.</p>
-          <div className="flex flex-col gap-4">
-            {[
-              { icon: '🎙️', text: 'Add your show name and hosts' },
-              { icon: '📅', text: 'Create episodes and plan segments' },
-              { icon: '✅', text: 'Export your runsheet before you go live' },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#00e5a0]/10 flex items-center justify-center flex-shrink-0 text-base">{icon}</div>
-                <span className="text-white/60 text-sm">{text}</span>
+          {leftPanelContent ? (
+            <>
+              <div className="text-5xl mb-5">{leftPanelContent.icon}</div>
+              <h2 className="text-white text-4xl font-bold leading-tight mb-4">{leftPanelContent.label}</h2>
+              <p className="text-white/50 text-sm leading-relaxed mb-10">{leftPanelContent.description}</p>
+              <div className="flex flex-col gap-4">
+                {leftPanelContent.features.map(f => (
+                  <div key={f} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: leftPanelContent.color + '20' }}>
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: leftPanelContent.color }} />
+                    </div>
+                    <span className="text-white/60 text-sm">{f}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-white text-4xl font-bold leading-tight mb-4">Your show.<br />Your way.</h2>
+              <p className="text-white/50 text-sm leading-relaxed">Choose a show type to get started with the right setup for your team.</p>
+            </>
+          )}
         </div>
         <div className="absolute -bottom-16 -right-16 opacity-[0.04] pointer-events-none">
           <LogoIcon size={320} />
         </div>
       </div>
 
-      {/* Right: form panel */}
+      {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-8 bg-[#f7f8fa]">
         <div className="bg-white border border-[#e2e4e8] rounded-2xl p-10 w-full max-w-lg shadow-sm">
           <div className="mb-1 lg:hidden"><Logo size={0.9} /></div>
-          <h2 className="text-xl font-bold mb-1">Create a new show</h2>
-          <p className="text-[#6b6b7a] text-sm mb-8">Set up your show to get started</p>
 
-          <div className="mb-5">
-            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Show Name</label>
-            <input type="text" value={showName} onChange={e => setShowName(e.target.value)}
-              className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
-              placeholder="e.g. The Footy Punt" />
-          </div>
-          <div className="mb-5">
-            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Host 1 Name</label>
-            <input type="text" value={host1} onChange={e => setHost1(e.target.value)}
-              className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
-              placeholder="Your name" />
-          </div>
-          <div className="mb-5">
-            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Host 2 Name</label>
-            <input type="text" value={host2} onChange={e => setHost2(e.target.value)}
-              className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
-              placeholder="Co-host name" />
-          </div>
-          <div className="mb-6">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setHasProducer(!hasProducer)}>
-              <div className={`w-9 h-5 rounded-full relative transition-colors ${hasProducer ? 'bg-[#a78bfa]' : 'bg-[#e2e4e8]'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${hasProducer ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
+          {step === 'type' ? (
+            <>
+              <h2 className="text-xl font-bold mb-1">What kind of show is this?</h2>
+              <p className="text-[#6b6b7a] text-sm mb-8">This sets up the right default segments and labels for your team</p>
+              <div className="flex flex-col gap-4 mb-8">
+                {SHOW_TYPES.map(type => (
+                  <button
+                    key={type.value}
+                    onClick={() => setShowType(type.value as 'podcast' | 'radio')}
+                    className={`flex items-start gap-5 p-5 rounded-2xl border-2 text-left transition-all ${
+                      showType === type.value
+                        ? 'border-[#00e5a0] bg-[#f0fff8]'
+                        : 'border-[#e2e4e8] bg-white hover:border-[#c8cad0]'
+                    }`}
+                  >
+                    <span className="text-4xl leading-none flex-shrink-0 mt-0.5">{type.icon}</span>
+                    <div>
+                      <div className="font-bold text-base mb-1">{type.label}</div>
+                      <div className="text-[#6b6b7a] text-sm leading-snug">{type.description}</div>
+                    </div>
+                    <div className={`ml-auto flex-shrink-0 w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center transition-all ${
+                      showType === type.value ? 'border-[#00e5a0] bg-[#00e5a0]' : 'border-[#e2e4e8]'
+                    }`}>
+                      {showType === type.value && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </button>
+                ))}
               </div>
-              <span className="text-[#6b6b7a] text-sm">Include a Producer role</span>
-            </div>
-            {hasProducer && (
-              <input type="text" value={producer} onChange={e => setProducer(e.target.value)}
-                className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-3 text-sm outline-none focus:border-[#a78bfa]"
-                placeholder="Producer name" />
-            )}
-          </div>
-          {message && <p className="text-[#ff5c3a] text-sm mb-4">{message}</p>}
-          <button onClick={handleCreate} disabled={loading}
-            className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-lg tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-60">
-            {loading ? 'Creating...' : 'CREATE SHOW'}
-          </button>
+              <button
+                onClick={() => setStep('details')}
+                disabled={!showType}
+                className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-40"
+              >
+                CONTINUE →
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 mb-6">
+                <button onClick={() => setStep('type')} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Back</button>
+                <span className="text-2xl">{SHOW_TYPES.find(t => t.value === showType)?.icon}</span>
+                <h2 className="text-xl font-bold">{SHOW_TYPES.find(t => t.value === showType)?.label}</h2>
+              </div>
+
+              <div className="mb-5">
+                <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Show Name</label>
+                <input type="text" value={showName} onChange={e => setShowName(e.target.value)}
+                  className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+                  placeholder={isRadio ? 'e.g. Breakfast with Matt & Sarah' : 'e.g. The Footy Punt'} />
+              </div>
+              <div className="mb-5">
+                <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">{host1Label}</label>
+                <input type="text" value={host1} onChange={e => setHost1(e.target.value)}
+                  className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+                  placeholder={host1Placeholder} />
+              </div>
+              <div className="mb-5">
+                <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">{host2Label}</label>
+                <input type="text" value={host2} onChange={e => setHost2(e.target.value)}
+                  className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+                  placeholder={host2Placeholder} />
+              </div>
+              <div className="mb-6">
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setHasProducer(!hasProducer)}>
+                  <div className={`w-9 h-5 rounded-full relative transition-colors ${hasProducer ? 'bg-[#a78bfa]' : 'bg-[#e2e4e8]'}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${hasProducer ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </div>
+                  <span className="text-[#6b6b7a] text-sm">Include a Producer role</span>
+                </div>
+                {hasProducer && (
+                  <input type="text" value={producer} onChange={e => setProducer(e.target.value)}
+                    className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-3 text-sm outline-none focus:border-[#a78bfa]"
+                    placeholder="Producer name" />
+                )}
+              </div>
+              {message && <p className="text-[#ff5c3a] text-sm mb-4">{message}</p>}
+              <button onClick={handleCreate} disabled={loading}
+                className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-lg tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-60">
+                {loading ? 'Creating...' : 'CREATE SHOW'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

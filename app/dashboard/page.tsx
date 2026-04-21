@@ -150,7 +150,12 @@ export default function Dashboard() {
                 <div className="bg-white border border-[#e2e4e8] rounded-2xl p-6 mb-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <h1 className="text-2xl font-bold mb-3">{show.name}</h1>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h1 className="text-2xl font-bold">{show.name}</h1>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${show.show_type === 'radio' ? 'bg-[#a78bfa]/15 text-[#7c3aed]' : 'bg-[#00e5a0]/15 text-[#00a870]'}`}>
+                          {show.show_type === 'radio' ? '📻 Radio' : '🎙️ Podcast'}
+                        </span>
+                      </div>
                       {/* Contributors row: logo + avatars */}
                       <div className="flex flex-wrap items-center gap-4">
                         {/* Logo */}
@@ -230,7 +235,7 @@ export default function Dashboard() {
                   <div className="relative bg-gradient-to-r from-[#edfdf6] to-white border border-[#00e5a0]/40 rounded-2xl px-6 py-5 mb-4 flex items-center justify-between overflow-hidden">
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00e5a0] rounded-l-2xl" />
                     <div className="pl-3">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#00a870] mb-1.5">Current Episode</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#00a870] mb-1.5">{show.show_type === 'radio' ? 'Current Broadcast' : 'Current Episode'}</div>
                       <div className="text-xl font-bold leading-snug">{currentEp.title || 'Untitled Episode'}</div>
                       <div className="text-sm text-[#6b6b7a] mt-1">{formatDate(currentEp.episode_date)}</div>
                     </div>
@@ -301,8 +306,8 @@ export default function Dashboard() {
                 <a href={`/archive/${show.id}`}
                   className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-2xl px-6 py-4 hover:border-[#00e5a0] hover:bg-[#f7fffe] transition-colors group">
                   <div>
-                    <div className="text-sm font-semibold group-hover:text-[#00a870] transition-colors">Episode Archive</div>
-                    <div className="text-xs text-[#6b6b7a] mt-0.5">Browse and open past episodes</div>
+                    <div className="text-sm font-semibold group-hover:text-[#00a870] transition-colors">{show.show_type === 'radio' ? 'Broadcast Archive' : 'Episode Archive'}</div>
+                    <div className="text-xs text-[#6b6b7a] mt-0.5">{show.show_type === 'radio' ? 'Browse and open past broadcasts' : 'Browse and open past episodes'}</div>
                   </div>
                   <span className="text-[#c8cad0] group-hover:text-[#00a870] transition-colors text-lg">→</span>
                 </a>

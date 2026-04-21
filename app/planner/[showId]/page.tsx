@@ -4,14 +4,27 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 
-const DEFAULT_SECTIONS = [
-  { name: 'Introduction', icon: '🎙️' },
-  { name: 'Main Topic', icon: '📋' },
-  { name: 'Interview / Guest', icon: '🎤' },
-  { name: 'Listener Questions', icon: '💬' },
-  { name: 'News & Updates', icon: '📰' },
-  { name: 'Wrap Up', icon: '👋' },
-]
+const DEFAULT_SECTIONS: Record<string, { name: string; icon: string }[]> = {
+  podcast: [
+    { name: 'Introduction', icon: '🎙️' },
+    { name: 'Main Topic', icon: '📋' },
+    { name: 'Interview / Guest', icon: '🎤' },
+    { name: 'Listener Questions', icon: '💬' },
+    { name: 'News & Updates', icon: '📰' },
+    { name: 'Wrap Up', icon: '👋' },
+  ],
+  radio: [
+    { name: 'News', icon: '📰' },
+    { name: 'Sport', icon: '🏆' },
+    { name: 'Weather', icon: '⛅' },
+    { name: 'Traffic', icon: '🚗' },
+    { name: 'Music Sweep', icon: '🎵' },
+    { name: 'Talkback', icon: '📞' },
+    { name: 'Competition', icon: '🎁' },
+    { name: 'Interview', icon: '🎤' },
+    { name: 'Wrap', icon: '👋' },
+  ],
+}
 
 const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
 
@@ -102,7 +115,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (!existingSections || existingSections.length === 0) {
         // Copy sections from the most recent previous episode, or fall back to generic defaults
         const { data: prevEps } = await supabase.from('episodes').select('id').eq('show_id', showId).neq('id', episode.id).order('episode_date', { ascending: false }).limit(1)
-        let sectionSource: { name: string; icon: string }[] = DEFAULT_SECTIONS
+        let sectionSource: { name: string; icon: string }[] = DEFAULT_SECTIONS[showData?.show_type || 'podcast']
         if (prevEps && prevEps.length > 0) {
           const { data: prevSections } = await supabase.from('sections').select('name, icon').eq('episode_id', prevEps[0].id)
           if (prevSections && prevSections.length > 0) sectionSource = prevSections
@@ -326,7 +339,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       <div className="max-w-4xl mx-auto px-6 py-6">
         <input
           type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
-          placeholder="EPISODE TITLE..."
+          placeholder={show.show_type === 'radio' ? 'BROADCAST TITLE...' : 'EPISODE TITLE...'}
           className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-1 placeholder-[#d1d5db]"
         />
         {episodeDate && (
