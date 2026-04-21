@@ -5,15 +5,12 @@ import { supabase } from '../../../lib/supabase'
 import Logo, { LogoIcon } from '../../../components/Logo'
 
 const DEFAULT_SECTIONS = [
-  { name: 'Show Intro', icon: '🎙️' },
-  { name: 'Weekend Recap', icon: '📅' },
-  { name: "Last Week's Betting", icon: '🎰' },
-  { name: 'Hero of the Week', icon: '⭐' },
-  { name: 'Next Round of AFL Games', icon: '🏉' },
-  { name: 'AFL Multis', icon: '🎯' },
-  { name: 'Racing', icon: '🐎' },
-  { name: 'Racing Bets', icon: '💰' },
-  { name: '$100 to $1000 Challenge', icon: '📈' },
+  { name: 'Introduction', icon: '🎙️' },
+  { name: 'Main Topic', icon: '📋' },
+  { name: 'Interview / Guest', icon: '🎤' },
+  { name: 'Listener Questions', icon: '💬' },
+  { name: 'News & Updates', icon: '📰' },
+  { name: 'Wrap Up', icon: '👋' },
 ]
 
 const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
@@ -32,7 +29,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [episodeDate, setEpisodeDate] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [importing, setImporting] = useState<string | null>(null)
-  const [addingSection, setAddingSection] = useState(false)
+  const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
   const [newName, setNewName] = useState('')
   const [newIcon, setNewIcon] = useState('📝')
   const saveTimers = useRef<any>({})
@@ -106,6 +103,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const addSection = async () => {
     if (!newName.trim() || !episodeId) return
+    setAddingSection('saving')
     const { data } = await supabase.from('sections').insert({ episode_id: episodeId, name: newName.trim(), icon: newIcon }).select().single()
     if (data) setSections(prev => [...prev, data])
     setNewName(''); setNewIcon('📝'); setAddingSection(false)
@@ -178,19 +176,35 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/10' }
   }
 
-  const exportRunsheet = () => {
-    let text = `${show?.name?.toUpperCase()} — EPISODE RUNSHEET\n${'='.repeat(50)}\n${epTitle || 'Untitled Episode'}\n${'='.repeat(50)}\n\n`
-    sections.forEach(s => {
-      text += `${s.icon} ${s.name.toUpperCase()}\n${'─'.repeat(40)}\n`
-      text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
-      text += `${show?.host2_name}:\n${getContent(s.name, 'host2') || '—'}\n\n`
-      if (show?.has_producer) text += `${show?.producer_name} (Producer):\n${getContent(s.name, 'producer') || '—'}\n\n`
-    })
-    const blob = new Blob([text], { type: 'text/plain' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = 'showdeck-runsheet.txt'
-    a.click()
+  const exportRunsheet = (format: 'txt' | 'md' = 'txt') => {
+    const slug = (epTitle || 'runsheet').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    if (format === 'md') {
+      let md = `# ${show?.name} — ${epTitle || 'Untitled Episode'}\n\n`
+      sections.forEach(s => {
+        md += `## ${s.icon} ${s.name}\n\n`
+        md += `**${show?.host1_name}**\n${getContent(s.name, 'host1') || '*No notes*'}\n\n`
+        md += `**${show?.host2_name}**\n${getContent(s.name, 'host2') || '*No notes*'}\n\n`
+        if (show?.has_producer) md += `**${show?.producer_name} (Producer)**\n${getContent(s.name, 'producer') || '*No notes*'}\n\n`
+      })
+      const blob = new Blob([md], { type: 'text/markdown' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${slug}.md`
+      a.click()
+    } else {
+      let text = `${show?.name?.toUpperCase()} — EPISODE RUNSHEET\n${'='.repeat(50)}\n${epTitle || 'Untitled Episode'}\n${'='.repeat(50)}\n\n`
+      sections.forEach(s => {
+        text += `${s.icon} ${s.name.toUpperCase()}\n${'─'.repeat(40)}\n`
+        text += `${show?.host1_name}:\n${getContent(s.name, 'host1') || '—'}\n\n`
+        text += `${show?.host2_name}:\n${getContent(s.name, 'host2') || '—'}\n\n`
+        if (show?.has_producer) text += `${show?.producer_name} (Producer):\n${getContent(s.name, 'producer') || '—'}\n\n`
+      })
+      const blob = new Blob([text], { type: 'text/plain' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${slug}.txt`
+      a.click()
+    }
   }
 
   if (!show) return (
@@ -215,9 +229,14 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           <span className="text-xs text-[#6b6b7a]">
             {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? '✓ Saved' : '● Unsaved'}
           </span>
-          <button onClick={exportRunsheet} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">
-            Export Runsheet
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => exportRunsheet('txt')} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-l-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors border-r-0">
+              Export .txt
+            </button>
+            <button onClick={() => exportRunsheet('md')} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-r-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">
+              .md
+            </button>
+          </div>
         </div>
       </header>
 
@@ -295,7 +314,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                 onKeyDown={e => { if (e.key === 'Enter') addSection(); if (e.key === 'Escape') setAddingSection(false) }}
                 placeholder="Section name..." autoFocus
                 className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]" />
-              <button onClick={addSection} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-2 text-sm hover:bg-[#00ffc0] transition-colors">Add</button>
+              <button onClick={addSection} disabled={addingSection === 'saving'} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-2 text-sm hover:bg-[#00ffc0] transition-colors disabled:opacity-50">{addingSection === 'saving' ? 'Adding...' : 'Add'}</button>
               <button onClick={() => setAddingSection(false)} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">Cancel</button>
             </div>
           ) : (

@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [episodes, setEpisodes] = useState<any>({})
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
+  const [search, setSearch] = useState<Record<string, string>>({})
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
 
@@ -30,7 +31,7 @@ export default function Dashboard() {
   }, [])
 
   const loadEpisodes = async (showId: string) => {
-    const { data } = await supabase.from('episodes').select('*').eq('show_id', showId).order('episode_date', { ascending: false })
+    const { data } = await supabase.from('episodes').select('*').eq('show_id', showId).order('episode_date', { ascending: false }).order('id', { ascending: false })
     setEpisodes((prev: any) => ({ ...prev, [showId]: data || [] }))
   }
 
@@ -64,7 +65,7 @@ export default function Dashboard() {
     setUploading(null)
   }
 
-  const uploadAvatar = async (showId: string, slot: 'host1' | 'host2', file: File) => {
+  const uploadAvatar = async (showId: string, slot: 'host1' | 'host2' | 'producer', file: File) => {
     const key = `${showId}-${slot}`
     setUploading(key)
     const ext = file.name.split('.').pop()
@@ -72,7 +73,7 @@ export default function Dashboard() {
     const { error: uploadError } = await supabase.storage.from('show-logos').upload(path, file, { upsert: true })
     if (uploadError) { alert('Upload failed: ' + uploadError.message); setUploading(null); return }
     const { data: { publicUrl } } = supabase.storage.from('show-logos').getPublicUrl(path)
-    const field = slot === 'host1' ? 'host1_avatar' : 'host2_avatar'
+    const field = slot === 'host1' ? 'host1_avatar' : slot === 'host2' ? 'host2_avatar' : 'producer_avatar'
     await supabase.from('shows').update({ [field]: publicUrl }).eq('id', showId)
     setShows(prev => prev.map(s => s.id === showId ? { ...s, [field]: publicUrl } : s))
     setUploading(null)
@@ -153,20 +154,51 @@ export default function Dashboard() {
                             </div>
                           )
                         })}
-                        {show.has_producer && <span className="text-[#6b6b7a] text-sm">· {show.producer_name}</span>}
+                        {show.has_producer && (() => {
+                          const inputKey = `${show.id}-producer`
+                          return (
+                            <div className="flex items-center gap-1.5 group/avatar cursor-pointer" onClick={() => fileInputs.current[inputKey]?.click()} title={`Upload ${show.producer_name}'s photo`}>
+                              <div className="relative w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                                {show.producer_avatar
+                                  ? <img src={show.producer_avatar} alt={show.producer_name} className="w-full h-full object-cover" />
+                                  : <div className="w-full h-full bg-[#a78bfa] flex items-center justify-center text-black text-xs font-bold">{show.producer_name?.[0]}</div>
+                                }
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                                  <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
+                                </div>
+                              </div>
+                              <span className="text-[#6b6b7a] text-sm">{show.producer_name}</span>
+                              <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
+                                onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(show.id, 'producer', f) }} />
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <a href={`/show-settings/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Settings</a>
                     <a href={`/show/${show.id}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Whiteboard</a>
                     <a href={`/planner/${show.id}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Episode</a>
                   </div>
                 </div>
                 {episodes[show.id] && episodes[show.id].length > 0 && (
                   <div className="border-t border-[#e2e4e8]">
-                    <div className="px-6 py-3 text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</div>
+                    <div className="px-6 py-3 flex items-center justify-between">
+                      <span className="text-xs text-[#6b6b7a] uppercase tracking-widest font-semibold">Episode Archive</span>
+                      <input
+                        type="text"
+                        value={search[show.id] || ''}
+                        onChange={e => setSearch(prev => ({ ...prev, [show.id]: e.target.value }))}
+                        placeholder="Search episodes..."
+                        className="bg-white border border-[#e2e4e8] rounded-lg px-3 py-1 text-xs text-[#0d0d0f] outline-none focus:border-[#00e5a0] w-48 placeholder-[#c8cad0]"
+                      />
+                    </div>
                     <div className="divide-y divide-[#e2e4e8]">
-                      {episodes[show.id].map((ep: any) => (
+                      {episodes[show.id].filter((ep: any) => {
+                        const q = (search[show.id] || '').toLowerCase()
+                        return !q || (ep.title || '').toLowerCase().includes(q) || formatDate(ep.episode_date).toLowerCase().includes(q)
+                      }).map((ep: any) => (
                         <div key={ep.id} className="flex items-center justify-between px-6 py-4 hover:bg-[#eeeef2] transition-colors group">
                           <a href={`/planner/${show.id}?episodeId=${ep.id}`} className="flex-1 flex items-center justify-between">
                             <div>
