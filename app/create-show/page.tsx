@@ -30,6 +30,7 @@ export default function CreateShow() {
   const [showName, setShowName] = useState('')
   const [host1, setHost1] = useState('')
   const [host2, setHost2] = useState('')
+  const [extraHosts, setExtraHosts] = useState<string[]>([])
   const [hasProducer, setHasProducer] = useState(false)
   const [producer, setProducer] = useState('')
   const [loading, setLoading] = useState(false)
@@ -55,6 +56,7 @@ export default function CreateShow() {
       show_type: showType,
       host1_name: host1,
       host2_name: host2,
+      additional_hosts: JSON.stringify(extraHosts.filter(h => h.trim())),
       has_producer: hasProducer,
       producer_name: hasProducer ? producer : null,
     })
@@ -63,10 +65,10 @@ export default function CreateShow() {
   }
 
   const isRadio = showType === 'radio'
-  const host1Label = isRadio ? 'Presenter 1 Name' : 'Host 1 Name'
-  const host2Label = isRadio ? 'Presenter 2 Name' : 'Host 2 Name'
-  const host1Placeholder = isRadio ? 'Lead presenter' : 'Your name'
-  const host2Placeholder = isRadio ? 'Co-presenter' : 'Co-host name'
+  const host1Label = isRadio ? 'Presenter 1' : 'Host 1 Name'
+  const host2Label = isRadio ? 'Presenter 2' : 'Host 2 Name'
+  const host1Placeholder = isRadio ? 'e.g. Matt Thompson' : 'Your name'
+  const host2Placeholder = isRadio ? 'e.g. Sarah Jones' : 'Co-host name'
 
   const leftPanelContent = showType ? SHOW_TYPES.find(t => t.value === showType) : null
 
@@ -177,6 +179,38 @@ export default function CreateShow() {
                   className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
                   placeholder={host2Placeholder} />
               </div>
+
+              {/* Extra presenters — radio only */}
+              {isRadio && (
+                <div className="mb-5">
+                  {extraHosts.map((name, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-2">
+                      <div className="flex-1">
+                        <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Presenter {i + 3}</label>
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={e => setExtraHosts(prev => prev.map((h, j) => j === i ? e.target.value : h))}
+                          className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
+                          placeholder={`e.g. Presenter ${i + 3}`}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setExtraHosts(prev => prev.filter((_, j) => j !== i))}
+                        className="text-[#c8cad0] hover:text-[#ff5c3a] text-xl leading-none mt-6 flex-shrink-0 transition-colors"
+                        title="Remove">×</button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setExtraHosts(prev => [...prev, ''])}
+                    className="text-[#6b6b7a] text-sm hover:text-[#00a870] transition-colors mt-1"
+                  >
+                    + Add another presenter
+                  </button>
+                </div>
+              )}
+
               <div className="mb-6">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={() => setHasProducer(!hasProducer)}>
                   <div className={`w-9 h-5 rounded-full relative transition-colors ${hasProducer ? 'bg-[#a78bfa]' : 'bg-[#e2e4e8]'}`}>

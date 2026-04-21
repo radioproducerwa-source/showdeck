@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [shows, setShows] = useState<any[]>([])
+  const [activeShowId, setActiveShowId] = useState<string | null>(null)
   const [currentEpisodes, setCurrentEpisodes] = useState<Record<string, any>>({})
   const [boardSections, setBoardSections] = useState<Record<string, any[]>>({})
   const [boardContent, setBoardContent] = useState<Record<string, Record<string, string>>>({})
@@ -30,6 +31,7 @@ export default function Dashboard() {
         .then(({ data: shows }) => {
           const s = shows || []
           setShows(s)
+          if (s.length > 0) setActiveShowId(s[0].id)
           setLoading(false)
           s.forEach(show => loadShowData(show.id))
         })
@@ -123,7 +125,6 @@ export default function Dashboard() {
             </div>
           </a>
           <div className="w-px h-5 bg-[#e2e4e8]" />
-          <a href="/create-show" className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">+ New Show</a>
           <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
         </div>
       </header>
@@ -138,8 +139,32 @@ export default function Dashboard() {
           <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-xl px-8 py-3 hover:bg-[#00ffc0] transition-colors">Create Show</a>
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-12">
-          {shows.map(show => {
+        <>
+          {/* ── Show Tabs ── */}
+          <div className="bg-white border-b border-[#e2e4e8] px-6 flex items-center">
+            <div className="flex items-center flex-1 overflow-x-auto">
+              {shows.map(show => (
+                <button
+                  key={show.id}
+                  onClick={() => setActiveShowId(show.id)}
+                  className={`flex items-center gap-2 px-5 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                    activeShowId === show.id
+                      ? 'border-[#00e5a0] text-[#0d0d0f]'
+                      : 'border-transparent text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#e2e4e8]'
+                  }`}
+                >
+                  {show.logo_url
+                    ? <img src={show.logo_url} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />
+                    : <span className="text-xs">{show.show_type === 'radio' ? '📻' : '🎙️'}</span>}
+                  {show.name}
+                </button>
+              ))}
+            </div>
+            <a href="/create-show" className="ml-4 flex-shrink-0 text-[#6b6b7a] text-sm hover:text-[#0d0d0f] transition-colors py-4">+ New Show</a>
+          </div>
+
+          <div className="max-w-4xl mx-auto px-6 py-8">
+          {shows.filter(show => show.id === activeShowId).map(show => {
             const currentEp = currentEpisodes[show.id]
             const sections = boardSections[show.id] || []
 
@@ -315,7 +340,8 @@ export default function Dashboard() {
               </div>
             )
           })}
-        </div>
+          </div>
+        </>
       )}
     </main>
   )
