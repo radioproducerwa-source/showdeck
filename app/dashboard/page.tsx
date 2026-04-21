@@ -261,7 +261,7 @@ export default function Dashboard() {
                                   <div className="w-1 h-1 rounded-full bg-white/40" />
                                 </div>
                               </div>
-                              <p className="text-[8px] font-bold uppercase tracking-widest text-[#a89880] mb-1.5">Section {i + 1}</p>
+                              <p className="text-[8px] font-bold uppercase tracking-widest text-[#a89880] mb-1.5">Segment {i + 1}</p>
                               <div className="flex items-start gap-1.5 mb-2">
                                 <span className="text-sm leading-none mt-0.5 flex-shrink-0">{section.icon}</span>
                                 <span className="font-bold text-xs text-[#1a1a1a] leading-snug">{section.name}</span>

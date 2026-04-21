@@ -41,6 +41,13 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   useEffect(() => { init() }, [])
 
+  useEffect(() => {
+    if (sections.length > 0 && window.location.hash) {
+      const el = document.getElementById(window.location.hash.slice(1))
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [sections])
+
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
@@ -58,7 +65,22 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       episode = data
     } else if (forceNew) {
       const today = new Date().toLocaleDateString('en-CA')
-      const { data: newEp } = await supabase.from('episodes').insert({ show_id: showId, title: '', episode_date: today }).select().single()
+      // Auto-title: infer next episode number from previous episode title
+      const { data: prevEps } = await supabase.from('episodes').select('title')
+        .eq('show_id', showId).order('episode_date', { ascending: false }).order('id', { ascending: false }).limit(1)
+      let autoTitle = ''
+      const prevTitle = prevEps?.[0]?.title || ''
+      const match = prevTitle.match(/episode\s*(\d+)/i)
+      if (match) {
+        const nextNum = parseInt(match[1]) + 1
+        const now = new Date()
+        const day = now.getDay()
+        const monday = new Date(now)
+        monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day))
+        const weekDate = monday.toLocaleDateString('en-AU', { day: 'numeric', month: 'long' })
+        autoTitle = `${showData.name} - Episode ${nextNum} - Week Commencing ${weekDate}`
+      }
+      const { data: newEp } = await supabase.from('episodes').insert({ show_id: showId, title: autoTitle, episode_date: today }).select().single()
       episode = newEp
       window.history.replaceState({}, '', `/planner/${showId}?episodeId=${newEp?.id}`)
     } else {
