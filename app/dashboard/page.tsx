@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [search, setSearch] = useState<Record<string, string>>({})
+  const [boardData, setBoardData] = useState<{ show: any, episode: any, sections: any[], content: Record<string, string> } | null>(null)
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
 
@@ -24,15 +25,25 @@ export default function Dashboard() {
             const s = shows || []
             setShows(s)
             setLoading(false)
-            s.forEach(show => loadEpisodes(show.id))
+            s.forEach((show, i) => loadEpisodes(show.id, i === 0 ? show : undefined))
           })
       }
     })
   }, [])
 
-  const loadEpisodes = async (showId: string) => {
+  const loadEpisodes = async (showId: string, showData?: any) => {
     const { data } = await supabase.from('episodes').select('*').eq('show_id', showId).order('episode_date', { ascending: false }).order('id', { ascending: false })
     setEpisodes((prev: any) => ({ ...prev, [showId]: data || [] }))
+    if (showData && data && data[0] && !boardData) {
+      const ep = data[0]
+      const [{ data: sections }, { data: contentRows }] = await Promise.all([
+        supabase.from('sections').select('*').eq('episode_id', ep.id),
+        supabase.from('section_content').select('*').eq('episode_id', ep.id)
+      ])
+      const contentMap: Record<string, string> = {}
+      contentRows?.forEach((r: any) => { contentMap[`${r.section_name}-${r.role}`] = r.content })
+      setBoardData({ show: showData, episode: ep, sections: sections || [], content: contentMap })
+    }
   }
 
   const signOut = async () => {
@@ -91,6 +102,93 @@ export default function Dashboard() {
             <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
           </div>
         </div>
+        {/* Whiteboard */}
+        {boardData && boardData.sections.length > 0 && (() => {
+          const ROTATIONS = ['-rotate-1', 'rotate-2', '-rotate-2', 'rotate-1', 'rotate-0', 'rotate-2', '-rotate-1']
+          const EMPTY_COLORS = ['#fef9c3', '#dbeafe', '#ede9fe', '#ffedd5', '#fce7f3', '#e0f2fe', '#fef3c7']
+          const getBoardStatus = (sectionName: string) => {
+            const c = boardData.content
+            const total = (c[`${sectionName}-host1`] || '').length + (c[`${sectionName}-host2`] || '').length
+            if (total === 0) return 'empty'
+            if (total < 20) return 'draft'
+            return 'ready'
+          }
+          const getPreview = (sectionName: string) => {
+            const h1 = boardData.content[`${sectionName}-host1`] || ''
+            const h2 = boardData.content[`${sectionName}-host2`] || ''
+            return (h1 || h2).split('\n')[0].slice(0, 80) || null
+          }
+          const formatDate = (dateStr: string) => {
+            if (!dateStr) return ''
+            return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+          }
+          return (
+            <div className="mb-10 rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]" style={{ border: '10px solid #2e2e2e', outline: '2px solid #444' }}>
+              <div className="bg-[#252525] h-2.5" />
+              <div className="bg-[#fafaf7] p-6"
+                style={{ backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #ece8e0 39px, #ece8e0 40px)' }}>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-xs text-[#b0a898] uppercase tracking-widest font-medium mb-0.5">{boardData.show.name}</p>
+                    <h2 className="text-lg font-bold text-[#1a1a1a]" style={{ fontFamily: 'serif' }}>
+                      {boardData.episode.title || 'Untitled Episode'}
+                    </h2>
+                    <p className="text-xs text-[#9a9080] mt-0.5">{formatDate(boardData.episode.episode_date)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a href={`/show/${boardData.show.id}`} className="text-[#9a9080] border border-[#d8d0c4] rounded-lg px-3 py-1.5 text-xs hover:text-[#1a1a1a] transition-colors">
+                      Full View
+                    </a>
+                    <a href={`/planner/${boardData.show.id}?episodeId=${boardData.episode.id}`} className="bg-[#1a1a1a] text-white font-bold rounded-lg px-4 py-1.5 text-xs hover:bg-[#333] transition-colors">
+                      Open Planner →
+                    </a>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-5">
+                  {boardData.sections.map((section: any, i: number) => {
+                    const status = getBoardStatus(section.name)
+                    const preview = getPreview(section.name)
+                    const rotation = ROTATIONS[i % ROTATIONS.length]
+                    const bgColor = status === 'ready' ? '#d1fae5' : status === 'draft' ? '#fef3c7' : EMPTY_COLORS[i % EMPTY_COLORS.length]
+                    return (
+                      <a
+                        key={section.id}
+                        href={`/planner/${boardData.show.id}?episodeId=${boardData.episode.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                        className={`relative flex flex-col p-3 pt-6 shadow-[2px_3px_8px_rgba(0,0,0,0.12)] hover:shadow-[3px_5px_14px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 transition-all ${rotation}`}
+                        style={{ backgroundColor: bgColor, minHeight: '110px' }}
+                      >
+                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10">
+                          <div className="w-4 h-4 rounded-full shadow flex items-center justify-center"
+                            style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18' }}>
+                            <div className="w-1 h-1 rounded-full bg-white/40" />
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-1.5 mb-1.5">
+                          <span className="text-base leading-none mt-0.5">{section.icon}</span>
+                          <span className="font-bold text-xs text-[#1a1a1a] leading-snug">{section.name}</span>
+                        </div>
+                        <p className="text-[10px] text-[#4a4040] leading-relaxed flex-1 line-clamp-2">
+                          {preview || <span className="italic text-[#b0a898]">No notes</span>}
+                        </p>
+                        {status === 'ready' && (
+                          <div className="mt-1.5 flex items-center gap-1">
+                            <span className="w-3.5 h-3.5 bg-[#00a870] rounded-full flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0">✓</span>
+                            <span className="text-[9px] text-[#00a870] font-semibold uppercase tracking-wide">Ready</span>
+                          </div>
+                        )}
+                        {status === 'draft' && (
+                          <span className="mt-1.5 text-[9px] text-[#d49c00] font-semibold uppercase tracking-wide">Draft</span>
+                        )}
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="bg-[#252525] h-4" />
+            </div>
+          )
+        })()}
+
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold">Your Shows</h2>
           <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">+ New Show</a>
