@@ -37,7 +37,6 @@ const IMPORT_MAP: Record<string, string[]> = {
 }
 
 const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
-const NOTE_ROTATIONS = ['-rotate-[0.5deg]', 'rotate-[0.5deg]']
 
 type SaveStatus = 'saved' | 'saving' | 'unsaved'
 type Toast = { msg: string; phase: 'in' | 'out' } | null
@@ -283,9 +282,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const getStatus = (sectionName: string) => {
     const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
-    if (total === 0) return { label: 'EMPTY', noteCls: 'bg-black/10 text-black/40', border: 'transparent' }
-    if (total < 20) return { label: 'DRAFT', noteCls: 'bg-amber-500/20 text-amber-800', border: '#f5c842' }
-    return { label: 'READY', noteCls: 'bg-emerald-600/20 text-emerald-800', border: '#00e5a0' }
+    if (total === 0) return { label: 'EMPTY', badgeBg: 'rgba(0,0,0,0.10)', badgeColor: 'rgba(0,0,0,0.38)' }
+    if (total < 20) return { label: 'DRAFT', badgeBg: 'rgba(245,194,66,0.22)', badgeColor: '#7a5200' }
+    return { label: 'READY', badgeBg: 'rgba(0,168,112,0.18)', badgeColor: '#005c38' }
   }
 
   const readySections = sections.filter(s => getStatus(s.name).label === 'READY').length
@@ -506,15 +505,15 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                 const isCollapsed = collapsed.has(section.name)
                 const wc = getWordCount(section.name)
                 const noteColor = NOTE_COLORS[idx % 2]
-                const rotation = NOTE_ROTATIONS[idx % 2]
+                const noteRotation = idx % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)'
                 const roles = ['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[]
 
                 return (
                   <div
                     key={section.id}
                     id={section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
-                    className={`relative ${rotation} hover:rotate-0 hover:-translate-y-1 transition-all duration-200`}
-                    style={{ backgroundColor: noteColor, borderRadius: '2px', boxShadow: '2px 4px 16px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08)' }}
+                    className="sticky-note relative"
+                    style={{ backgroundColor: noteColor, borderRadius: '2px', boxShadow: '2px 4px 16px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08)', transform: noteRotation }}
                   >
                     {/* Pushpin */}
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
@@ -542,7 +541,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                           </button>
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0 pt-0.5">
-                          <span className={`text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${status.noteCls}`}>
+                          <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                            style={{ backgroundColor: status.badgeBg, color: status.badgeColor }}>
                             {status.label}
                           </span>
                           {wc > 0 && <span className="text-[9px] text-black/25 tabular-nums">{wc}w</span>}
