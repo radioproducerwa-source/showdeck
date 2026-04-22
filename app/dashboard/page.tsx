@@ -8,6 +8,8 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [shows, setShows] = useState<any[]>([])
+  const [epCounts, setEpCounts] = useState<Record<string, number>>({})
+  const [epLastDate, setEpLastDate] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -19,7 +21,22 @@ export default function Dashboard() {
       if (!profileData) { router.push('/profile/setup'); return }
       setProfile(profileData)
       const { data: showsData } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
-      setShows(showsData || [])
+      const s = showsData || []
+      setShows(s)
+      if (s.length > 0) {
+        const ids = s.map((x: any) => x.id)
+        const { data: allEps } = await supabase
+          .from('episodes').select('id, show_id, episode_date')
+          .in('show_id', ids).order('episode_date', { ascending: false })
+        const counts: Record<string, number> = {}
+        const lastDates: Record<string, string> = {}
+        ;(allEps || []).forEach((ep: any) => {
+          counts[ep.show_id] = (counts[ep.show_id] || 0) + 1
+          if (!lastDates[ep.show_id]) lastDates[ep.show_id] = ep.episode_date
+        })
+        setEpCounts(counts)
+        setEpLastDate(lastDates)
+      }
       setLoading(false)
     })
   }, [])
@@ -38,10 +55,15 @@ export default function Dashboard() {
     return parts.join(' · ')
   }
 
+  const formatLastDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
   if (!user) return <div className="min-h-screen bg-[#f7f8fa]" />
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f]">
+    <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
       {/* Nav */}
       <header className="bg-white border-b border-[#e2e4e8] px-8 h-14 flex items-center justify-between">
         <Logo size={0.75} />
@@ -80,12 +102,14 @@ export default function Dashboard() {
             <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">+ New Show</a>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {shows.map(show => (
               <a
                 key={show.id}
                 href={`/shows/${show.id}`}
-                className="group block rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white hover:border-[#00e5a0] hover:shadow-[0_4px_20px_rgba(0,229,160,0.12)] transition-all duration-200"
+                className="group block rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white
+                  hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.10)] hover:border-[#00e5a0]
+                  transition-all duration-200 ease-out"
               >
                 {/* Artwork */}
                 <div className="aspect-square relative bg-[#f7f8fa]">
@@ -100,10 +124,18 @@ export default function Dashboard() {
                   )}
                   {/* Type badge */}
                   <div className="absolute top-3 right-3">
-                    <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white">
+                    <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-sm text-white">
                       {show.show_type === 'radio' ? '📻 Radio' : '🎙️ Podcast'}
                     </span>
                   </div>
+                  {/* Episode count badge */}
+                  {(epCounts[show.id] || 0) > 0 && (
+                    <div className="absolute bottom-3 left-3">
+                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-black/65 backdrop-blur-sm text-white/90">
+                        {epCounts[show.id]} {(epCounts[show.id] === 1) ? 'episode' : 'episodes'}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Info */}
@@ -112,7 +144,10 @@ export default function Dashboard() {
                     {show.name}
                   </h2>
                   {getHostLine(show) && (
-                    <p className="text-xs text-[#6b6b7a] truncate">{getHostLine(show)}</p>
+                    <p className="text-xs text-[#6b6b7a] truncate mb-2">{getHostLine(show)}</p>
+                  )}
+                  {epLastDate[show.id] && (
+                    <p className="text-[10px] text-[#c8cad0]">Last episode: {formatLastDate(epLastDate[show.id])}</p>
                   )}
                 </div>
               </a>
