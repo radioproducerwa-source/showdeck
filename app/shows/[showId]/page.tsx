@@ -259,39 +259,77 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           </div>
         )}
 
-        {/* ── Segments Preview ── */}
+        {/* ── Whiteboard ── */}
         {currentEp && sections.length > 0 && (
-          <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#e2e4e8] flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#6b6b7a] uppercase tracking-widest">Segments</span>
-              <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
-                className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">Edit in planner →</a>
+          <div className="rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+            style={{ border: '10px solid #2e2e2e', outline: '2px solid #3a3a3a' }}>
+            {/* Top tray */}
+            <div className="h-3 flex items-center px-4 gap-1.5" style={{ background: '#252525' }}>
+              {['#555','#444','#333'].map((c, i) => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+              ))}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[#e2e4e8]">
-              {sections.map((section: any) => {
-                const status = getSectionStatus(section.name)
-                const preview = getSectionPreview(section.name)
-                return (
-                  <a key={section.id}
-                    href={`/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                    className="bg-white p-4 hover:bg-[#f7fffe] transition-colors group flex flex-col gap-2 min-h-[100px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-base leading-none">{section.icon}</span>
-                      <span className="text-xs font-semibold text-[#0d0d0f] group-hover:text-[#00a870] transition-colors">{section.name}</span>
-                      {status === 'ready' && (
-                        <span className="ml-auto w-3.5 h-3.5 bg-[#00a870] rounded-full flex items-center justify-center text-white text-[8px] flex-shrink-0">✓</span>
-                      )}
-                      {status === 'draft' && (
-                        <span className="ml-auto w-2 h-2 bg-[#f5c842] rounded-full flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-[11px] text-[#6b6b7a] leading-relaxed line-clamp-3 flex-1">
-                      {preview || <span className="italic text-[#c8cad0]">No notes yet</span>}
-                    </p>
-                  </a>
-                )
-              })}
+            {/* Board surface */}
+            <div className="px-6 pt-5 pb-8"
+              style={{ background: '#fafaf7', backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #ece8e0 39px, #ece8e0 40px)' }}>
+              <div className="flex items-center justify-between mb-8">
+                <p className="text-[10px] uppercase tracking-[0.18em] font-semibold" style={{ color: '#b0a898' }}>
+                  {show?.name} — Episode Board
+                </p>
+                <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
+                  className="text-[10px] border rounded-lg px-3 py-1 transition-colors hover:text-[#1a1a1a]"
+                  style={{ color: '#9a9080', borderColor: '#d8d0c4' }}>
+                  Edit in planner →
+                </a>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {sections.map((section: any, idx: number) => {
+                  const status = getSectionStatus(section.name)
+                  const preview = getSectionPreview(section.name)
+                  const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
+                  const noteRotation = idx % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)'
+                  const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+                  const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
+                  const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
+                  return (
+                    <a key={section.id} href={href}
+                      className="sticky-note relative block"
+                      style={{ backgroundColor: noteColor, borderRadius: '2px', boxShadow: '2px 4px 16px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08)', transform: noteRotation }}>
+                      {/* Pushpin */}
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18', boxShadow: '0 2px 6px rgba(0,0,0,0.35)' }}>
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.4)' }} />
+                        </div>
+                      </div>
+                      {/* Note content */}
+                      <div className="pt-5 px-4 pb-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: 'rgba(0,0,0,0.25)' }}>
+                              Segment {idx + 1}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base leading-none">{section.icon}</span>
+                              <span className="font-bold text-[13px] leading-snug" style={{ color: '#1a1a1a' }}>{section.name}</span>
+                            </div>
+                          </div>
+                          <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
+                            style={{ backgroundColor: badgeBg, color: badgeColor }}>
+                            {status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed line-clamp-4 mt-3" style={{ color: '#3a3028' }}>
+                          {preview || <span className="italic" style={{ color: 'rgba(0,0,0,0.25)' }}>No notes yet</span>}
+                        </p>
+                      </div>
+                    </a>
+                  )
+                })}
+              </div>
             </div>
+            {/* Bottom tray */}
+            <div className="h-5" style={{ background: '#252525' }} />
           </div>
         )}
 
