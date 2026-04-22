@@ -6,12 +6,15 @@ import Logo from '../../../components/Logo'
 
 const DEFAULT_SECTIONS: Record<string, { name: string; icon: string }[]> = {
   podcast: [
-    { name: 'Introduction', icon: '🎙️' },
-    { name: 'Main Topic', icon: '📋' },
-    { name: 'Interview / Guest', icon: '🎤' },
-    { name: 'Listener Questions', icon: '💬' },
-    { name: 'News & Updates', icon: '📰' },
-    { name: 'Wrap Up', icon: '👋' },
+    { name: 'Show Intro', icon: '🎙️' },
+    { name: 'Weekend Recap', icon: '📅' },
+    { name: "Last Week's Betting", icon: '📊' },
+    { name: 'Hero of the Week', icon: '⭐' },
+    { name: 'Next Round of AFL Games', icon: '🏉' },
+    { name: 'AFL Multis', icon: '💰' },
+    { name: 'Racing', icon: '🏇' },
+    { name: 'Racing Bets', icon: '🐎' },
+    { name: '$100 to $1000 Challenge', icon: '🎯' },
   ],
   radio: [
     { name: 'News', icon: '📰' },
@@ -30,6 +33,7 @@ const LOCKED_SECTIONS = new Set(["Last Week's Betting", 'AFL Multis'])
 
 const IMPORT_MAP: Record<string, string[]> = {
   "Last Week's Betting": ['AFL Multis', 'Racing Bets'],
+  'Racing Bets': ['Racing', 'Racing Bets'],
 }
 
 export default function Planner({ params }: { params: Promise<{ showId: string }> }) {

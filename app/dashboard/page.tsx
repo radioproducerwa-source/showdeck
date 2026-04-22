@@ -100,11 +100,7 @@ export default function Dashboard() {
                   )}
                   {/* Type badge */}
                   <div className="absolute top-3 right-3">
-                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${
-                      show.show_type === 'radio'
-                        ? 'bg-[#a78bfa]/15 text-[#7c3aed]'
-                        : 'bg-[#00e5a0]/20 text-[#00a870]'
-                    }`}>
+                    <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white">
                       {show.show_type === 'radio' ? '📻 Radio' : '🎙️ Podcast'}
                     </span>
                   </div>
