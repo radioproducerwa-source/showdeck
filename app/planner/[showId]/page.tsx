@@ -479,8 +479,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   )
 
   return (
-    <main className="min-h-screen text-[#0d0d0f] animate-page-in"
-      style={{ background: '#fafaf7', backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #e8e4db 39px, #e8e4db 40px)' }}>
+    <main className="min-h-screen text-[#0d0d0f] animate-page-in bg-white">
       {/* Toast */}
       {toast && (
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${

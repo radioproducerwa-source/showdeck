@@ -24,7 +24,7 @@ const HOUR_TEMPLATE: SlotTemplate[] = [
   { slotTime: ':40',     label: 'INTERVIEW SLOT',           isFixed: false, isInterview: true,  slotKey: '40' },
   { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-c' },
   { slotTime: null,      label: 'SONG ×2',                  isFixed: true,  isInterview: false, slotKey: 'song-d' },
-  { slotTime: ':50/:55', label: 'PERSONAL / TOPICAL',       isFixed: false, isInterview: false, slotKey: '5055' },
+  { slotTime: ':50',     label: 'PERSONAL / TOPICAL',       isFixed: false, isInterview: false, slotKey: '5055' },
   { slotTime: null,      label: 'ADS',                      isFixed: true,  isInterview: false, slotKey: 'ads' },
 ]
 
@@ -255,7 +255,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
       <div className="px-5 py-3 border-b border-[#e2e4e8] flex items-center gap-3 bg-white">
         <button
           onClick={() => setMonday(m => addDays(m, -7))}
-          className="text-[#6b6b7a] hover:text-[#0d0d0f] w-7 h-7 rounded-lg border border-[#e2e4e8] flex items-center justify-center transition-colors text-sm flex-shrink-0"
+          className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
         >‹</button>
         <span className="text-xs text-[#6b6b7a] flex-shrink-0 w-44">{formatWeekRange(monday)}</span>
         <div className="flex gap-1 flex-1">
@@ -282,7 +282,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
         </div>
         <button
           onClick={() => setMonday(m => addDays(m, 7))}
-          className="text-[#6b6b7a] hover:text-[#0d0d0f] w-7 h-7 rounded-lg border border-[#e2e4e8] flex items-center justify-center transition-colors text-sm flex-shrink-0"
+          className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
         >›</button>
         <button
           onClick={() => { setMonday(getMondayOf(new Date())); setSelectedDay(Math.min(Math.max(new Date().getDay() - 1, 0), 4)) }}
@@ -296,14 +296,16 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
           {HOURS.map(hour => (
             <div key={hour} className="flex flex-col">
               {/* Hour header */}
-              <div className="rounded-xl mb-3 px-4 py-3 flex items-center justify-between bg-white border border-[#e2e4e8]">
+              <div className="rounded-xl mb-3 px-5 py-4 flex items-center justify-between"
+                style={{ background: 'linear-gradient(135deg, #0d0d0f 60%, #1a2a20)', border: '1px solid #1a1a1a' }}>
                 <div>
-                  <div className="text-[10px] text-[#6b6b7a] font-semibold uppercase tracking-widest">Hour</div>
-                  <div className="text-2xl font-bold text-[#0d0d0f]">
-                    {hour}<span className="text-[#00a870] text-base">:00</span>
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: '#00e5a0' }}>On Air</div>
+                  <div className="text-4xl font-black leading-none text-white">
+                    {hour}<span className="text-2xl font-bold" style={{ color: '#00e5a0' }}>:00</span>
+                    <span className="text-sm font-semibold text-white/40 ml-1">AM</span>
                   </div>
                 </div>
-                <div className="text-3xl opacity-20">📻</div>
+                <div className="text-4xl opacity-30">📻</div>
               </div>
 
               {/* Slots */}
@@ -313,7 +315,11 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                     return (
                       <div
                         key={slot.slotKey}
-                        className="px-3 py-2 rounded-lg text-xs text-[#c8cad0] italic bg-white border border-[#e2e4e8]"
+                        className="px-3 py-1.5 rounded-lg text-xs italic border-l-4 border-[#d0d4da] border border-[#e8eaed]"
+                        style={{
+                          color: '#a0a4ae',
+                          background: 'repeating-linear-gradient(45deg, #f4f5f8, #f4f5f8 5px, #edeef2 5px, #edeef2 10px)',
+                        }}
                       >
                         {slot.label}
                       </div>
@@ -338,7 +344,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
                         <span className="text-[10px] text-[#6b6b7a] uppercase tracking-widest">{slot.label}</span>
-                        {slot.isInterview && <span className="text-[9px] text-[#f59e0b] ml-auto font-medium">Guest + Topic</span>}
+                        {slot.isInterview && <span className="text-[9px] text-[#00a870] ml-auto font-bold tracking-wide">Guest + Topic</span>}
                       </div>
                       <input
                         type="text"
@@ -363,34 +369,9 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
         </div>
       </div>
 
-      {/* First-time setup hint */}
-      <div className="px-5 pb-4">
-        <details className="text-xs text-[#c8cad0] cursor-pointer">
-          <summary className="hover:text-[#6b6b7a] transition-colors">ℹ️ First-time setup — enable auto-save</summary>
-          <div className="mt-2 bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl p-4 font-mono text-[11px] text-[#6b6b7a] whitespace-pre-wrap leading-relaxed">
-{`-- Run in your Supabase SQL editor:
-
-CREATE TABLE IF NOT EXISTS radio_plans (
-  id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  show_id    uuid REFERENCES shows(id) ON DELETE CASCADE,
-  plan_date  date NOT NULL,
-  hour       int  NOT NULL,
-  slot_key   text NOT NULL,
-  title      text DEFAULT '',
-  notes      text DEFAULT '',
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE (show_id, plan_date, hour, slot_key)
-);
-
-ALTER TABLE radio_plans ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users manage own radio plans" ON radio_plans
-  FOR ALL USING (
-    show_id IN (SELECT id FROM shows WHERE owner_id = auth.uid())
-  );`}
-          </div>
-        </details>
+      {/* Showdeck branding footer */}
+      <div className="px-5 py-3 border-t border-[#e2e4e8] flex items-center justify-end">
+        <span className="text-[10px] font-bold tracking-widest text-[#c8cad0] uppercase">Powered by Showdeck</span>
       </div>
     </div>
   )

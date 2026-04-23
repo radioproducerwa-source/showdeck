@@ -42,6 +42,15 @@ body {
   to   { opacity: 0; }
 }
 
+/* Planner ruled-paper background — lines use theme border color */
+.planner-bg {
+  background-color: var(--t-bg);
+  background-image: repeating-linear-gradient(
+    transparent, transparent 39px,
+    var(--t-border) 39px, var(--t-border) 40px
+  );
+}
+
 /* Sticky note cards — rotation + lift via plain CSS to avoid Tailwind purge */
 .sticky-note {
   transition: transform 0.2s ease, box-shadow 0.2s ease;

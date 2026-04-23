@@ -15,6 +15,8 @@ export const THEMES = {
       '--t-muted': '#6b6b7a',
       '--t-dim': '#c8cad0',
       '--t-nav-bg': '#ffffff',
+      '--t-note1': '#cdf0e3',
+      '--t-note2': '#f0e2cc',
     },
   },
   dark: {
@@ -33,6 +35,8 @@ export const THEMES = {
       '--t-muted': '#888899',
       '--t-dim': '#555566',
       '--t-nav-bg': '#111113',
+      '--t-note1': '#1a2d24',
+      '--t-note2': '#2d2010',
     },
   },
   midnight: {
@@ -51,6 +55,8 @@ export const THEMES = {
       '--t-muted': '#7a8aaa',
       '--t-dim': '#3a4a66',
       '--t-nav-bg': '#080d18',
+      '--t-note1': '#182038',
+      '--t-note2': '#1c2435',
     },
   },
   charcoal: {
@@ -69,6 +75,8 @@ export const THEMES = {
       '--t-muted': '#8a8a8a',
       '--t-dim': '#555555',
       '--t-nav-bg': '#111111',
+      '--t-note1': '#2a2020',
+      '--t-note2': '#282424',
     },
   },
 } as const
@@ -92,4 +100,5 @@ export function getStoredTheme(): ThemeKey {
 
 export function storeTheme(key: ThemeKey) {
   localStorage.setItem('showdeck_theme', key)
+  document.cookie = `showdeck_theme=${key};path=/;max-age=31536000;SameSite=Lax`
 }
