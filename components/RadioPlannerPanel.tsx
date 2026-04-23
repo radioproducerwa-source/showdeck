@@ -1,0 +1,397 @@
+'use client'
+import { useEffect, useState, useRef } from 'react'
+import { supabase } from '../lib/supabase'
+
+type SlotTemplate = {
+  slotTime: string | null
+  label: string
+  isFixed: boolean
+  isInterview: boolean
+  slotKey: string
+}
+
+const HOUR_TEMPLATE: SlotTemplate[] = [
+  { slotTime: ':03',     label: 'SHOW INTRO / TOP OF HOUR', isFixed: false, isInterview: false, slotKey: '03' },
+  { slotTime: null,      label: 'SONG ×1',                  isFixed: true,  isInterview: false, slotKey: 'song-a' },
+  { slotTime: ':10',     label: 'SEGMENT SLOT',             isFixed: false, isInterview: false, slotKey: '10' },
+  { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-a' },
+  { slotTime: null,      label: 'SONG ×1',                  isFixed: true,  isInterview: false, slotKey: 'song-b' },
+  { slotTime: ':20',     label: 'REGULAR SEGMENT',          isFixed: false, isInterview: false, slotKey: '20' },
+  { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-b' },
+  { slotTime: null,      label: 'News',                     isFixed: true,  isInterview: false, slotKey: 'news' },
+  { slotTime: ':33',     label: 'HALF HOUR INTRO',          isFixed: false, isInterview: false, slotKey: '33' },
+  { slotTime: null,      label: 'SONG ×1',                  isFixed: true,  isInterview: false, slotKey: 'song-c' },
+  { slotTime: ':40',     label: 'INTERVIEW SLOT',           isFixed: false, isInterview: true,  slotKey: '40' },
+  { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-c' },
+  { slotTime: null,      label: 'SONG ×2',                  isFixed: true,  isInterview: false, slotKey: 'song-d' },
+  { slotTime: ':50/:55', label: 'PERSONAL / TOPICAL',       isFixed: false, isInterview: false, slotKey: '5055' },
+  { slotTime: null,      label: 'ADS',                      isFixed: true,  isInterview: false, slotKey: 'ads' },
+]
+
+const HOURS = [6, 7, 8]
+const DAYS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+
+const SEGMENT_20_DEFAULTS: Record<number, string> = {
+  0: 'Trending Now',
+  1: 'Sports Headlines',
+  2: 'Trending Now',
+  3: 'Sports Headlines',
+  4: 'Trending Now',
+}
+
+type SlotData = { title: string; notes: string }
+type PlanMap  = Record<string, SlotData>
+type Toast    = { msg: string; phase: 'in' | 'out' } | null
+
+function getMondayOf(d: Date): Date {
+  const day = d.getDay()
+  const monday = new Date(d)
+  monday.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+  monday.setHours(0, 0, 0, 0)
+  return monday
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
+
+function toISODate(d: Date): string {
+  return d.toLocaleDateString('en-CA')
+}
+
+function formatDayLabel(d: Date): string {
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+}
+
+function formatWeekRange(monday: Date): string {
+  const fri = addDays(monday, 4)
+  return `${monday.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${fri.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}`
+}
+
+type Props = { showId: string; show: any }
+
+export default function RadioPlannerPanel({ showId, show }: Props) {
+  const [monday, setMonday]           = useState<Date>(getMondayOf(new Date()))
+  const [selectedDay, setSelectedDay] = useState<number>(Math.min(Math.max(new Date().getDay() - 1, 0), 4))
+  const [plans, setPlans]             = useState<Record<string, PlanMap>>({})
+  const [saving, setSaving]           = useState(false)
+  const [toast, setToast]             = useState<Toast>(null)
+  const saveTimers = useRef<Record<string, any>>({})
+  const toastTimer = useRef<any>(null)
+
+  useEffect(() => {
+    loadDay(toISODate(addDays(getMondayOf(new Date()), selectedDay)))
+  }, [])
+
+  useEffect(() => {
+    loadDay(currentDate())
+  }, [monday, selectedDay])
+
+  const currentDate = () => toISODate(addDays(monday, selectedDay))
+
+  const showToast = (msg: string) => {
+    clearTimeout(toastTimer.current)
+    setToast({ msg, phase: 'in' })
+    toastTimer.current = setTimeout(() => {
+      setToast(t => t ? { ...t, phase: 'out' } : null)
+      toastTimer.current = setTimeout(() => setToast(null), 220)
+    }, 1800)
+  }
+
+  const loadDay = async (date: string) => {
+    if (plans[date]) return
+    try {
+      const { data } = await supabase
+        .from('radio_plans')
+        .select('*')
+        .eq('show_id', showId)
+        .eq('plan_date', date)
+      const map: PlanMap = {}
+      ;(data || []).forEach((r: any) => {
+        map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' }
+      })
+      setPlans(prev => ({ ...prev, [date]: map }))
+    } catch {
+      setPlans(prev => ({ ...prev, [date]: {} }))
+    }
+  }
+
+  const getSlot = (date: string, hour: number, slotKey: string): SlotData =>
+    plans[date]?.[`${hour}-${slotKey}`] || { title: '', notes: '' }
+
+  const updateSlot = (date: string, hour: number, slotKey: string, field: 'title' | 'notes', value: string) => {
+    setPlans(prev => {
+      const dayMap = { ...(prev[date] || {}) }
+      const existing = dayMap[`${hour}-${slotKey}`] || { title: '', notes: '' }
+      dayMap[`${hour}-${slotKey}`] = { ...existing, [field]: value }
+      return { ...prev, [date]: dayMap }
+    })
+    const timerKey = `${date}-${hour}-${slotKey}-${field}`
+    clearTimeout(saveTimers.current[timerKey])
+    saveTimers.current[timerKey] = setTimeout(async () => {
+      setSaving(true)
+      const slot = getSlot(date, hour, slotKey)
+      const updated = { ...slot, [field]: value }
+      try {
+        await supabase.from('radio_plans').upsert({
+          show_id: showId,
+          plan_date: date,
+          hour,
+          slot_key: slotKey,
+          title: field === 'title' ? value : updated.title,
+          notes: field === 'notes' ? value : updated.notes,
+        }, { onConflict: 'show_id,plan_date,hour,slot_key' })
+      } catch { /* table not yet created */ }
+      setSaving(false)
+      showToast('Saved')
+    }, 700)
+  }
+
+  const exportPdf = async () => {
+    const date = currentDate()
+    const dayName = addDays(monday, selectedDay).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const { jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pw = 297; const ph = 210; const ml = 12; const mr = 12; const mt = 20
+    const colW = (pw - ml - mr - 8) / 3
+
+    doc.setFillColor(13, 13, 15)
+    doc.rect(0, 0, pw, 14, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(0, 229, 160)
+    doc.text('SHOWDECK  ·  RADIO RUNSHEET', ml, 9)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 160)
+    doc.text(`${show?.name || ''}  ·  ${dayName}`, pw - mr, 9, { align: 'right' })
+
+    const colX = (i: number) => ml + i * (colW + 4)
+    HOURS.forEach((hour, i) => {
+      doc.setFillColor(247, 248, 250)
+      doc.rect(colX(i), mt - 4, colW, 8, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(0, 168, 112)
+      doc.text(`${hour}:00 AM`, colX(i) + colW / 2, mt + 1, { align: 'center' })
+    })
+
+    let ys = [mt + 8, mt + 8, mt + 8]
+    HOUR_TEMPLATE.forEach(slot => {
+      HOURS.forEach((hour, i) => {
+        const x = colX(i)
+        let y = ys[i]
+        if (slot.isFixed) {
+          doc.setFillColor(240, 240, 244)
+          doc.rect(x, y, colW, 6, 'F')
+          doc.setFont('helvetica', 'italic')
+          doc.setFontSize(7.5)
+          doc.setTextColor(160, 162, 170)
+          doc.text(slot.label, x + 2, y + 4)
+          ys[i] += 7
+        } else {
+          const sd = getSlot(date, hour, slot.slotKey)
+          const rowH = sd.notes ? 18 : 11
+          doc.setFillColor(255, 255, 255)
+          doc.rect(x, y, colW, rowH, 'FD')
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(7)
+          doc.setTextColor(0, 200, 140)
+          doc.text(slot.slotTime || '', x + 2, y + 4.5)
+          doc.setFontSize(8.5)
+          doc.setTextColor(30, 32, 40)
+          const titleX = x + (slot.slotTime ? doc.getTextWidth(slot.slotTime || '') + 4 : 2)
+          doc.text(sd.title || slot.label, titleX, y + 4.5, { maxWidth: colW - titleX + x - 2 })
+          if (sd.notes) {
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(7.5)
+            doc.setTextColor(80, 82, 90)
+            doc.text(doc.splitTextToSize(sd.notes, colW - 4).slice(0, 2), x + 2, y + 9)
+          }
+          ys[i] += rowH + 1
+        }
+      })
+    })
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(160)
+    doc.text(`Generated by Showdeck · ${new Date().toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`, ml, ph - 4)
+    doc.save(`radio-runsheet-${date}.pdf`)
+  }
+
+  const date = currentDate()
+  const dayDates = Array.from({ length: 5 }, (_, i) => addDays(monday, i))
+
+  return (
+    <div className="rounded-2xl border border-[#e2e4e8] bg-white overflow-hidden">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
+          toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'
+        }`}>
+          <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black">✓</span>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Panel header */}
+      <div className="px-5 py-3.5 border-b border-[#e2e4e8] flex items-center justify-between bg-[#f7f8fa]">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-[#0d0d0f]">📻 Radio Runsheet</span>
+          {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
+        </div>
+        <button
+          onClick={exportPdf}
+          className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
+        >
+          Export PDF
+        </button>
+      </div>
+
+      {/* Week carousel */}
+      <div className="px-5 py-3 border-b border-[#e2e4e8] flex items-center gap-3 bg-white">
+        <button
+          onClick={() => setMonday(m => addDays(m, -7))}
+          className="text-[#6b6b7a] hover:text-[#0d0d0f] w-7 h-7 rounded-lg border border-[#e2e4e8] flex items-center justify-center transition-colors text-sm flex-shrink-0"
+        >‹</button>
+        <span className="text-xs text-[#6b6b7a] flex-shrink-0 w-44">{formatWeekRange(monday)}</span>
+        <div className="flex gap-1 flex-1">
+          {DAYS.map((day, i) => {
+            const isToday = toISODate(dayDates[i]) === toISODate(new Date())
+            const isSelected = i === selectedDay
+            return (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(i)}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  isSelected
+                    ? 'bg-[#00e5a0] text-black'
+                    : 'text-[#6b6b7a] hover:bg-[#f7f8fa]'
+                }`}
+              >
+                <div>{day}</div>
+                <div className={`text-[10px] font-normal ${isSelected ? 'text-black/50' : isToday ? 'text-[#00a870]' : 'text-[#c8cad0]'}`}>
+                  {formatDayLabel(dayDates[i])}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        <button
+          onClick={() => setMonday(m => addDays(m, 7))}
+          className="text-[#6b6b7a] hover:text-[#0d0d0f] w-7 h-7 rounded-lg border border-[#e2e4e8] flex items-center justify-center transition-colors text-sm flex-shrink-0"
+        >›</button>
+        <button
+          onClick={() => { setMonday(getMondayOf(new Date())); setSelectedDay(Math.min(Math.max(new Date().getDay() - 1, 0), 4)) }}
+          className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] border border-[#e2e4e8] rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
+        >This week</button>
+      </div>
+
+      {/* 3-column runsheet */}
+      <div className="px-5 py-5 overflow-x-auto bg-[#f7f8fa]">
+        <div className="grid grid-cols-3 gap-4 min-w-[820px]">
+          {HOURS.map(hour => (
+            <div key={hour} className="flex flex-col">
+              {/* Hour header */}
+              <div className="rounded-xl mb-3 px-4 py-3 flex items-center justify-between bg-white border border-[#e2e4e8]">
+                <div>
+                  <div className="text-[10px] text-[#6b6b7a] font-semibold uppercase tracking-widest">Hour</div>
+                  <div className="text-2xl font-bold text-[#0d0d0f]">
+                    {hour}<span className="text-[#00a870] text-base">:00</span>
+                  </div>
+                </div>
+                <div className="text-3xl opacity-20">📻</div>
+              </div>
+
+              {/* Slots */}
+              <div className="flex flex-col gap-1.5">
+                {HOUR_TEMPLATE.map(slot => {
+                  if (slot.isFixed) {
+                    return (
+                      <div
+                        key={slot.slotKey}
+                        className="px-3 py-2 rounded-lg text-xs text-[#c8cad0] italic bg-white border border-[#e2e4e8]"
+                      >
+                        {slot.label}
+                      </div>
+                    )
+                  }
+
+                  const sd = getSlot(date, hour, slot.slotKey)
+                  const hasContent = sd.title || sd.notes
+                  const defaultTitle = slot.slotKey === '20' ? SEGMENT_20_DEFAULTS[selectedDay] : ''
+
+                  return (
+                    <div
+                      key={slot.slotKey}
+                      className="rounded-xl overflow-hidden transition-all"
+                      style={{
+                        background: '#ffffff',
+                        border: hasContent ? '1px solid rgba(0,229,160,0.45)' : '1px solid #e2e4e8',
+                      }}
+                    >
+                      <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                        {slot.slotTime && (
+                          <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
+                        )}
+                        <span className="text-[10px] text-[#6b6b7a] uppercase tracking-widest">{slot.label}</span>
+                        {slot.isInterview && <span className="text-[9px] text-[#f59e0b] ml-auto font-medium">Guest + Topic</span>}
+                      </div>
+                      <input
+                        type="text"
+                        value={sd.title}
+                        onChange={e => updateSlot(date, hour, slot.slotKey, 'title', e.target.value)}
+                        placeholder={defaultTitle || (slot.isInterview ? 'Guest name…' : 'Title…')}
+                        className="w-full bg-transparent text-sm text-[#0d0d0f] font-semibold px-3 py-1 outline-none placeholder-[#c8cad0]"
+                      />
+                      <textarea
+                        value={sd.notes}
+                        onChange={e => updateSlot(date, hour, slot.slotKey, 'notes', e.target.value)}
+                        placeholder={slot.isInterview ? 'Topic / talking points…' : 'Notes…'}
+                        rows={2}
+                        className="w-full bg-transparent text-xs text-[#6b6b7a] px-3 pb-2.5 outline-none resize-none placeholder-[#c8cad0]"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* First-time setup hint */}
+      <div className="px-5 pb-4">
+        <details className="text-xs text-[#c8cad0] cursor-pointer">
+          <summary className="hover:text-[#6b6b7a] transition-colors">ℹ️ First-time setup — enable auto-save</summary>
+          <div className="mt-2 bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl p-4 font-mono text-[11px] text-[#6b6b7a] whitespace-pre-wrap leading-relaxed">
+{`-- Run in your Supabase SQL editor:
+
+CREATE TABLE IF NOT EXISTS radio_plans (
+  id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  show_id    uuid REFERENCES shows(id) ON DELETE CASCADE,
+  plan_date  date NOT NULL,
+  hour       int  NOT NULL,
+  slot_key   text NOT NULL,
+  title      text DEFAULT '',
+  notes      text DEFAULT '',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE (show_id, plan_date, hour, slot_key)
+);
+
+ALTER TABLE radio_plans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own radio plans" ON radio_plans
+  FOR ALL USING (
+    show_id IN (SELECT id FROM shows WHERE owner_id = auth.uid())
+  );`}
+          </div>
+        </details>
+      </div>
+    </div>
+  )
+}

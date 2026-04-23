@@ -14,12 +14,44 @@ const SHOW_TYPES = [
     features: ['Host-led segments', 'Episode archive', 'Export runsheets'],
   },
   {
+    value: 'breakfast_radio',
+    label: 'Breakfast Radio',
+    icon: '🌅',
+    description: 'Timed runsheet for breakfast drive shows',
+    color: '#fbbf24',
+    features: ['Timed radio runsheet', '6AM / 7AM / 8AM columns', 'Week-by-week planning'],
+  },
+  {
+    value: 'drive',
+    label: 'Drive Show',
+    icon: '🚗',
+    description: 'Afternoon drive show planning',
+    color: '#f97316',
+    features: ['Timed broadcast segments', 'News, traffic, competitions', 'Live runsheet format'],
+  },
+  {
+    value: 'evening',
+    label: 'Evening Show',
+    icon: '🌙',
+    description: 'Evening and overnight broadcast planning',
+    color: '#818cf8',
+    features: ['Timed segment planner', 'Interview & music slots', 'Export runsheets'],
+  },
+  {
     value: 'radio',
-    label: 'Radio Show',
+    label: 'Radio (Other)',
     icon: '📻',
-    description: 'Structured broadcast planning for on-air teams',
+    description: 'General on-air broadcast planning',
     color: '#a78bfa',
     features: ['Broadcast segments', 'News, sport, weather & more', 'Live runsheet format'],
+  },
+  {
+    value: 'other',
+    label: 'Other',
+    icon: '🎚️',
+    description: 'Something different — we\'ll keep it flexible',
+    color: '#94a3b8',
+    features: ['Custom segments', 'Episode archive', 'Export runsheets'],
   },
 ]
 
@@ -64,7 +96,7 @@ export default function CreateShow() {
     else window.location.href = '/dashboard'
   }
 
-  const isRadio = showType === 'radio'
+  const isRadio = ['radio', 'breakfast_radio', 'drive', 'evening'].includes(showType || '')
   const host1Label = isRadio ? 'Presenter 1' : 'Host 1 Name'
   const host2Label = isRadio ? 'Presenter 2' : 'Host 2 Name'
   const host1Placeholder = isRadio ? 'e.g. Matt Thompson' : 'Your name'

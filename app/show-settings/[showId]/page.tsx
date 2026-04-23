@@ -3,6 +3,9 @@ import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
+import { THEMES, type ThemeKey, applyTheme, getStoredTheme, storeTheme } from '../../../lib/theme'
+
+type Toast = { msg: string; phase: 'in' | 'out' } | null
 
 export default function ShowSettings({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -18,21 +21,33 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [xTwitter, setXTwitter] = useState('')
   const [youtube, setYoutube] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
+  const [toast, setToast] = useState<Toast>(null)
+  const [activeTheme, setActiveTheme] = useState<ThemeKey>('light')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
+  const toastTimer = useRef<any>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    setActiveTheme(getStoredTheme())
+  }, [])
+
+  const handleThemeChange = (key: ThemeKey) => {
+    setActiveTheme(key)
+    storeTheme(key)
+    applyTheme(key)
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/'); return }
       supabase.from('shows').select('*').eq('id', showId).single().then(({ data: showData }) => {
-        if (!showData || showData.owner_id !== data.user.id) { router.push('/dashboard'); return }
+        if (!showData || showData.owner_id !== data.user!.id) { router.push('/dashboard'); return }
         setShow(showData)
         setShowName(showData.name || '')
         setHost1(showData.host1_name || '')
         setHost2(showData.host2_name || '')
-        setHasProducer(showData.has_producer || false)
+        setHasProducer(!!showData.has_producer)
         setProducer(showData.producer_name || '')
         setInstagram(showData.instagram || '')
         setTiktok(showData.tiktok || '')
@@ -43,41 +58,57 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     })
   }, [])
 
+  const showToast = (msg: string, isError = false) => {
+    clearTimeout(toastTimer.current)
+    setToast({ msg, phase: 'in' })
+    toastTimer.current = setTimeout(() => {
+      setToast(t => t ? { ...t, phase: 'out' } : null)
+      toastTimer.current = setTimeout(() => setToast(null), 220)
+    }, isError ? 3000 : 1800)
+  }
+
   const handleSave = async () => {
-    if (!showName || !host1 || !host2) return
+    if (!showName.trim() || !host1.trim() || !host2.trim()) {
+      showToast('Show name and both hosts are required', true)
+      return
+    }
     setSaving(true)
-    await supabase.from('shows').update({
-      name: showName,
-      host1_name: host1,
-      host2_name: host2,
+    const { error } = await supabase.from('shows').update({
+      name: showName.trim(),
+      host1_name: host1.trim(),
+      host2_name: host2.trim(),
       has_producer: hasProducer,
-      producer_name: hasProducer ? producer : null,
-      instagram: instagram || null,
-      tiktok: tiktok || null,
-      facebook: facebook || null,
-      x_twitter: xTwitter || null,
-      youtube: youtube || null,
+      producer_name: hasProducer ? producer.trim() : null,
+      instagram: instagram.trim() || null,
+      tiktok: tiktok.trim() || null,
+      facebook: facebook.trim() || null,
+      x_twitter: xTwitter.trim() || null,
+      youtube: youtube.trim() || null,
     }).eq('id', showId)
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    if (error) {
+      showToast('Save failed: ' + error.message, true)
+    } else {
+      setShow((prev: any) => ({ ...prev, name: showName.trim(), host1_name: host1.trim(), host2_name: host2.trim(), has_producer: hasProducer, producer_name: hasProducer ? producer.trim() : null }))
+      showToast('Settings saved!')
+    }
   }
 
   const uploadAvatar = async (slot: 'host1' | 'host2' | 'producer' | 'logo', file: File) => {
     setUploading(slot)
     const ext = file.name.split('.').pop()
     const path = slot === 'logo' ? `${showId}.${ext}` : `${showId}-${slot}.${ext}`
-    const bucket = 'show-logos'
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
-    if (uploadError) { alert('Upload failed: ' + uploadError.message); setUploading(null); return }
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path)
+    const { error: uploadError } = await supabase.storage.from('show-logos').upload(path, file, { upsert: true })
+    if (uploadError) { showToast('Upload failed: ' + uploadError.message, true); setUploading(null); return }
+    const { data: { publicUrl } } = supabase.storage.from('show-logos').getPublicUrl(path)
     const field = slot === 'logo' ? 'logo_url' : slot === 'host1' ? 'host1_avatar' : slot === 'host2' ? 'host2_avatar' : 'producer_avatar'
     await supabase.from('shows').update({ [field]: publicUrl }).eq('id', showId)
     setShow((prev: any) => ({ ...prev, [field]: publicUrl }))
     setUploading(null)
+    showToast('Photo updated!')
   }
 
-  if (!show) return <div className="min-h-screen bg-white"></div>
+  if (!show) return <div className="min-h-screen bg-white" />
 
   const AvatarUpload = ({ slot, name, avatar, color }: { slot: 'host1' | 'host2' | 'producer' | 'logo'; name: string; avatar: string | null; color: string }) => (
     <div className="flex items-center gap-3">
@@ -91,7 +122,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
           : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-sm font-bold`}>{slot === 'logo' ? '🎙️' : name?.[0]}</div>
         }
         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <span className="text-white text-xs font-bold">{uploading === slot ? '...' : '↑'}</span>
+          <span className="text-white text-xs font-bold">{uploading === slot ? '…' : '↑'}</span>
         </div>
         <input ref={el => { fileInputs.current[slot] = el }} type="file" accept="image/*" className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(slot, f) }} />
@@ -105,9 +136,19 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
 
   return (
     <main className="min-h-screen bg-white text-[#0d0d0f] p-8">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
+          toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'
+        }`}>
+          <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black flex-shrink-0">✓</span>
+          {toast.msg}
+        </div>
+      )}
+
       <div className="max-w-lg mx-auto">
         <div className="flex items-center gap-4 mb-10">
-          <a href="/dashboard" className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Dashboard</a>
+          <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Show</a>
           <Logo size={0.7} />
         </div>
 
@@ -115,17 +156,20 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
         <p className="text-[#6b6b7a] text-sm mb-8">{show.name}</p>
 
         <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-6 flex flex-col gap-6">
+          {/* Show Name */}
           <div>
             <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Show Name</label>
             <input type="text" value={showName} onChange={e => setShowName(e.target.value)}
               className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]" />
           </div>
 
+          {/* Logo */}
           <div>
             <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-3 block">Show Logo</label>
             <AvatarUpload slot="logo" name="Show Logo" avatar={show.logo_url} color="bg-[#e2e4e8]" />
           </div>
 
+          {/* Hosts */}
           <div className="border-t border-[#e2e4e8] pt-4">
             <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-4 block">Hosts</label>
             <div className="flex flex-col gap-5">
@@ -144,10 +188,11 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             </div>
           </div>
 
+          {/* Producer */}
           <div className="border-t border-[#e2e4e8] pt-4">
-            <div className="flex items-center gap-3 cursor-pointer mb-3" onClick={() => setHasProducer(!hasProducer)}>
+            <div className="flex items-center gap-3 cursor-pointer mb-3" onClick={() => setHasProducer(p => !p)}>
               <div className={`w-9 h-5 rounded-full relative transition-colors ${hasProducer ? 'bg-[#a78bfa]' : 'bg-[#e2e4e8]'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${hasProducer ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${hasProducer ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </div>
               <span className="text-sm text-[#6b6b7a]">Include a Producer role</span>
             </div>
@@ -161,6 +206,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             )}
           </div>
 
+          {/* Social Media */}
           <div className="border-t border-[#e2e4e8] pt-4">
             <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-4 block">Social Media</label>
             <div className="flex flex-col gap-3">
@@ -186,9 +232,41 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             </div>
           </div>
 
-          <button onClick={handleSave} disabled={saving || !showName || !host1 || !host2}
+          {/* Colour Theme */}
+          <div className="border-t border-[#e2e4e8] pt-4">
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-4 block">Colour Theme</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.values(THEMES) as typeof THEMES[ThemeKey][]).map(theme => (
+                <button
+                  key={theme.key}
+                  onClick={() => handleThemeChange(theme.key as ThemeKey)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                    activeTheme === theme.key ? 'border-[#00e5a0] bg-[#f0fff8]' : 'border-[#e2e4e8] bg-white hover:border-[#c8cad0]'
+                  }`}
+                >
+                  {/* Colour preview swatch */}
+                  <div className="flex gap-1 flex-shrink-0">
+                    {theme.preview.map((c: string, i: number) => (
+                      <div key={i} className="w-5 h-5 rounded-full border border-black/10" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[#0d0d0f]">{theme.name}</div>
+                    <div className="text-[10px] text-[#6b6b7a] leading-tight">{theme.description}</div>
+                  </div>
+                  {activeTheme === theme.key && (
+                    <div className="ml-auto w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0">
+                      <span className="text-black text-[8px] font-black">✓</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={handleSave} disabled={saving}
             className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-50">
-            {saved ? '✓ Saved' : saving ? 'Saving...' : 'SAVE CHANGES'}
+            {saving ? 'Saving…' : 'SAVE CHANGES'}
           </button>
         </div>
       </div>

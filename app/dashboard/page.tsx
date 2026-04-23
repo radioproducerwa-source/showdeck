@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [epCounts, setEpCounts] = useState<Record<string, number>>({})
   const [epLastDate, setEpLastDate] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -60,6 +61,10 @@ export default function Dashboard() {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   }
 
+  const filteredShows = shows.filter(s =>
+    !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase())
+  )
+
   if (!user) return <div className="min-h-screen bg-[#f7f8fa]" />
 
   return (
@@ -85,7 +90,7 @@ export default function Dashboard() {
       </header>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-[#6b6b7a]">Loading...</div>
+        <div className="flex items-center justify-center py-24 text-[#6b6b7a]">Loading…</div>
       ) : shows.length === 0 ? (
         <div className="max-w-sm mx-auto mt-24 text-center px-6">
           <div className="w-16 h-16 rounded-2xl bg-white border border-[#e2e4e8] flex items-center justify-center mx-auto mb-5">
@@ -97,62 +102,85 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-5">
             <h1 className="text-xs font-semibold text-[#6b6b7a] uppercase tracking-widest">Your Shows</h1>
             <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">+ New Show</a>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {shows.map(show => (
-              <a
-                key={show.id}
-                href={`/shows/${show.id}`}
-                className="group block rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white
-                  hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.10)] hover:border-[#00e5a0]
-                  transition-all duration-200 ease-out"
-              >
-                {/* Artwork */}
-                <div className="aspect-square relative bg-[#f7f8fa]">
-                  {show.logo_url ? (
-                    <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #edfdf6 0%, #d6f5ea 100%)' }}>
-                      <span className="text-[4.5rem] font-black leading-none tracking-tighter select-none text-[#00a870]">
-                        {getInitials(show.name)}
-                      </span>
-                    </div>
-                  )}
-                  {/* Type badge */}
-                  <div className="absolute top-3 right-3">
-                    <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-sm text-white">
-                      {show.show_type === 'radio' ? '📻 Radio' : '🎙️ Podcast'}
-                    </span>
-                  </div>
-                  {/* Episode count badge */}
-                  {(epCounts[show.id] || 0) > 0 && (
-                    <div className="absolute bottom-3 left-3">
-                      <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-black/65 backdrop-blur-sm text-white/90">
-                        {epCounts[show.id]} {(epCounts[show.id] === 1) ? 'episode' : 'episodes'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="px-5 py-4 border-t border-[#e2e4e8]">
-                  <h2 className="font-bold text-[#0d0d0f] leading-snug group-hover:text-[#00a870] transition-colors duration-200 mb-1 truncate">
-                    {show.name}
-                  </h2>
-                  {getHostLine(show) && (
-                    <p className="text-xs text-[#6b6b7a] truncate mb-2">{getHostLine(show)}</p>
-                  )}
-                  {epLastDate[show.id] && (
-                    <p className="text-[10px] text-[#c8cad0]">Last episode: {formatLastDate(epLastDate[show.id])}</p>
-                  )}
-                </div>
-              </a>
-            ))}
+          {/* Search */}
+          <div className="mb-6 relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] text-sm">🔍</span>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search shows…"
+              className="w-full bg-white border border-[#e2e4e8] rounded-xl pl-9 pr-4 py-2.5 text-sm text-[#0d0d0f] outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a] text-lg leading-none">×</button>
+            )}
           </div>
+
+          {filteredShows.length === 0 ? (
+            <div className="text-center py-16 text-[#6b6b7a] text-sm">No shows match "{search}"</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredShows.map(show => (
+                <a
+                  key={show.id}
+                  href={`/shows/${show.id}`}
+                  className="group block rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white
+                    hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.10)] hover:border-[#00e5a0]
+                    transition-all duration-200 ease-out"
+                >
+                  {/* Artwork */}
+                  <div className="aspect-square relative bg-[#f7f8fa]">
+                    {show.logo_url ? (
+                      <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #edfdf6 0%, #d6f5ea 100%)' }}>
+                        <span className="text-[4.5rem] font-black leading-none tracking-tighter select-none text-[#00a870]">
+                          {getInitials(show.name)}
+                        </span>
+                      </div>
+                    )}
+                    {/* Type badge */}
+                    <div className="absolute top-3 right-3">
+                      <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-sm text-white">
+                        {show.show_type === 'radio' ? '📻 Radio'
+                          : show.show_type === 'breakfast_radio' ? '🌅 Breakfast'
+                          : show.show_type === 'drive' ? '🚗 Drive'
+                          : show.show_type === 'evening' ? '🌙 Evening'
+                          : '🎙️ Podcast'}
+                      </span>
+                    </div>
+                    {/* Episode count badge */}
+                    {(epCounts[show.id] || 0) > 0 && (
+                      <div className="absolute bottom-3 left-3">
+                        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-black/65 backdrop-blur-sm text-white/90">
+                          {epCounts[show.id]} {epCounts[show.id] === 1 ? 'episode' : 'episodes'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="px-5 py-4 border-t border-[#e2e4e8]">
+                    <h2 className="font-bold text-[#0d0d0f] leading-snug group-hover:text-[#00a870] transition-colors duration-200 mb-1 truncate">
+                      {show.name}
+                    </h2>
+                    {getHostLine(show) && (
+                      <p className="text-xs text-[#6b6b7a] truncate mb-2">{getHostLine(show)}</p>
+                    )}
+                    {epLastDate[show.id] && (
+                      <p className="text-[10px] text-[#c8cad0]">Last episode: {formatLastDate(epLastDate[show.id])}</p>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </main>
