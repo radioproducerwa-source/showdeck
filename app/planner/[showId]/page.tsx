@@ -3,6 +3,7 @@ import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
+import GlobalSearch from '../../../components/GlobalSearch'
 
 const DEFAULT_SECTIONS: Record<string, { name: string; icon: string }[]> = {
   podcast: [
@@ -517,6 +518,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
             className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
             Export PDF
           </button>
+          <GlobalSearch />
         </div>
       </header>
 

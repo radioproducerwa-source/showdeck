@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import RadioPlannerPanel from '../../../components/RadioPlannerPanel'
+import GlobalSearch from '../../../components/GlobalSearch'
 
 export default function RadioPlannerPage({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -36,6 +37,7 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
           )}
           <span className="text-[#6b6b7a] text-xs border-l border-[#e2e4e8] pl-3">{show.name}</span>
         </div>
+        <GlobalSearch />
       </header>
       <div className="max-w-5xl mx-auto px-6 py-8">
         <RadioPlannerPanel showId={showId} show={show} />

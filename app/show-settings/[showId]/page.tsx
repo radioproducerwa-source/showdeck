@@ -3,6 +3,7 @@ import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
+import GlobalSearch from '../../../components/GlobalSearch'
 
 type Toast = { msg: string; phase: 'in' | 'out' } | null
 
@@ -141,9 +142,12 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       )}
 
       <div className="max-w-lg mx-auto">
-        <div className="flex items-center gap-4 mb-10">
-          <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Show</a>
-          <Logo size={0.7} />
+        <div className="flex items-center justify-between gap-4 mb-10">
+          <div className="flex items-center gap-4">
+            <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Show</a>
+            <Logo size={0.7} />
+          </div>
+          <GlobalSearch />
         </div>
 
         <h1 className="text-2xl font-bold mb-1">Show Settings</h1>

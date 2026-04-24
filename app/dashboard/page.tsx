@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo'
+import GlobalSearch from '../../components/GlobalSearch'
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
@@ -94,6 +95,8 @@ export default function Dashboard() {
               <div className="text-[10px] text-[#6b6b7a] capitalize leading-tight">{profile?.role}</div>
             </div>
           </a>
+          <div className="w-px h-5 bg-[#e2e4e8]" />
+          <GlobalSearch />
           <div className="w-px h-5 bg-[#e2e4e8]" />
           <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
         </div>

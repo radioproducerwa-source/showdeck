@@ -3,6 +3,7 @@ import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
+import GlobalSearch from '../../../components/GlobalSearch'
 
 export default function ShowDetail({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -172,6 +173,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         </div>
         {show && (
           <div className="flex items-center gap-2">
+            <GlobalSearch />
             <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">Settings</a>
             {!isRadio && (
               <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-1.5 text-sm hover:bg-[#00ffc0] transition-colors">
