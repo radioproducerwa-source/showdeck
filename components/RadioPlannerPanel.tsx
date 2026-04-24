@@ -422,7 +422,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
                         <span className="text-[10px] text-[#6b6b7a] uppercase tracking-widest">{slot.label}</span>
-                        {slot.isInterview && (
+                        {slot.label === 'SEGMENT' && (
                           <button
                             onMouseDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); openGuestPicker(hour, slot.slotKey) }}
