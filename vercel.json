@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/archive-episodes",
+      "schedule": "0 7 * * 5"
+    }
+  ]
+}
