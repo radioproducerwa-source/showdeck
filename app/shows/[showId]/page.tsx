@@ -55,7 +55,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         }
         const allEps = eps || []
         setEpisodes(allEps)
-        const latest = allEps[0]
+        const latest = allEps.find((e: any) => !e.archived)
         if (latest) {
           setCurrentEp(latest)
           Promise.all([
@@ -93,6 +93,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     const fri = new Date(mon)
     fri.setDate(mon.getDate() + 4)
     return `${mon.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${fri.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  }
+
+  const unarchiveEpisode = async (episodeId: string) => {
+    await supabase.from('episodes').update({ archived: false }).eq('id', episodeId)
+    setEpisodes(prev => prev.map(e => e.id === episodeId ? { ...e, archived: false } : e))
   }
 
   const deleteEpisode = async (episodeId: string, title: string) => {
@@ -628,25 +633,39 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               ) : (
                 <div className="divide-y divide-[#e2e4e8]">
                   {filtered.map((ep) => (
-                    <div key={ep.id} className="flex items-center justify-between px-6 py-4 hover:bg-[#f7f8fa] transition-colors group">
+                    <div key={ep.id} className={`flex items-center justify-between px-6 py-4 hover:bg-[#f7f8fa] transition-colors group ${ep.archived ? 'opacity-60' : ''}`}>
                       <a href={`/planner/${showId}?episodeId=${ep.id}`} className="flex-1 flex items-center gap-4 min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-xs font-bold text-[#6b6b7a] flex-shrink-0">
-                          {episodes.indexOf(ep) === 0
-                            ? <span className="text-[#00a870]">▶</span>
-                            : episodes.length - episodes.indexOf(ep)}
+                          {ep.archived
+                            ? <span>📦</span>
+                            : episodes.filter((e: any) => !e.archived).indexOf(ep) === 0
+                              ? <span className="text-[#00a870]">▶</span>
+                              : episodes.length - episodes.indexOf(ep)}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-medium text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors truncate">
-                            {ep.title || `Untitled ${epLabel}`}
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors truncate">
+                              {ep.title || `Untitled ${epLabel}`}
+                            </div>
+                            {ep.archived && (
+                              <span className="text-[9px] font-bold uppercase tracking-widest bg-[#f7f8fa] border border-[#e2e4e8] text-[#6b6b7a] px-1.5 py-0.5 rounded-full flex-shrink-0">Archived</span>
+                            )}
                           </div>
                           <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDateShort(ep.episode_date)}</div>
                         </div>
                       </a>
                       <div className="flex items-center gap-3 flex-shrink-0">
-                        <a href={`/planner/${showId}?episodeId=${ep.id}`}
-                          className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] transition-colors opacity-0 group-hover:opacity-100">
-                          Open
-                        </a>
+                        {ep.archived ? (
+                          <button onClick={() => unarchiveEpisode(ep.id)}
+                            className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#00a870] hover:border-[#00e5a0]/40 transition-colors opacity-0 group-hover:opacity-100">
+                            Unarchive
+                          </button>
+                        ) : (
+                          <a href={`/planner/${showId}?episodeId=${ep.id}`}
+                            className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] transition-colors opacity-0 group-hover:opacity-100">
+                            Open
+                          </a>
+                        )}
                         <button onClick={() => deleteEpisode(ep.id, ep.title)}
                           className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none opacity-0 group-hover:opacity-100 transition-all"
                           title="Delete episode">×</button>

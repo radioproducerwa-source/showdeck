@@ -50,6 +50,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [toast, setToast] = useState<Toast>(null)
   const [importing, setImporting] = useState<string | null>(null)
   const [duplicating, setDuplicating] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
   const [newName, setNewName] = useState('')
   const [newIcon, setNewIcon] = useState('📝')
@@ -228,6 +229,15 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     setContent(newContent)
     setDuplicating(false)
     showToast('Duplicated from last week!')
+  }
+
+  const archiveEpisode = async () => {
+    if (!episodeId) return
+    setArchiving(true)
+    await supabase.from('episodes').update({ archived: true }).eq('id', episodeId)
+    setArchiving(false)
+    showToast('Episode archived')
+    setTimeout(() => router.push(`/shows/${showId}`), 800)
   }
 
   const updateTitle = (value: string) => {
@@ -513,6 +523,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           <button onClick={duplicateFromLastWeek} disabled={duplicating}
             className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40">
             {duplicating ? 'Duplicating…' : '↓ Duplicate last week'}
+          </button>
+          <button onClick={archiveEpisode} disabled={archiving || !episodeId}
+            className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
+            title="Archive this episode — removes it from the current episode slot">
+            {archiving ? 'Archiving…' : '📦 Archive'}
           </button>
           <button onClick={exportPdf}
             className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
