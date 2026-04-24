@@ -234,8 +234,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const archiveEpisode = async () => {
     if (!episodeId) return
     setArchiving(true)
-    await supabase.from('episodes').update({ archived: true }).eq('id', episodeId)
+    const { error } = await supabase.from('episodes').update({ archived: true }).eq('id', episodeId)
     setArchiving(false)
+    if (error) {
+      showToast('Archive failed — make sure the DB migration has been run')
+      return
+    }
     showToast('Episode archived')
     setTimeout(() => router.push(`/shows/${showId}`), 800)
   }

@@ -528,9 +528,16 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 </a>
               </div>
             ) : (
-              <div className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-5 flex items-center justify-between">
-                <span className="text-[#6b6b7a] text-sm">No {epLabelPlural} yet</span>
-                <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-5 py-2 text-sm hover:bg-[#00ffc0] transition-colors">
+              <div className="bg-white border-2 border-dashed border-[#e2e4e8] rounded-2xl px-6 py-8 flex flex-col items-center text-center gap-3">
+                <div className="text-3xl">🎙️</div>
+                <div>
+                  <p className="font-semibold text-[#0d0d0f]">No active episode</p>
+                  <p className="text-sm text-[#6b6b7a] mt-0.5">
+                    {episodes.some((e: any) => e.archived) ? 'Last episode was archived.' : `No ${epLabelPlural} yet.`}
+                    {' '}Start a new one to begin planning.
+                  </p>
+                </div>
+                <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
                   + New {epLabel}
                 </a>
               </div>
