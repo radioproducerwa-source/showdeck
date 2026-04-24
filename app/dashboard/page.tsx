@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [shows, setShows] = useState<any[]>([])
   const [epCounts, setEpCounts] = useState<Record<string, number>>({})
   const [epLastDate, setEpLastDate] = useState<Record<string, string>>({})
+  const [epTitles, setEpTitles] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const router = useRouter()
@@ -27,16 +28,22 @@ export default function Dashboard() {
       if (s.length > 0) {
         const ids = s.map((x: any) => x.id)
         const { data: allEps } = await supabase
-          .from('episodes').select('id, show_id, episode_date')
+          .from('episodes').select('id, show_id, episode_date, title')
           .in('show_id', ids).order('episode_date', { ascending: false })
         const counts: Record<string, number> = {}
         const lastDates: Record<string, string> = {}
+        const titles: Record<string, string[]> = {}
         ;(allEps || []).forEach((ep: any) => {
           counts[ep.show_id] = (counts[ep.show_id] || 0) + 1
           if (!lastDates[ep.show_id]) lastDates[ep.show_id] = ep.episode_date
+          if (ep.title) {
+            if (!titles[ep.show_id]) titles[ep.show_id] = []
+            titles[ep.show_id].push(ep.title.toLowerCase())
+          }
         })
         setEpCounts(counts)
         setEpLastDate(lastDates)
+        setEpTitles(titles)
       }
       setLoading(false)
     })
@@ -61,9 +68,12 @@ export default function Dashboard() {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   }
 
-  const filteredShows = shows.filter(s =>
-    !search.trim() || s.name.toLowerCase().includes(search.trim().toLowerCase())
-  )
+  const filteredShows = shows.filter(s => {
+    if (!search.trim()) return true
+    const q = search.trim().toLowerCase()
+    return s.name.toLowerCase().includes(q) ||
+      (epTitles[s.id] || []).some(t => t.includes(q))
+  })
 
   if (!user) return <div className="min-h-screen bg-[#f7f8fa]" />
 
