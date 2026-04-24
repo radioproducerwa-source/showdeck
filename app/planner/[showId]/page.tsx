@@ -127,7 +127,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       setEpisodeDate(episode.episode_date)
       setEpTitle(episode.title || '')
 
-      let { data: existingSections } = await supabase.from('sections').select('*').eq('episode_id', episode.id)
+      let { data: existingSections } = await supabase.from('sections').select('*').eq('episode_id', episode.id).order('sort_order', { ascending: true }).order('id', { ascending: true })
       if (!existingSections || existingSections.length === 0) {
         const { data: prevEps } = await supabase.from('episodes').select('id').eq('show_id', showId).neq('id', episode.id).order('episode_date', { ascending: false }).limit(1)
         let sectionSource: { name: string; icon: string }[] = getDefaultSections(showData?.show_type || 'podcast')
@@ -135,7 +135,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           const { data: prevSections } = await supabase.from('sections').select('name, icon').eq('episode_id', prevEps[0].id)
           if (prevSections && prevSections.length > 0) sectionSource = prevSections
         }
-        const { data: inserted } = await supabase.from('sections').insert(sectionSource.map(s => ({ episode_id: episode.id, name: s.name, icon: s.icon }))).select()
+        const { data: inserted } = await supabase.from('sections').insert(sectionSource.map((s, i) => ({ episode_id: episode.id, name: s.name, icon: s.icon, sort_order: i }))).select()
         existingSections = inserted || []
       }
       setSections(existingSections)
@@ -310,6 +310,10 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       const next = [...prev]
       const [moved] = next.splice(dragIndex, 1)
       next.splice(idx, 0, moved)
+      // persist new sort_order values
+      Promise.all(next.map((s, i) =>
+        supabase.from('sections').update({ sort_order: i }).eq('id', s.id)
+      )).catch(() => {})
       return next
     })
     setDragIndex(null)

@@ -3,9 +3,16 @@ import { useEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
-import { THEMES, type ThemeKey, applyTheme, getStoredTheme, storeTheme } from '../../../lib/theme'
 
 type Toast = { msg: string; phase: 'in' | 'out' } | null
+
+const HEADER_COLORS = [
+  { value: '#00e5a0', label: 'Green' },
+  { value: '#0d0d0f', label: 'Black' },
+  { value: '#e53935', label: 'Red' },
+  { value: '#1e88e5', label: 'Blue' },
+  { value: '#f9a825', label: 'Yellow' },
+]
 
 export default function ShowSettings({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -23,20 +30,10 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
   const [toast, setToast] = useState<Toast>(null)
-  const [activeTheme, setActiveTheme] = useState<ThemeKey>('light')
+  const [headerColor, setHeaderColor] = useState('#00e5a0')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const toastTimer = useRef<any>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    setActiveTheme(getStoredTheme())
-  }, [])
-
-  const handleThemeChange = (key: ThemeKey) => {
-    setActiveTheme(key)
-    storeTheme(key)
-    applyTheme(key)
-  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -54,6 +51,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
         setFacebook(showData.facebook || '')
         setXTwitter(showData.x_twitter || '')
         setYoutube(showData.youtube || '')
+        setHeaderColor(showData.header_color || '#00e5a0')
       })
     })
   }, [])
@@ -84,6 +82,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       facebook: facebook.trim() || null,
       x_twitter: xTwitter.trim() || null,
       youtube: youtube.trim() || null,
+      header_color: headerColor,
     }).eq('id', showId)
     setSaving(false)
     if (error) {
@@ -232,35 +231,33 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             </div>
           </div>
 
-          {/* Colour Theme */}
+          {/* Header Colour */}
           <div className="border-t border-[#e2e4e8] pt-4">
-            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-4 block">Colour Theme</label>
-            <div className="grid grid-cols-2 gap-3">
-              {(Object.values(THEMES) as typeof THEMES[ThemeKey][]).map(theme => (
-                <button
-                  key={theme.key}
-                  onClick={() => handleThemeChange(theme.key as ThemeKey)}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                    activeTheme === theme.key ? 'border-[#00e5a0] bg-[#f0fff8]' : 'border-[#e2e4e8] bg-white hover:border-[#c8cad0]'
-                  }`}
-                >
-                  {/* Colour preview swatch */}
-                  <div className="flex gap-1 flex-shrink-0">
-                    {theme.preview.map((c: string, i: number) => (
-                      <div key={i} className="w-5 h-5 rounded-full border border-black/10" style={{ backgroundColor: c }} />
-                    ))}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-[#0d0d0f]">{theme.name}</div>
-                    <div className="text-[10px] text-[#6b6b7a] leading-tight">{theme.description}</div>
-                  </div>
-                  {activeTheme === theme.key && (
-                    <div className="ml-auto w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0">
-                      <span className="text-black text-[8px] font-black">✓</span>
-                    </div>
-                  )}
-                </button>
-              ))}
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-1 block">Header Colour</label>
+            <p className="text-[10px] text-[#9a9aaa] mb-4">Sets the banner colour on your show page.</p>
+            <div className="flex gap-3 flex-wrap">
+              {HEADER_COLORS.map(({ value, label }) => {
+                const isSelected = headerColor === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setHeaderColor(value)}
+                    title={label}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all ${
+                      isSelected ? 'border-[#00e5a0] bg-[#f0fff8]' : 'border-[#e2e4e8] bg-white hover:border-[#c8cad0]'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: value }} />
+                    <span className="text-[9px] font-semibold text-[#6b6b7a]">{label}</span>
+                    {isSelected && (
+                      <div className="w-3 h-3 rounded-full bg-[#00e5a0] flex items-center justify-center">
+                        <span className="text-black text-[7px] font-black">✓</span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

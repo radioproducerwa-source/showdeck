@@ -11,21 +11,21 @@ type SlotTemplate = {
 }
 
 const HOUR_TEMPLATE: SlotTemplate[] = [
-  { slotTime: ':03',     label: 'SHOW INTRO / TOP OF HOUR', isFixed: false, isInterview: false, slotKey: '03' },
-  { slotTime: null,      label: 'SONG ×1',                  isFixed: true,  isInterview: false, slotKey: 'song-a' },
-  { slotTime: ':10',     label: 'SEGMENT SLOT',             isFixed: false, isInterview: false, slotKey: '10' },
-  { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-a' },
-  { slotTime: null,      label: 'SONG ×1',                  isFixed: true,  isInterview: false, slotKey: 'song-b' },
-  { slotTime: ':20',     label: 'REGULAR SEGMENT',          isFixed: false, isInterview: false, slotKey: '20' },
-  { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-b' },
-  { slotTime: null,      label: 'News',                     isFixed: true,  isInterview: false, slotKey: 'news' },
-  { slotTime: ':33',     label: 'HALF HOUR INTRO',          isFixed: false, isInterview: false, slotKey: '33' },
-  { slotTime: null,      label: 'SONG ×1',                  isFixed: true,  isInterview: false, slotKey: 'song-c' },
-  { slotTime: ':40',     label: 'INTERVIEW SLOT',           isFixed: false, isInterview: true,  slotKey: '40' },
-  { slotTime: null,      label: 'Traffic / Ads',            isFixed: true,  isInterview: false, slotKey: 'traffic-c' },
-  { slotTime: null,      label: 'SONG ×2',                  isFixed: true,  isInterview: false, slotKey: 'song-d' },
-  { slotTime: ':50',     label: 'PERSONAL / TOPICAL',       isFixed: false, isInterview: false, slotKey: '5055' },
-  { slotTime: null,      label: 'ADS',                      isFixed: true,  isInterview: false, slotKey: 'ads' },
+  { slotTime: ':03',     label: 'TOP OF HOUR',   isFixed: false, isInterview: false, slotKey: '03' },
+  { slotTime: null,      label: 'SONG ×1',        isFixed: true,  isInterview: false, slotKey: 'song-a' },
+  { slotTime: ':10',     label: 'SEGMENT',        isFixed: false, isInterview: false, slotKey: '10' },
+  { slotTime: null,      label: 'Traffic / Ads',  isFixed: true,  isInterview: false, slotKey: 'traffic-a' },
+  { slotTime: null,      label: 'SONG ×1',        isFixed: true,  isInterview: false, slotKey: 'song-b' },
+  { slotTime: ':20',     label: 'SEGMENT',        isFixed: false, isInterview: false, slotKey: '20' },
+  { slotTime: null,      label: 'Traffic / Ads',  isFixed: true,  isInterview: false, slotKey: 'traffic-b' },
+  { slotTime: null,      label: 'News',           isFixed: true,  isInterview: false, slotKey: 'news' },
+  { slotTime: ':33',     label: 'HALF HOUR INTRO',isFixed: false, isInterview: false, slotKey: '33' },
+  { slotTime: null,      label: 'SONG ×1',        isFixed: true,  isInterview: false, slotKey: 'song-c' },
+  { slotTime: ':40',     label: 'SEGMENT',        isFixed: false, isInterview: true,  slotKey: '40' },
+  { slotTime: null,      label: 'Traffic / Ads',  isFixed: true,  isInterview: false, slotKey: 'traffic-c' },
+  { slotTime: null,      label: 'SONG ×2',        isFixed: true,  isInterview: false, slotKey: 'song-d' },
+  { slotTime: ':55',     label: 'SEGMENT',        isFixed: false, isInterview: false, slotKey: '5055' },
+  { slotTime: null,      label: 'ADS',            isFixed: true,  isInterview: false, slotKey: 'ads' },
 ]
 
 const HOURS = [6, 7, 8]
@@ -78,6 +78,8 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   const [plans, setPlans]             = useState<Record<string, PlanMap>>({})
   const [saving, setSaving]           = useState(false)
   const [toast, setToast]             = useState<Toast>(null)
+  const [dragSrc, setDragSrc]         = useState<{ hour: number; slotKey: string } | null>(null)
+  const [dragOver, setDragOver]       = useState<{ hour: number; slotKey: string } | null>(null)
   const saveTimers = useRef<Record<string, any>>({})
   const toastTimer = useRef<any>(null)
 
@@ -149,6 +151,49 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
     }, 700)
   }
 
+  const handleSlotDragStart = (e: React.DragEvent, hour: number, slotKey: string) => {
+    setDragSrc({ hour, slotKey })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleSlotDragOver = (e: React.DragEvent, hour: number, slotKey: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOver({ hour, slotKey })
+  }
+
+  const handleSlotDrop = (e: React.DragEvent, hour: number, slotKey: string) => {
+    e.preventDefault()
+    if (!dragSrc || (dragSrc.hour === hour && dragSrc.slotKey === slotKey)) {
+      setDragSrc(null); setDragOver(null); return
+    }
+    const date = currentDate()
+    const srcData = getSlot(date, dragSrc.hour, dragSrc.slotKey)
+    const dstData = getSlot(date, hour, slotKey)
+    setPlans(prev => {
+      const dayMap = { ...(prev[date] || {}) }
+      dayMap[`${dragSrc.hour}-${dragSrc.slotKey}`] = { ...dstData }
+      dayMap[`${hour}-${slotKey}`] = { ...srcData }
+      return { ...prev, [date]: dayMap }
+    })
+    const save = async (h: number, sk: string, data: SlotData) => {
+      try {
+        await supabase.from('radio_plans').upsert({
+          show_id: showId, plan_date: date, hour: h, slot_key: sk,
+          title: data.title, notes: data.notes,
+        }, { onConflict: 'show_id,plan_date,hour,slot_key' })
+      } catch { /* ignore */ }
+    }
+    setSaving(true)
+    Promise.all([
+      save(dragSrc.hour, dragSrc.slotKey, dstData),
+      save(hour, slotKey, srcData),
+    ]).then(() => { setSaving(false); showToast('Saved') })
+    setDragSrc(null); setDragOver(null)
+  }
+
+  const handleSlotDragEnd = () => { setDragSrc(null); setDragOver(null) }
+
   const exportPdf = async () => {
     const date = currentDate()
     const dayName = addDays(monday, selectedDay).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -175,7 +220,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(10)
       doc.setTextColor(0, 168, 112)
-      doc.text(`${hour}:00 AM`, colX(i) + colW / 2, mt + 1, { align: 'center' })
+      doc.text(`${hour}AM`, colX(i) + colW / 2, mt + 1, { align: 'center' })
     })
 
     let ys = [mt + 8, mt + 8, mt + 8]
@@ -300,9 +345,8 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                 style={{ background: 'linear-gradient(135deg, #0d0d0f 60%, #1a2a20)', border: '1px solid #1a1a1a' }}>
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: '#00e5a0' }}>On Air</div>
-                  <div className="text-4xl font-black leading-none text-white">
-                    {hour}<span className="text-2xl font-bold" style={{ color: '#00e5a0' }}>:00</span>
-                    <span className="text-sm font-semibold text-white/40 ml-1">AM</span>
+                  <div className="text-4xl font-black leading-none" style={{ color: '#00e5a0' }}>
+                    {hour}AM
                   </div>
                 </div>
                 <div className="text-4xl opacity-30">📻</div>
@@ -329,17 +373,27 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                   const sd = getSlot(date, hour, slot.slotKey)
                   const hasContent = sd.title || sd.notes
                   const defaultTitle = slot.slotKey === '20' ? SEGMENT_20_DEFAULTS[selectedDay] : ''
+                  const isDragSrc = dragSrc?.hour === hour && dragSrc?.slotKey === slot.slotKey
+                  const isDragOver = dragOver?.hour === hour && dragOver?.slotKey === slot.slotKey
 
                   return (
                     <div
                       key={slot.slotKey}
+                      draggable
+                      onDragStart={e => handleSlotDragStart(e, hour, slot.slotKey)}
+                      onDragOver={e => handleSlotDragOver(e, hour, slot.slotKey)}
+                      onDrop={e => handleSlotDrop(e, hour, slot.slotKey)}
+                      onDragEnd={handleSlotDragEnd}
                       className="rounded-xl overflow-hidden transition-all"
                       style={{
                         background: '#ffffff',
-                        border: hasContent ? '1px solid rgba(0,229,160,0.45)' : '1px solid #e2e4e8',
+                        border: isDragOver ? '1.5px solid #00e5a0' : hasContent ? '1px solid rgba(0,229,160,0.45)' : '1px solid #e2e4e8',
+                        opacity: isDragSrc ? 0.45 : 1,
+                        cursor: 'grab',
                       }}
                     >
                       <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                        <span className="text-[12px] text-[#c8cad0] flex-shrink-0 cursor-grab select-none" title="Drag to swap">⠿</span>
                         {slot.slotTime && (
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
@@ -352,6 +406,8 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                         onChange={e => updateSlot(date, hour, slot.slotKey, 'title', e.target.value)}
                         placeholder={defaultTitle || (slot.isInterview ? 'Guest name…' : 'Title…')}
                         className="w-full bg-transparent text-sm text-[#0d0d0f] font-semibold px-3 py-1 outline-none placeholder-[#c8cad0]"
+                        style={{ cursor: 'text' }}
+                        onMouseDown={e => e.stopPropagation()}
                       />
                       <textarea
                         value={sd.notes}
@@ -359,6 +415,8 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                         placeholder={slot.isInterview ? 'Topic / talking points…' : 'Notes…'}
                         rows={2}
                         className="w-full bg-transparent text-xs text-[#6b6b7a] px-3 pb-2.5 outline-none resize-none placeholder-[#c8cad0]"
+                        style={{ cursor: 'text' }}
+                        onMouseDown={e => e.stopPropagation()}
                       />
                     </div>
                   )

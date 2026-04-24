@@ -15,7 +15,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [radioWeeks, setRadioWeeks] = useState<string[]>([])
-  const [todaySlots, setTodaySlots] = useState<Record<string, string>>({})
+  const [todaySlots, setTodaySlots] = useState<Record<string, { title: string; notes: string }>>({})
   const [archiveSearch, setArchiveSearch] = useState('')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
@@ -32,7 +32,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           const todayDate = new Date().toLocaleDateString('en-CA')
           Promise.all([
             supabase.from('radio_plans').select('plan_date').eq('show_id', showId),
-            supabase.from('radio_plans').select('hour,slot_key,title').eq('show_id', showId).eq('plan_date', todayDate),
+            supabase.from('radio_plans').select('hour,slot_key,title,notes').eq('show_id', showId).eq('plan_date', todayDate),
           ]).then(([{ data: planRows }, { data: todayRows }]) => {
             if (planRows) {
               const seen = new Set<string>()
@@ -46,8 +46,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               setRadioWeeks(Array.from(seen).sort().reverse())
             }
             if (todayRows) {
-              const map: Record<string, string> = {}
-              todayRows.forEach((r: any) => { map[`${r.hour}-${r.slot_key}`] = r.title || '' })
+              const map: Record<string, { title: string; notes: string }> = {}
+              todayRows.forEach((r: any) => { map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' } })
               setTodaySlots(map)
             }
           })
@@ -186,8 +186,14 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
 
         {/* ── Show Header ── */}
         <div className="relative rounded-2xl overflow-hidden">
-          {/* Clean dark gradient — no logo colour bleed */}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #0d0d0f 100%)' }} />
+          {/* Header banner with per-show colour */}
+          {(() => {
+            const hc = show?.header_color || '#00e5a0'
+            const bg = hc === '#0d0d0f'
+              ? 'linear-gradient(135deg, #1a1a1a 0%, #0d0d0f 100%)'
+              : `linear-gradient(135deg, ${hc}40 0%, #0d0d0f 100%)`
+            return <div className="absolute inset-0" style={{ background: bg }} />
+          })()}
           {/* Fade-to-page-bg at bottom */}
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#f7f8fa] to-transparent" />
           {/* Content */}
@@ -253,7 +259,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           const HOURS = [6, 7, 8]
           const totalSlots = SLOT_KEYS.length * HOURS.length
           const filledCount = HOURS.reduce((acc, h) =>
-            acc + SLOT_KEYS.filter(k => todaySlots[`${h}-${k}`]?.trim()).length, 0)
+            acc + SLOT_KEYS.filter(k => todaySlots[`${h}-${k}`]?.title?.trim()).length, 0)
           const fillPct = Math.round((filledCount / totalSlots) * 100)
           const todayDow = new Date().getDay() // 0=Sun
           const isWeekday = todayDow >= 1 && todayDow <= 5
@@ -337,14 +343,14 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 <div className="grid grid-cols-3 divide-x divide-[#e2e4e8]">
                   {HOURS.map(hour => {
                     const slots = [
-                      { slotKey: '03',   time: ':03',     label: 'Show Intro' },
-                      { slotKey: '10',   time: ':10',     label: 'Segment' },
-                      { slotKey: '20',   time: ':20',     label: 'Regular Segment' },
-                      { slotKey: '33',   time: ':33',     label: 'Half Hour' },
-                      { slotKey: '40',   time: ':40',     label: 'Interview', isInterview: true },
-                      { slotKey: '5055', time: ':50/:55', label: 'Personal / Topical' },
+                      { slotKey: '03',   time: ':03', label: 'Top of Hour' },
+                      { slotKey: '10',   time: ':10', label: 'Segment' },
+                      { slotKey: '20',   time: ':20', label: 'Segment' },
+                      { slotKey: '33',   time: ':33', label: 'Half Hour Intro' },
+                      { slotKey: '40',   time: ':40', label: 'Segment', isInterview: true },
+                      { slotKey: '5055', time: ':55', label: 'Segment' },
                     ]
-                    const hourFilled = slots.filter(s => todaySlots[`${hour}-${s.slotKey}`]?.trim()).length
+                    const hourFilled = slots.filter(s => todaySlots[`${hour}-${s.slotKey}`]?.title?.trim()).length
                     return (
                       <div key={hour}>
                         {/* Hour header */}
@@ -358,28 +364,36 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         {/* Slot rows */}
                         <div className="divide-y divide-[#f0f1f3]">
                           {slots.map(s => {
-                            const title = todaySlots[`${hour}-${s.slotKey}`] || ''
+                            const slotData = todaySlots[`${hour}-${s.slotKey}`]
+                            const title = slotData?.title || ''
+                            const notes = slotData?.notes || ''
                             const filled = title.trim().length > 0
+                            const notesPreview = notes ? notes.split('\n')[0].slice(0, 60) : ''
                             return (
                               <div key={s.slotKey}
-                                className={`flex items-center gap-2.5 px-4 py-2.5 ${filled ? 'bg-[#f5fdf9]' : ''}`}>
-                                <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-black transition-all ${
+                                className={`flex items-start gap-2.5 px-4 py-2.5 ${filled ? 'bg-[#f5fdf9]' : ''}`}>
+                                <span className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-black transition-all mt-0.5 ${
                                   filled
                                     ? 'bg-[#00e5a0] text-black shadow-[0_0_0_2px_rgba(0,229,160,0.2)]'
                                     : 'border-2 border-[#e2e4e8]'
                                 }`}>
                                   {filled ? '✓' : ''}
                                 </span>
-                                <div className="min-w-0 flex-1 flex items-baseline gap-1.5">
-                                  <span className={`text-[10px] font-mono flex-shrink-0 ${filled ? 'text-[#00a870]' : 'text-[#c8cad0]'}`}>
-                                    {s.time}
-                                  </span>
-                                  <span className={`text-xs truncate ${filled ? 'text-[#0d0d0f] font-semibold' : 'text-[#c8cad0]'}`}>
-                                    {filled ? title : s.label}
-                                  </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-baseline gap-1.5">
+                                    <span className={`text-[10px] font-mono flex-shrink-0 ${filled ? 'text-[#00a870]' : 'text-[#c8cad0]'}`}>
+                                      {s.time}
+                                    </span>
+                                    <span className={`text-xs truncate ${filled ? 'text-[#0d0d0f] font-semibold' : 'text-[#c8cad0]'}`}>
+                                      {filled ? title : s.label}
+                                    </span>
+                                  </div>
+                                  {filled && notesPreview && (
+                                    <p className="text-[10px] text-[#9a9aaa] truncate mt-0.5 leading-tight">{notesPreview}</p>
+                                  )}
                                 </div>
                                 {(s as any).isInterview && !filled && (
-                                  <span className="text-[9px] font-medium text-[#f59e0b] flex-shrink-0">Guest</span>
+                                  <span className="text-[9px] font-medium text-[#f59e0b] flex-shrink-0 mt-0.5">Guest</span>
                                 )}
                               </div>
                             )
