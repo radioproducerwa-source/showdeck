@@ -298,10 +298,16 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       })}
                     </div>
                   </div>
-                  <a href={`/radio-planner/${showId}`}
-                    className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors flex-shrink-0 shadow-sm mt-1">
-                    Open Runsheet →
-                  </a>
+                  <div className="flex flex-col gap-2 flex-shrink-0 mt-1">
+                    <a href={`/radio-planner/${showId}`}
+                      className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors shadow-sm text-center">
+                      Open Runsheet →
+                    </a>
+                    <a href={`/guests/${showId}`}
+                      className="text-center text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-xl px-4 py-2 hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors">
+                      🎤 Guest Book
+                    </a>
+                  </div>
                 </div>
               </div>
 

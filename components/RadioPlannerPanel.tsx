@@ -42,6 +42,7 @@ const SEGMENT_20_DEFAULTS: Record<number, string> = {
 type SlotData = { title: string; notes: string }
 type PlanMap  = Record<string, SlotData>
 type Toast    = { msg: string; phase: 'in' | 'out' } | null
+type Guest    = { id: string; name: string; title: string | null; notes: string | null }
 
 function getMondayOf(d: Date): Date {
   const day = d.getDay()
@@ -80,6 +81,9 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   const [toast, setToast]             = useState<Toast>(null)
   const [dragSrc, setDragSrc]         = useState<{ hour: number; slotKey: string } | null>(null)
   const [dragOver, setDragOver]       = useState<{ hour: number; slotKey: string } | null>(null)
+  const [guests, setGuests]           = useState<Guest[]>([])
+  const [guestPicker, setGuestPicker] = useState<{ hour: number; slotKey: string } | null>(null)
+  const [guestSearch, setGuestSearch] = useState('')
   const saveTimers = useRef<Record<string, any>>({})
   const toastTimer = useRef<any>(null)
 
@@ -193,6 +197,26 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   }
 
   const handleSlotDragEnd = () => { setDragSrc(null); setDragOver(null) }
+
+  useEffect(() => {
+    supabase.from('guests').select('id, name, title, notes').eq('show_id', showId).order('name').then(({ data }) => {
+      if (data) setGuests(data)
+    })
+  }, [])
+
+  const openGuestPicker = (hour: number, slotKey: string) => {
+    setGuestSearch('')
+    setGuestPicker({ hour, slotKey })
+  }
+
+  const pickGuest = (guest: Guest) => {
+    if (!guestPicker) return
+    const { hour, slotKey } = guestPicker
+    const date = currentDate()
+    updateSlot(date, hour, slotKey, 'title', guest.name)
+    if (guest.title) updateSlot(date, hour, slotKey, 'notes', guest.title)
+    setGuestPicker(null)
+  }
 
   const exportPdf = async () => {
     const date = currentDate()
@@ -398,7 +422,16 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
                         <span className="text-[10px] text-[#6b6b7a] uppercase tracking-widest">{slot.label}</span>
-                        {slot.isInterview && <span className="text-[9px] text-[#00a870] ml-auto font-bold tracking-wide">Guest + Topic</span>}
+                        {slot.isInterview && (
+                          <button
+                            onMouseDown={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); openGuestPicker(hour, slot.slotKey) }}
+                            className="ml-auto text-[9px] font-semibold text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors flex-shrink-0"
+                            style={{ cursor: 'pointer' }}
+                          >
+                            📋 Guests
+                          </button>
+                        )}
                       </div>
                       <input
                         type="text"
@@ -428,9 +461,82 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
       </div>
 
       {/* Showdeck branding footer */}
-      <div className="px-5 py-3 border-t border-[#e2e4e8] flex items-center justify-end">
+      <div className="px-5 py-3 border-t border-[#e2e4e8] flex items-center justify-between">
+        <a href={`/guests/${showId}`} className="text-[10px] text-[#c8cad0] hover:text-[#6b6b7a] transition-colors">
+          🎤 Guest address book →
+        </a>
         <span className="text-[10px] font-bold tracking-widest text-[#c8cad0] uppercase">Powered by Showdeck</span>
       </div>
+
+      {/* Guest picker modal */}
+      {guestPicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] px-4"
+          style={{ background: 'rgba(13,13,15,0.5)', backdropFilter: 'blur(3px)' }}
+          onClick={() => setGuestPicker(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-4 py-3.5 border-b border-[#e2e4e8]">
+              <div className="text-xs font-bold uppercase tracking-widest text-[#00a870] mb-2.5">Select a Guest</div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#c8cad0] text-xs">🔍</span>
+                <input
+                  autoFocus
+                  type="text"
+                  value={guestSearch}
+                  onChange={e => setGuestSearch(e.target.value)}
+                  placeholder="Search guests…"
+                  className="w-full bg-[#f7f8fa] border border-[#e2e4e8] rounded-lg pl-7 pr-3 py-2 text-sm outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
+                />
+              </div>
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              {(() => {
+                const q = guestSearch.trim().toLowerCase()
+                const visible = guests.filter(g =>
+                  !q || g.name.toLowerCase().includes(q) || (g.title || '').toLowerCase().includes(q)
+                )
+                if (guests.length === 0) return (
+                  <div className="px-4 py-8 text-center">
+                    <p className="text-sm text-[#6b6b7a] mb-2">No guests saved yet.</p>
+                    <a href={`/guests/${showId}`} className="text-xs text-[#00a870] hover:underline">Add guests to address book →</a>
+                  </div>
+                )
+                if (visible.length === 0) return (
+                  <div className="px-4 py-6 text-center text-sm text-[#6b6b7a]">No guests match "{guestSearch}"</div>
+                )
+                return (
+                  <ul className="py-1.5">
+                    {visible.map(guest => (
+                      <li key={guest.id}>
+                        <button
+                          onClick={() => pickGuest(guest)}
+                          className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-[#f7f8fa] text-left transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[#00e5a0]/15 flex items-center justify-center flex-shrink-0 text-sm font-bold text-[#00a870]">
+                            {guest.name[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-[#0d0d0f]">{guest.name}</div>
+                            {guest.title && <div className="text-xs text-[#6b6b7a] truncate">{guest.title}</div>}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              })()}
+            </div>
+            <div className="px-4 py-3 border-t border-[#e2e4e8] flex items-center justify-between">
+              <a href={`/guests/${showId}`} className="text-xs text-[#6b6b7a] hover:text-[#00a870] transition-colors">+ Manage address book</a>
+              <button onClick={() => setGuestPicker(null)} className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:border-[#c8cad0] transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
