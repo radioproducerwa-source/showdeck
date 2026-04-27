@@ -33,7 +33,7 @@ const DAYS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 
-type SlotData          = { title: string; notes: string }
+type SlotData          = { title: string; notes: string; link: string }
 type PlanMap           = Record<string, SlotData>
 type Toast             = { msg: string; phase: 'in' | 'out' } | null
 type Guest             = { id: string; name: string; title: string | null; notes: string | null }
@@ -81,8 +81,9 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   const [recurringSegments, setRecurringSegments] = useState<RecurringSegment[]>([])
   const [guestPicker, setGuestPicker]           = useState<{ hour: number; slotKey: string } | null>(null)
   const [guestSearch, setGuestSearch]           = useState('')
-  const saveTimers = useRef<Record<string, any>>({})
-  const toastTimer = useRef<any>(null)
+  const saveTimers   = useRef<Record<string, any>>({})
+  const toastTimer   = useRef<any>(null)
+  const linkFocusRef = useRef<string | null>(null)
 
   useEffect(() => {
     loadDay(toISODate(addDays(getMondayOf(new Date()), selectedDay)))
@@ -115,7 +116,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
       if (data && data.length > 0) {
         const map: PlanMap = {}
         data.forEach((r: any) => {
-          map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' }
+          map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '', link: r.link || '' }
         })
         setPlans(prev => ({ ...prev, [date]: map }))
       } else {
@@ -128,7 +129,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
           .eq('day_of_week', dayName)
         const map: PlanMap = {}
         ;(tmpl || []).forEach((r: any) => {
-          map[`${r.hour}-${r.slot_time}`] = { title: r.title || '', notes: r.notes || '' }
+          map[`${r.hour}-${r.slot_time}`] = { title: r.title || '', notes: r.notes || '', link: '' }
         })
         setPlans(prev => ({ ...prev, [date]: map }))
       }
@@ -138,12 +139,12 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   }
 
   const getSlot = (date: string, hour: number, slotKey: string): SlotData =>
-    plans[date]?.[`${hour}-${slotKey}`] || { title: '', notes: '' }
+    plans[date]?.[`${hour}-${slotKey}`] || { title: '', notes: '', link: '' }
 
-  const updateSlot = (date: string, hour: number, slotKey: string, field: 'title' | 'notes', value: string) => {
+  const updateSlot = (date: string, hour: number, slotKey: string, field: 'title' | 'notes' | 'link', value: string) => {
     setPlans(prev => {
       const dayMap = { ...(prev[date] || {}) }
-      const existing = dayMap[`${hour}-${slotKey}`] || { title: '', notes: '' }
+      const existing = dayMap[`${hour}-${slotKey}`] || { title: '', notes: '', link: '' }
       dayMap[`${hour}-${slotKey}`] = { ...existing, [field]: value }
       return { ...prev, [date]: dayMap }
     })
@@ -159,8 +160,9 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
           plan_date: date,
           hour,
           slot_key: slotKey,
-          title: field === 'title' ? value : updated.title,
-          notes: field === 'notes' ? value : updated.notes,
+          title: updated.title,
+          notes: updated.notes,
+          link: updated.link,
         }, { onConflict: 'show_id,plan_date,hour,slot_key' })
       } catch { /* table not yet created */ }
       setSaving(false)
@@ -197,7 +199,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
       try {
         await supabase.from('radio_plans').upsert({
           show_id: showId, plan_date: date, hour: h, slot_key: sk,
-          title: data.title, notes: data.notes,
+          title: data.title, notes: data.notes, link: data.link,
         }, { onConflict: 'show_id,plan_date,hour,slot_key' })
       } catch { /* ignore */ }
     }
@@ -514,10 +516,62 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                         onChange={e => updateSlot(date, hour, slot.slotKey, 'notes', e.target.value)}
                         placeholder={slot.isInterview ? 'Topic / talking points…' : 'Notes…'}
                         rows={2}
-                        className="w-full bg-transparent text-xs text-[#6b6b7a] px-3 pb-2.5 outline-none resize-none placeholder-[#c8cad0]"
+                        className="w-full bg-transparent text-xs text-[#6b6b7a] px-3 pb-1 outline-none resize-none placeholder-[#c8cad0]"
                         style={{ cursor: 'text' }}
                         onMouseDown={e => e.stopPropagation()}
                       />
+                      {(sd.link === '' ? [''] : sd.link.split('\n')).map((linkVal, idx, arr) => {
+                        const focusKey = `${hour}-${slot.slotKey}-link-${idx}`
+                        const removeLink = () => {
+                          const links = sd.link === '' ? [''] : sd.link.split('\n')
+                          if (links.length === 1) {
+                            updateSlot(date, hour, slot.slotKey, 'link', '')
+                          } else {
+                            links.splice(idx, 1)
+                            updateSlot(date, hour, slot.slotKey, 'link', links.join('\n'))
+                          }
+                        }
+                        return (
+                          <div key={idx} className={`flex items-center border-t border-[#f0f0f4] ${idx === arr.length - 1 ? 'pb-2.5' : ''}`}>
+                            <input
+                              type="text"
+                              value={linkVal}
+                              ref={el => {
+                                if (el && linkFocusRef.current === focusKey) {
+                                  el.focus()
+                                  linkFocusRef.current = null
+                                }
+                              }}
+                              onChange={e => {
+                                const links = sd.link === '' ? [''] : sd.link.split('\n')
+                                links[idx] = e.target.value
+                                updateSlot(date, hour, slot.slotKey, 'link', links.join('\n'))
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  const links = sd.link === '' ? [''] : sd.link.split('\n')
+                                  links.splice(idx + 1, 0, '')
+                                  linkFocusRef.current = `${hour}-${slot.slotKey}-link-${idx + 1}`
+                                  updateSlot(date, hour, slot.slotKey, 'link', links.join('\n'))
+                                }
+                              }}
+                              placeholder="Audio / Web Link…"
+                              className="flex-1 bg-transparent text-xs text-[#6b6b7a] px-3 py-1 outline-none placeholder-[#c8cad0]"
+                              style={{ cursor: 'text' }}
+                              onMouseDown={e => e.stopPropagation()}
+                            />
+                            {(arr.length > 1 || linkVal) && (
+                              <button
+                                onMouseDown={e => e.stopPropagation()}
+                                onClick={removeLink}
+                                className="pr-2.5 text-[#c8cad0] hover:text-[#e53935] transition-colors text-[10px] leading-none flex-shrink-0"
+                                tabIndex={-1}
+                              >✕</button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}
