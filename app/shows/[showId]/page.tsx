@@ -4,6 +4,28 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove, SortableContext, useSortable, rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+function SortableNote({ id, children }: { id: string; children: (dragListeners: any) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      {...attributes}
+    >
+      {children(listeners)}
+    </div>
+  )
+}
 
 export default function ShowDetail({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -20,6 +42,23 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const [archiveSearch, setArchiveSearch] = useState('')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
+
+  const whiteboardSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const handleWhiteboardDndEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setSections(prev => {
+      const oldIdx = prev.findIndex((s: any) => s.id === active.id)
+      const newIdx = prev.findIndex((s: any) => s.id === over.id)
+      const next = arrayMove(prev, oldIdx, newIdx)
+      Promise.all(next.map((s: any, i: number) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id))).catch(() => {})
+      return next
+    })
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -59,7 +98,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         if (latest) {
           setCurrentEp(latest)
           Promise.all([
-            supabase.from('sections').select('*').eq('episode_id', latest.id),
+            supabase.from('sections').select('*').eq('episode_id', latest.id).order('sort_order', { ascending: true }).order('id', { ascending: true }),
             supabase.from('section_content').select('*').eq('episode_id', latest.id)
           ]).then(([{ data: secs }, { data: contentRows }]) => {
             setSections(secs || [])
@@ -564,49 +603,64 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       Edit in planner →
                     </a>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {sections.map((section: any, idx: number) => {
-                      const status = getSectionStatus(section.name)
-                      const preview = getSectionPreview(section.name)
-                      const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
-                      const noteRotation = idx % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)'
-                      const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-                      const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
-                      const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
-                      return (
-                        <a key={section.id} href={href}
-                          className="sticky-note relative block"
-                          style={{ backgroundColor: noteColor, borderRadius: '2px', boxShadow: '2px 4px 16px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08)', transform: noteRotation }}>
-                          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
-                            <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                              style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18', boxShadow: '0 2px 6px rgba(0,0,0,0.35)' }}>
-                              <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.4)' }} />
-                            </div>
-                          </div>
-                          <div className="pt-5 px-4 pb-4">
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div>
-                                <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: 'rgba(0,0,0,0.25)' }}>
-                                  Segment {idx + 1}
-                                </p>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-base leading-none">{section.icon}</span>
-                                  <span className="font-bold text-[13px] leading-snug" style={{ color: '#1a1a1a' }}>{section.name}</span>
+                  <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleWhiteboardDndEnd}>
+                    <SortableContext items={sections.map((s: any) => s.id)} strategy={rectSortingStrategy}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {sections.map((section: any, idx: number) => {
+                          const status = getSectionStatus(section.name)
+                          const preview = getSectionPreview(section.name)
+                          const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
+                          const noteRotation = idx % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)'
+                          const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+                          const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
+                          const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
+                          return (
+                            <SortableNote key={section.id} id={section.id}>
+                              {(dragListeners: any) => (
+                                <div className="relative" style={{ transform: noteRotation }}>
+                                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
+                                    <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                                      style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18', boxShadow: '0 2px 6px rgba(0,0,0,0.35)' }}>
+                                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.4)' }} />
+                                    </div>
+                                  </div>
+                                  <span
+                                    {...dragListeners}
+                                    className="absolute top-1.5 right-2 z-20 text-[rgba(0,0,0,0.15)] hover:text-[rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing text-[10px] select-none touch-none"
+                                    title="Drag to reorder"
+                                  >⠿⠿</span>
+                                  <a href={href}
+                                    className="sticky-note block"
+                                    style={{ backgroundColor: noteColor, borderRadius: '2px', boxShadow: '2px 4px 16px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08)' }}>
+                                    <div className="pt-5 px-4 pb-4">
+                                      <div className="flex items-start justify-between gap-2 mb-2">
+                                        <div>
+                                          <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: 'rgba(0,0,0,0.25)' }}>
+                                            Segment {idx + 1}
+                                          </p>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-base leading-none">{section.icon}</span>
+                                            <span className="font-bold text-[13px] leading-snug" style={{ color: '#1a1a1a' }}>{section.name}</span>
+                                          </div>
+                                        </div>
+                                        <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
+                                          style={{ backgroundColor: badgeBg, color: badgeColor }}>
+                                          {status}
+                                        </span>
+                                      </div>
+                                      <p className="text-[11px] leading-relaxed line-clamp-4 mt-3" style={{ color: '#3a3028' }}>
+                                        {preview || <span className="italic" style={{ color: 'rgba(0,0,0,0.25)' }}>No notes yet</span>}
+                                      </p>
+                                    </div>
+                                  </a>
                                 </div>
-                              </div>
-                              <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
-                                style={{ backgroundColor: badgeBg, color: badgeColor }}>
-                                {status}
-                              </span>
-                            </div>
-                            <p className="text-[11px] leading-relaxed line-clamp-4 mt-3" style={{ color: '#3a3028' }}>
-                              {preview || <span className="italic" style={{ color: 'rgba(0,0,0,0.25)' }}>No notes yet</span>}
-                            </p>
-                          </div>
-                        </a>
-                      )
-                    })}
-                  </div>
+                              )}
+                            </SortableNote>
+                          )
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
                 </div>
                 <div className="h-5" style={{ background: '#252525' }} />
               </div>
