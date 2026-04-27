@@ -30,19 +30,14 @@ const HOUR_TEMPLATE: SlotTemplate[] = [
 
 const HOURS = [6, 7, 8]
 const DAYS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-const SEGMENT_20_DEFAULTS: Record<number, string> = {
-  0: 'Trending Now',
-  1: 'Sports Headlines',
-  2: 'Trending Now',
-  3: 'Sports Headlines',
-  4: 'Trending Now',
-}
 
-type SlotData = { title: string; notes: string }
-type PlanMap  = Record<string, SlotData>
-type Toast    = { msg: string; phase: 'in' | 'out' } | null
-type Guest    = { id: string; name: string; title: string | null; notes: string | null }
+type SlotData          = { title: string; notes: string }
+type PlanMap           = Record<string, SlotData>
+type Toast             = { msg: string; phase: 'in' | 'out' } | null
+type Guest             = { id: string; name: string; title: string | null; notes: string | null }
+type RecurringSegment  = { id: string; name: string }
 
 function getMondayOf(d: Date): Date {
   const day = d.getDay()
@@ -78,12 +73,14 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   const [selectedDay, setSelectedDay] = useState<number>(Math.min(Math.max(new Date().getDay() - 1, 0), 4))
   const [plans, setPlans]             = useState<Record<string, PlanMap>>({})
   const [saving, setSaving]           = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const [toast, setToast]             = useState<Toast>(null)
   const [dragSrc, setDragSrc]         = useState<{ hour: number; slotKey: string } | null>(null)
   const [dragOver, setDragOver]       = useState<{ hour: number; slotKey: string } | null>(null)
-  const [guests, setGuests]           = useState<Guest[]>([])
-  const [guestPicker, setGuestPicker] = useState<{ hour: number; slotKey: string } | null>(null)
-  const [guestSearch, setGuestSearch] = useState('')
+  const [guests, setGuests]                     = useState<Guest[]>([])
+  const [recurringSegments, setRecurringSegments] = useState<RecurringSegment[]>([])
+  const [guestPicker, setGuestPicker]           = useState<{ hour: number; slotKey: string } | null>(null)
+  const [guestSearch, setGuestSearch]           = useState('')
   const saveTimers = useRef<Record<string, any>>({})
   const toastTimer = useRef<any>(null)
 
@@ -114,11 +111,27 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
         .select('*')
         .eq('show_id', showId)
         .eq('plan_date', date)
-      const map: PlanMap = {}
-      ;(data || []).forEach((r: any) => {
-        map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' }
-      })
-      setPlans(prev => ({ ...prev, [date]: map }))
+
+      if (data && data.length > 0) {
+        const map: PlanMap = {}
+        data.forEach((r: any) => {
+          map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' }
+        })
+        setPlans(prev => ({ ...prev, [date]: map }))
+      } else {
+        // No saved plan — try template for this day of week
+        const dayName = DOW_NAMES[new Date(date + 'T12:00:00').getDay()]
+        const { data: tmpl } = await supabase
+          .from('radio_templates')
+          .select('hour, slot_time, title, notes')
+          .eq('show_id', showId)
+          .eq('day_of_week', dayName)
+        const map: PlanMap = {}
+        ;(tmpl || []).forEach((r: any) => {
+          map[`${r.hour}-${r.slot_time}`] = { title: r.title || '', notes: r.notes || '' }
+        })
+        setPlans(prev => ({ ...prev, [date]: map }))
+      }
     } catch {
       setPlans(prev => ({ ...prev, [date]: {} }))
     }
@@ -202,6 +215,9 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
     supabase.from('guests').select('id, name, title, notes').eq('show_id', showId).order('name').then(({ data }) => {
       if (data) setGuests(data)
     })
+    supabase.from('recurring_segments').select('id, name').eq('show_id', showId).order('created_at').then(({ data }) => {
+      if (data) setRecurringSegments(data)
+    })
   }, [])
 
   const openGuestPicker = (hour: number, slotKey: string) => {
@@ -216,6 +232,33 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
     updateSlot(date, hour, slotKey, 'title', guest.name)
     if (guest.title) updateSlot(date, hour, slotKey, 'notes', guest.title)
     setGuestPicker(null)
+  }
+
+  const saveAsTemplate = async () => {
+    setSavingTemplate(true)
+    const date = currentDate()
+    const dayName = DOW_NAMES[new Date(date + 'T12:00:00').getDay()]
+    const rows = HOURS.flatMap(hour =>
+      HOUR_TEMPLATE
+        .filter(slot => !slot.isFixed)
+        .map(slot => {
+          const sd = getSlot(date, hour, slot.slotKey)
+          return {
+            show_id: showId,
+            day_of_week: dayName,
+            slot_time: slot.slotKey,
+            hour,
+            slot_type: slot.label,
+            title: sd.title || null,
+            notes: sd.notes || null,
+            is_fixed: false,
+          }
+        })
+    )
+    await supabase.from('radio_templates').delete().eq('show_id', showId).eq('day_of_week', dayName)
+    const { error } = await supabase.from('radio_templates').insert(rows)
+    setSavingTemplate(false)
+    showToast(error ? 'Failed to save template' : 'Template saved')
   }
 
   const exportPdf = async () => {
@@ -312,12 +355,21 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
           <span className="text-sm font-bold text-[#0d0d0f]">📻 Radio Runsheet</span>
           {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
         </div>
-        <button
-          onClick={exportPdf}
-          className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
-        >
-          Export PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={saveAsTemplate}
+            disabled={savingTemplate}
+            className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-40"
+          >
+            {savingTemplate ? 'Saving…' : 'Save as Template'}
+          </button>
+          <button
+            onClick={exportPdf}
+            className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
+          >
+            Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Week carousel */}
@@ -396,7 +448,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
 
                   const sd = getSlot(date, hour, slot.slotKey)
                   const hasContent = sd.title || sd.notes
-                  const defaultTitle = slot.slotKey === '20' ? SEGMENT_20_DEFAULTS[selectedDay] : ''
+                  const defaultTitle = ''
                   const isDragSrc = dragSrc?.hour === hour && dragSrc?.slotKey === slot.slotKey
                   const isDragOver = dragOver?.hour === hour && dragOver?.slotKey === slot.slotKey
 
@@ -433,6 +485,21 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                           </button>
                         )}
                       </div>
+                      {!slot.isInterview && (
+                        <select
+                          value=""
+                          onChange={e => { if (e.target.value) updateSlot(date, hour, slot.slotKey, 'title', e.target.value) }}
+                          onMouseDown={e => e.stopPropagation()}
+                          className="w-full bg-transparent border-t border-[#f0f0f4] text-[10px] text-[#9a9aaa] px-3 py-1 outline-none cursor-pointer hover:bg-[#f7f8fa] transition-colors"
+                          style={{ appearance: 'none' }}
+                        >
+                          <option value="">— Quick fill —</option>
+                          {recurringSegments.length === 0
+                            ? <option value="" disabled>Add segments in Show Settings</option>
+                            : recurringSegments.map(s => <option key={s.id} value={s.name}>{s.name}</option>)
+                          }
+                        </select>
+                      )}
                       <input
                         type="text"
                         value={sd.title}

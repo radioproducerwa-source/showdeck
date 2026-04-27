@@ -32,6 +32,8 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [uploading, setUploading] = useState<string | null>(null)
   const [toast, setToast] = useState<Toast>(null)
   const [headerColor, setHeaderColor] = useState('#00e5a0')
+  const [recurringSegments, setRecurringSegments] = useState<{ id: string; name: string }[]>([])
+  const [newSegmentName, setNewSegmentName] = useState('')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const toastTimer = useRef<any>(null)
   const router = useRouter()
@@ -54,6 +56,9 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
         setYoutube(showData.youtube || '')
         setHeaderColor(showData.header_color || '#00e5a0')
       })
+      supabase.from('recurring_segments').select('id, name').eq('show_id', showId).order('created_at').then(({ data }) => {
+        if (data) setRecurringSegments(data)
+      })
     })
   }, [])
 
@@ -64,6 +69,21 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       setToast(t => t ? { ...t, phase: 'out' } : null)
       toastTimer.current = setTimeout(() => setToast(null), 220)
     }, isError ? 3000 : 1800)
+  }
+
+  const addSegment = async () => {
+    const name = newSegmentName.trim()
+    if (!name) return
+    const { data, error } = await supabase.from('recurring_segments').insert({ show_id: showId, name }).select('id, name').single()
+    if (error) { showToast('Failed to add segment', true); return }
+    setRecurringSegments(prev => [...prev, data])
+    setNewSegmentName('')
+  }
+
+  const deleteSegment = async (id: string) => {
+    const { error } = await supabase.from('recurring_segments').delete().eq('id', id)
+    if (error) { showToast('Failed to delete segment', true); return }
+    setRecurringSegments(prev => prev.filter(s => s.id !== id))
   }
 
   const handleSave = async () => {
@@ -264,6 +284,43 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-50">
             {saving ? 'Saving…' : 'SAVE CHANGES'}
           </button>
+        </div>
+        {/* Regular Segments */}
+        <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-6 flex flex-col gap-4 mt-6">
+          <div>
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Regular Segments</label>
+            <p className="text-[10px] text-[#9a9aaa] mt-1">Saved segment names for quick-fill in the radio planner.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {recurringSegments.length === 0 && (
+              <p className="text-xs text-[#9a9aaa]">No segments saved yet.</p>
+            )}
+            {recurringSegments.map(seg => (
+              <div key={seg.id} className="flex items-center gap-2 bg-white border border-[#e2e4e8] rounded-lg px-3 py-2">
+                <span className="flex-1 text-sm text-[#0d0d0f]">{seg.name}</span>
+                <button
+                  onClick={() => deleteSegment(seg.id)}
+                  className="text-[#c8cad0] hover:text-[#e53935] transition-colors text-sm leading-none"
+                  title="Delete"
+                >✕</button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSegmentName}
+              onChange={e => setNewSegmentName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addSegment() }}
+              placeholder="Segment name…"
+              className="flex-1 bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2.5 text-sm outline-none focus:border-[#00e5a0]"
+            />
+            <button
+              onClick={addSegment}
+              disabled={!newSegmentName.trim()}
+              className="bg-[#0d0d0f] text-white font-bold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-30"
+            >+ Add</button>
+          </div>
         </div>
       </div>
     </main>
