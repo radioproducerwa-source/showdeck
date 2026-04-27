@@ -32,6 +32,15 @@ const HOURS = [6, 7, 8]
 const DAYS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const DOW_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+const ADDABLE_SLOT_TYPES: SlotTemplate[] = [
+  { label: 'SEGMENT',        isFixed: false, isInterview: false, slotTime: null, slotKey: '' },
+  { label: 'INTERVIEW',      isFixed: false, isInterview: true,  slotTime: null, slotKey: '' },
+  { label: 'News',           isFixed: true,  isInterview: false, slotTime: null, slotKey: '' },
+  { label: 'SONG ×1',       isFixed: true,  isInterview: false, slotTime: null, slotKey: '' },
+  { label: 'Traffic / Ads', isFixed: true,  isInterview: false, slotTime: null, slotKey: '' },
+  { label: 'ADS',            isFixed: true,  isInterview: false, slotTime: null, slotKey: '' },
+]
+
 
 type SlotData          = { title: string; notes: string; link: string }
 type PlanMap           = Record<string, SlotData>
@@ -66,6 +75,27 @@ function formatWeekRange(monday: Date): string {
   return `${monday.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${fri.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}`
 }
 
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <button
+      onMouseDown={e => e.stopPropagation()}
+      onClick={copy}
+      tabIndex={-1}
+      className={`pr-1.5 text-[10px] font-semibold leading-none flex-shrink-0 transition-colors ${copied ? 'text-[#00a870]' : 'text-[#c8cad0] hover:text-[#6b6b7a]'}`}
+    >
+      {copied ? '✓' : 'copy'}
+    </button>
+  )
+}
+
 type Props = { showId: string; show: any }
 
 export default function RadioPlannerPanel({ showId, show }: Props) {
@@ -77,6 +107,8 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   const [toast, setToast]             = useState<Toast>(null)
   const [dragSrc, setDragSrc]         = useState<{ hour: number; slotKey: string } | null>(null)
   const [dragOver, setDragOver]       = useState<{ hour: number; slotKey: string } | null>(null)
+  const [slotLayout, setSlotLayout]             = useState<SlotTemplate[]>(HOUR_TEMPLATE)
+  const [editingLayout, setEditingLayout]       = useState(false)
   const [guests, setGuests]                     = useState<Guest[]>([])
   const [recurringSegments, setRecurringSegments] = useState<RecurringSegment[]>([])
   const [guestPicker, setGuestPicker]           = useState<{ hour: number; slotKey: string } | null>(null)
@@ -220,6 +252,17 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
     supabase.from('recurring_segments').select('id, name').eq('show_id', showId).order('created_at').then(({ data }) => {
       if (data) setRecurringSegments(data)
     })
+    supabase.from('show_slot_layout').select('*').eq('show_id', showId).order('sort_order').then(({ data }) => {
+      if (data && data.length > 0) {
+        setSlotLayout(data.map((r: any) => ({
+          slotKey:     r.slot_key,
+          label:       r.label,
+          slotTime:    r.slot_time ?? null,
+          isFixed:     r.is_fixed,
+          isInterview: r.is_interview,
+        })))
+      }
+    })
   }, [])
 
   const openGuestPicker = (hour: number, slotKey: string) => {
@@ -236,12 +279,45 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
     setGuestPicker(null)
   }
 
+  const persistLayout = async (layout: SlotTemplate[]) => {
+    await supabase.from('show_slot_layout').delete().eq('show_id', showId)
+    if (layout.length > 0) {
+      await supabase.from('show_slot_layout').insert(
+        layout.map((s, i) => ({
+          show_id:      showId,
+          slot_key:     s.slotKey,
+          label:        s.label,
+          slot_time:    s.slotTime ?? null,
+          is_fixed:     s.isFixed,
+          is_interview: s.isInterview,
+          sort_order:   i,
+        }))
+      )
+    }
+  }
+
+  const deleteSlotFromLayout = async (slotKey: string) => {
+    const updated = slotLayout.filter(s => s.slotKey !== slotKey)
+    setSlotLayout(updated)
+    await persistLayout(updated)
+  }
+
+  const addSlotToLayout = async (type: SlotTemplate) => {
+    const newSlot: SlotTemplate = {
+      ...type,
+      slotKey: `custom-${Date.now()}`,
+    }
+    const updated = [...slotLayout, newSlot]
+    setSlotLayout(updated)
+    await persistLayout(updated)
+  }
+
   const saveAsTemplate = async () => {
     setSavingTemplate(true)
     const date = currentDate()
     const dayName = DOW_NAMES[new Date(date + 'T12:00:00').getDay()]
     const rows = HOURS.flatMap(hour =>
-      HOUR_TEMPLATE
+      slotLayout
         .filter(slot => !slot.isFixed)
         .map(slot => {
           const sd = getSlot(date, hour, slot.slotKey)
@@ -293,7 +369,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
     })
 
     let ys = [mt + 8, mt + 8, mt + 8]
-    HOUR_TEMPLATE.forEach(slot => {
+    slotLayout.forEach(slot => {
       HOURS.forEach((hour, i) => {
         const x = colX(i)
         let y = ys[i]
@@ -358,6 +434,16 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
           {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditingLayout(v => !v)}
+            className={`border rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+              editingLayout
+                ? 'border-[#f59e0b] bg-[#fef3c7] text-[#b45309]'
+                : 'border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0]'
+            }`}
+          >
+            {editingLayout ? 'Done' : 'Edit layout'}
+          </button>
           <button
             onClick={saveAsTemplate}
             disabled={savingTemplate}
@@ -432,18 +518,24 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
 
               {/* Slots */}
               <div className="flex flex-col gap-1.5">
-                {HOUR_TEMPLATE.map(slot => {
+                {slotLayout.map(slot => {
                   if (slot.isFixed) {
                     return (
                       <div
                         key={slot.slotKey}
-                        className="px-3 py-1.5 rounded-lg text-xs italic border-l-4 border-[#d0d4da] border border-[#e8eaed]"
+                        className="px-3 py-1.5 rounded-lg text-xs italic border-l-4 border-[#d0d4da] border border-[#e8eaed] flex items-center justify-between"
                         style={{
                           color: '#a0a4ae',
                           background: 'repeating-linear-gradient(45deg, #f4f5f8, #f4f5f8 5px, #edeef2 5px, #edeef2 10px)',
                         }}
                       >
-                        {slot.label}
+                        <span>{slot.label}</span>
+                        {editingLayout && hour === HOURS[0] && (
+                          <button
+                            onClick={() => deleteSlotFromLayout(slot.slotKey)}
+                            className="text-[#c8cad0] hover:text-[#e53935] transition-colors text-[10px] leading-none ml-2 flex-shrink-0"
+                          >✕</button>
+                        )}
                       </div>
                     )
                   }
@@ -476,7 +568,14 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
                         <span className="text-[10px] text-[#6b6b7a] uppercase tracking-widest">{slot.label}</span>
-                        {(
+                        {editingLayout && hour === HOURS[0] ? (
+                          <button
+                            onMouseDown={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); deleteSlotFromLayout(slot.slotKey) }}
+                            className="ml-auto text-[#c8cad0] hover:text-[#e53935] transition-colors text-[10px] leading-none flex-shrink-0 px-1"
+                            style={{ cursor: 'pointer' }}
+                          >✕</button>
+                        ) : (
                           <button
                             onMouseDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); openGuestPicker(hour, slot.slotKey) }}
@@ -561,6 +660,9 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
                               style={{ cursor: 'text' }}
                               onMouseDown={e => e.stopPropagation()}
                             />
+                            {linkVal && (
+                              <CopyButton value={linkVal} />
+                            )}
                             {(arr.length > 1 || linkVal) && (
                               <button
                                 onMouseDown={e => e.stopPropagation()}
@@ -580,6 +682,24 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Add slot row (edit mode only) */}
+      {editingLayout && (
+        <div className="px-5 py-3 border-t border-[#e2e4e8] bg-[#fffbeb]">
+          <p className="text-[10px] text-[#b45309] font-semibold uppercase tracking-widest mb-2">Add slot to all hours</p>
+          <div className="flex flex-wrap gap-2">
+            {ADDABLE_SLOT_TYPES.map(type => (
+              <button
+                key={type.label}
+                onClick={() => addSlotToLayout(type)}
+                className="border border-[#e2e4e8] bg-white text-[#6b6b7a] hover:border-[#0d0d0f] hover:text-[#0d0d0f] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+              >
+                + {type.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Showdeck branding footer */}
       <div className="px-5 py-3 border-t border-[#e2e4e8] flex items-center justify-between">
