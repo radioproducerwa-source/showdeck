@@ -609,40 +609,42 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         </div>
       )}
 
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-[#e2e4e8] px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Back</a>
-          <span className="text-[#e2e4e8]">|</span>
-          <Logo size={0.55} />
-          <span className="border-l border-[#e2e4e8] pl-3 flex items-center gap-2">
-            {show.logo_url && <img src={show.logo_url} alt="logo" className="w-6 h-6 rounded object-cover" />}
-            <span className="text-[#6b6b7a] text-xs">{show.name}</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-xs flex items-center gap-1.5 transition-opacity ${saveStatus === 'unsaved' ? 'opacity-100' : 'opacity-0'}`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
-            <span className="text-[#f59e0b]">Unsaved</span>
-          </span>
-          <button onClick={saveAsTemplate} disabled={savingTemplate || sections.length === 0}
-            className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40"
-            title="Save current sections as the default template for new episodes">
-            {savingTemplate ? 'Saving…' : '⬡ Save as Template'}
-          </button>
-          <button onClick={duplicateFromLastWeek} disabled={duplicating}
-            className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40">
-            {duplicating ? 'Duplicating…' : '↓ Duplicate last week'}
-          </button>
-          <button onClick={archiveEpisode} disabled={archiving || !episodeId}
-            className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
-            title="Archive this episode">
-            {archiving ? 'Archiving…' : '📦 Archive'}
-          </button>
-          <button onClick={exportPdf}
-            className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
-            Export PDF
-          </button>
-          <GlobalSearch />
+      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-[#e2e4e8] px-3 sm:px-6 py-2 sm:h-14">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Back</a>
+            <span className="text-[#e2e4e8]">|</span>
+            <Logo size={0.55} />
+            <span className="border-l border-[#e2e4e8] pl-3 flex items-center gap-2">
+              {show.logo_url && <img src={show.logo_url} alt="logo" className="w-6 h-6 rounded object-cover" />}
+              <span className="text-[#6b6b7a] text-xs">{show.name}</span>
+            </span>
+          </div>
+          <div className="flex items-center flex-wrap gap-2">
+            <span className={`text-xs flex items-center gap-1.5 transition-opacity ${saveStatus === 'unsaved' ? 'opacity-100' : 'opacity-0'}`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
+              <span className="text-[#f59e0b]">Unsaved</span>
+            </span>
+            <button onClick={saveAsTemplate} disabled={savingTemplate || sections.length === 0}
+              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40"
+              title="Save current sections as the default template for new episodes">
+              {savingTemplate ? 'Saving…' : '⬡ Save as Template'}
+            </button>
+            <button onClick={duplicateFromLastWeek} disabled={duplicating}
+              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40">
+              {duplicating ? 'Duplicating…' : '↓ Duplicate last week'}
+            </button>
+            <button onClick={archiveEpisode} disabled={archiving || !episodeId}
+              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
+              title="Archive this episode">
+              {archiving ? 'Archiving…' : '📦 Archive'}
+            </button>
+            <button onClick={exportPdf}
+              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
+              Export PDF
+            </button>
+            <GlobalSearch />
+          </div>
         </div>
       </header>
 

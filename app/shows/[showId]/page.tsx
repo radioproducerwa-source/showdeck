@@ -257,7 +257,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               </div>
               <div className="flex-1 min-w-0 pt-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <h1 className="text-2xl font-bold text-white truncate">{show?.name}</h1>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white break-words leading-tight">{show?.name}</h1>
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex-shrink-0 ${
                     isRadio ? 'bg-[#a78bfa]/25 text-[#c4b5fd]' : 'bg-[#00e5a0]/20 text-[#00e5a0]'
                   }`}>

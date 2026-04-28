@@ -105,6 +105,7 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
   const [saving, setSaving]           = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [toast, setToast]             = useState<Toast>(null)
+  const [activeHour, setActiveHour]   = useState<number>(HOURS[0])
   const [dragSrc, setDragSrc]         = useState<{ hour: number; slotKey: string } | null>(null)
   const [dragOver, setDragOver]       = useState<{ hour: number; slotKey: string } | null>(null)
   const [slotLayout, setSlotLayout]             = useState<SlotTemplate[]>(HOUR_TEMPLATE)
@@ -499,11 +500,28 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
         >This week</button>
       </div>
 
+      {/* Mobile hour tabs */}
+      <div className="md:hidden px-4 pt-4 pb-2 bg-[#f7f8fa] flex gap-2">
+        {HOURS.map(hour => (
+          <button
+            key={hour}
+            onClick={() => setActiveHour(hour)}
+            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
+              activeHour === hour
+                ? 'bg-[#00e5a0] text-black'
+                : 'bg-white border border-[#e2e4e8] text-[#6b6b7a]'
+            }`}
+          >
+            {hour}AM
+          </button>
+        ))}
+      </div>
+
       {/* 3-column runsheet */}
-      <div className="px-5 py-5 overflow-x-auto bg-[#f7f8fa]">
-        <div className="grid grid-cols-3 gap-4 min-w-[820px]">
+      <div className="px-5 py-5 md:overflow-x-auto bg-[#f7f8fa]">
+        <div className="grid md:grid-cols-3 gap-4 md:min-w-[820px]">
           {HOURS.map(hour => (
-            <div key={hour} className="flex flex-col">
+            <div key={hour} className={`flex-col ${hour !== activeHour ? 'hidden md:flex' : 'flex'}`}>
               {/* Hour header */}
               <div className="rounded-xl mb-3 px-5 py-4 flex items-center justify-between"
                 style={{ background: 'linear-gradient(135deg, #0d0d0f 60%, #1a2a20)', border: '1px solid #1a1a1a' }}>
