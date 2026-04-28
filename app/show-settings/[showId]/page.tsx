@@ -34,6 +34,12 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [headerColor, setHeaderColor] = useState('#00e5a0')
   const [recurringSegments, setRecurringSegments] = useState<{ id: string; name: string }[]>([])
   const [newSegmentName, setNewSegmentName] = useState('')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('host1')
+  const [invites, setInvites] = useState<any[]>([])
+  const [sendingInvite, setSendingInvite] = useState(false)
+  const [lastInviteLink, setLastInviteLink] = useState('')
+  const [copiedInvite, setCopiedInvite] = useState(false)
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const toastTimer = useRef<any>(null)
   const router = useRouter()
@@ -58,6 +64,9 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       })
       supabase.from('recurring_segments').select('id, name').eq('show_id', showId).order('created_at').then(({ data }) => {
         if (data) setRecurringSegments(data)
+      })
+      supabase.from('show_invites').select('*').eq('show_id', showId).order('created_at', { ascending: false }).then(({ data }) => {
+        if (data) setInvites(data)
       })
     })
   }, [])
@@ -85,6 +94,32 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     if (error) { showToast('Failed to delete segment', true); return }
     setRecurringSegments(prev => prev.filter(s => s.id !== id))
   }
+
+  const sendInvite = async () => {
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email) return
+    setSendingInvite(true)
+    const { data, error } = await supabase
+      .from('show_invites')
+      .insert({ show_id: showId, email, role: inviteRole })
+      .select()
+      .single()
+    setSendingInvite(false)
+    if (error) { showToast('Failed to create invite', true); return }
+    const link = `${window.location.origin}/join?token=${data.token}`
+    setLastInviteLink(link)
+    setInvites(prev => [data, ...prev])
+    setInviteEmail('')
+    showToast('Invite link ready — copy and share it!')
+  }
+
+  const copyInviteLink = (link: string) => {
+    navigator.clipboard.writeText(link)
+    setCopiedInvite(true)
+    setTimeout(() => setCopiedInvite(false), 2000)
+  }
+
+  const roleLabel = (r: string) => r === 'host1' ? 'Host 1' : r === 'host2' ? 'Host 2' : 'Producer'
 
   const handleSave = async () => {
     if (!showName.trim() || !host1.trim() || !host2.trim()) {
@@ -321,6 +356,79 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
               className="bg-[#0d0d0f] text-white font-bold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-30"
             >+ Add</button>
           </div>
+        </div>
+
+        {/* Invite Co-host */}
+        <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-6 flex flex-col gap-4 mt-6">
+          <div>
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Invite Co-host</label>
+            <p className="text-[10px] text-[#9a9aaa] mt-1">Generate an invite link to give someone access to this show.</p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendInvite() }}
+              placeholder="co-host@example.com"
+              className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2.5 text-sm outline-none focus:border-[#00e5a0]"
+            />
+            <select
+              value={inviteRole}
+              onChange={e => setInviteRole(e.target.value)}
+              className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2.5 text-sm outline-none focus:border-[#00e5a0]"
+            >
+              <option value="host1">Host 1</option>
+              <option value="host2">Host 2</option>
+              <option value="producer">Producer</option>
+            </select>
+            <button
+              onClick={sendInvite}
+              disabled={sendingInvite || !inviteEmail.trim()}
+              className="bg-[#0d0d0f] text-white font-bold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
+            >
+              {sendingInvite ? 'Generating…' : 'Generate Invite Link'}
+            </button>
+          </div>
+
+          {lastInviteLink && (
+            <div className="bg-[#edfdf6] border border-[#00e5a0]/40 rounded-xl p-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#00a870] mb-2">Invite link — share this manually</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs text-[#0d0d0f] bg-white rounded-lg px-3 py-2 border border-[#e2e4e8] truncate font-mono">{lastInviteLink}</code>
+                <button
+                  onClick={() => copyInviteLink(lastInviteLink)}
+                  className="text-xs font-bold text-[#00a870] border border-[#00e5a0]/40 rounded-lg px-3 py-2 hover:bg-[#00e5a0]/10 transition-colors flex-shrink-0"
+                >
+                  {copiedInvite ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {invites.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#6b6b7a] mb-2">All Invites</p>
+              <div className="flex flex-col gap-1.5">
+                {invites.map(inv => (
+                  <div key={inv.id} className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-lg px-3 py-2.5">
+                    <div className="min-w-0 mr-2">
+                      <span className="text-sm font-semibold text-[#0d0d0f] truncate block">{inv.email}</span>
+                      <span className="text-xs text-[#6b6b7a]">{roleLabel(inv.role)}</span>
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest flex-shrink-0 px-2 py-0.5 rounded-full ${
+                      inv.accepted
+                        ? 'bg-[#00e5a0]/15 text-[#00a870]'
+                        : 'bg-[#f59e0b]/15 text-[#d97706]'
+                    }`}>
+                      {inv.accepted ? 'Accepted' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

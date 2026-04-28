@@ -23,9 +23,31 @@ export default function Dashboard() {
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
       if (!profileData) { router.push('/profile/setup'); return }
       setProfile(profileData)
-      const { data: showsData } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
-      const s = showsData || []
+
+      // Owned shows
+      const { data: ownedShows } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
+
+      // Shows the user is a member of (via invite)
+      const { data: memberRows } = await supabase
+        .from('show_members')
+        .select('show_id')
+        .eq('user_id', data.user.id)
+
+      const memberIds = (memberRows || []).map((r: any) => r.show_id).filter(Boolean)
+      let memberShows: any[] = []
+      if (memberIds.length > 0) {
+        const { data: ms } = await supabase.from('shows').select('*').in('id', memberIds)
+        memberShows = ms || []
+      }
+
+      // Merge, deduplicate by id
+      const ownedIds = new Set((ownedShows || []).map((s: any) => s.id))
+      const s = [
+        ...(ownedShows || []),
+        ...memberShows.filter((s: any) => !ownedIds.has(s.id)),
+      ]
       setShows(s)
+
       if (s.length > 0) {
         const ids = s.map((x: any) => x.id)
         const { data: allEps } = await supabase
