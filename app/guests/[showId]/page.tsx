@@ -39,7 +39,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/'); return }
       Promise.all([
-        supabase.from('shows').select('id, name, show_type').eq('id', showId).single(),
+        supabase.from('shows').select('id, name, show_type, owner_id').eq('id', showId).single(),
         supabase.from('guests').select('*').eq('show_id', showId).order('name', { ascending: true }),
       ]).then(async ([{ data: showData }, { data: guestData }]) => {
         if (!showData) { router.push('/dashboard'); return }
