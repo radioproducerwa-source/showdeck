@@ -820,9 +820,14 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                             value={noteText}
                                             onChange={e => updateContent(section.name, role, e.target.value)}
                                             onFocus={() => expandRole(section.id, role)}
+                                            onInput={e => {
+                                              const el = e.currentTarget;
+                                              el.style.height = 'auto';
+                                              el.style.height = el.scrollHeight + 'px';
+                                            }}
                                             placeholder="Your notes…"
-                                            className="w-full bg-white/60 text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none min-h-[80px] placeholder-[#c8b89a] block border-t border-black/5"
-                                            rows={3}
+                                            className="w-full bg-white/60 text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none placeholder-[#c8b89a] block border-t border-black/5"
+                                            style={{ minHeight: '120px', overflowY: 'hidden' }}
                                           />
                                         </div>
                                       </div>
