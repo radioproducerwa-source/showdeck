@@ -123,6 +123,21 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     setTimeout(() => setCopiedInvite(false), 2000)
   }
 
+  const revokeAccess = async (inv: any) => {
+    if (inv.accepted && inv.user_id) {
+      await supabase.from('show_members').delete().eq('show_id', showId).eq('user_id', inv.user_id)
+    }
+    const { error } = await supabase.from('show_invites').delete().eq('id', inv.id)
+    if (error) { showToast('Failed to revoke access', true); return }
+    setInvites(prev => prev.filter(i => i.id !== inv.id))
+    showToast('Access revoked')
+  }
+
+  const copyPendingLink = (token: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/join?token=${token}`)
+    showToast('Invite link copied!')
+  }
+
   const roleLabel = (r: string) => r === 'host1' ? 'Host 1' : r === 'host2' ? 'Host 2' : 'Producer'
 
   const handleSave = async () => {
@@ -433,18 +448,40 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                 )}
                 {/* Invited members */}
                 {invites.map(inv => (
-                  <div key={inv.id} className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-lg px-3 py-2.5">
-                    <div className="min-w-0 mr-2">
+                  <div key={inv.id} className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-lg px-3 py-2.5 gap-2">
+                    <div className="min-w-0 flex-1">
                       <span className="text-sm font-semibold text-[#0d0d0f] truncate block">{inv.email}</span>
                       <span className="text-xs text-[#6b6b7a]">{roleLabel(inv.role)}</span>
                     </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest flex-shrink-0 px-2 py-0.5 rounded-full ${
-                      inv.accepted
-                        ? 'bg-[#00e5a0]/15 text-[#00a870]'
-                        : 'bg-[#f59e0b]/15 text-[#d97706]'
-                    }`}>
-                      {inv.accepted ? 'Accepted' : 'Pending'}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                        inv.accepted
+                          ? 'bg-[#00e5a0]/15 text-[#00a870]'
+                          : 'bg-[#f59e0b]/15 text-[#d97706]'
+                      }`}>
+                        {inv.accepted ? 'Accepted' : 'Pending'}
+                      </span>
+                      {!inv.accepted && (
+                        <button
+                          onClick={() => copyPendingLink(inv.token)}
+                          title="Copy invite link"
+                          className="text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors p-1 rounded"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => revokeAccess(inv)}
+                        title={inv.accepted ? 'Revoke access' : 'Cancel invite'}
+                        className="text-[#c8cad0] hover:text-[#ff5c3a] transition-colors p-1 rounded"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

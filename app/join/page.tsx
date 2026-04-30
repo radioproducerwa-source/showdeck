@@ -157,7 +157,7 @@ function JoinContent() {
 
     await supabase
       .from('show_invites')
-      .update({ accepted: true })
+      .update({ accepted: true, user_id: userId })
       .eq('id', inv.id)
 
     setStatus('done')
