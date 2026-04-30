@@ -8,6 +8,7 @@ export default function Home() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const router = useRouter()
@@ -21,8 +22,12 @@ export default function Home() {
       else setMessage('Check your email to confirm your account!')
     } else {
       const { error, data } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setMessage(error.message)
+      if (error) { setMessage(error.message) }
       else {
+        if (!rememberMe) {
+          // Clear persisted session so it doesn't survive a browser restart
+          Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+        }
         const { data: profile } = await supabase.from('profiles').select('id').eq('id', data.user.id).single()
         window.location.href = profile ? '/dashboard' : '/profile/setup'
       }
@@ -91,6 +96,17 @@ export default function Home() {
               onKeyDown={e => e.key === 'Enter' && handleAuth()}
             />
           </div>
+          {!isSignUp && (
+            <label className="flex items-center gap-2.5 mb-5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-[#e2e4e8] accent-[#00e5a0] cursor-pointer"
+              />
+              <span className="text-sm text-[#6b6b7a]">Remember me</span>
+            </label>
+          )}
           {message && <p className="text-sm mb-4 text-[#00a870]">{message}</p>}
           <button
             onClick={handleAuth}
