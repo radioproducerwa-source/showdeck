@@ -34,6 +34,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [headerColor, setHeaderColor] = useState('#00e5a0')
   const [recurringSegments, setRecurringSegments] = useState<{ id: string; name: string }[]>([])
   const [newSegmentName, setNewSegmentName] = useState('')
+  const [ownerProfile, setOwnerProfile] = useState<{ display_name?: string; email?: string } | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('host1')
   const [invites, setInvites] = useState<any[]>([])
@@ -67,6 +68,9 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       })
       supabase.from('show_invites').select('*').eq('show_id', showId).order('created_at', { ascending: false }).then(({ data }) => {
         if (data) setInvites(data)
+      })
+      supabase.from('profiles').select('display_name').eq('id', data.user!.id).single().then(({ data: profile }) => {
+        setOwnerProfile({ display_name: profile?.display_name, email: data.user!.email })
       })
     })
   }, [])
@@ -407,10 +411,27 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             </div>
           )}
 
-          {invites.length > 0 && (
+          {(ownerProfile || invites.length > 0) && (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#6b6b7a] mb-2">All Invites</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#6b6b7a] mb-2">Show Team</p>
               <div className="flex flex-col gap-1.5">
+                {/* Owner — always first */}
+                {ownerProfile && (
+                  <div className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-lg px-3 py-2.5">
+                    <div className="min-w-0 mr-2">
+                      <span className="text-sm font-semibold text-[#0d0d0f] truncate block">
+                        {ownerProfile.display_name || ownerProfile.email}
+                      </span>
+                      {ownerProfile.display_name && (
+                        <span className="text-xs text-[#6b6b7a] truncate block">{ownerProfile.email}</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest flex-shrink-0 px-2 py-0.5 rounded-full bg-[#0d0d0f] text-white">
+                      Admin
+                    </span>
+                  </div>
+                )}
+                {/* Invited members */}
                 {invites.map(inv => (
                   <div key={inv.id} className="flex items-center justify-between bg-white border border-[#e2e4e8] rounded-lg px-3 py-2.5">
                     <div className="min-w-0 mr-2">
