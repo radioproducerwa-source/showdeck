@@ -820,7 +820,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                         className="grid transition-all duration-200 ease-in-out"
                                         style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
                                       >
-                                        <div className="overflow-hidden">
+                                        <div className={isExpanded ? '' : 'overflow-hidden'}>
                                           <textarea
                                             value={noteText}
                                             onChange={e => updateContent(section.name, role, e.target.value)}
