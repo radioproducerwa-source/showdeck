@@ -108,13 +108,27 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       .insert({ show_id: showId, email, role: inviteRole })
       .select()
       .single()
-    setSendingInvite(false)
-    if (error) { showToast('Failed to create invite', true); return }
+    if (error) { setSendingInvite(false); showToast('Failed to create invite', true); return }
     const link = `${window.location.origin}/join?token=${data.token}`
     setLastInviteLink(link)
     setInvites(prev => [data, ...prev])
     setInviteEmail('')
-    showToast('Invite link ready — copy and share it!')
+
+    // Fire invite email — non-blocking, link is shown on screen regardless
+    const emailSent = await fetch('/api/send-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        showName: show?.name,
+        role: inviteRole,
+        inviteLink: link,
+        inviterName: ownerProfile?.display_name || ownerProfile?.email,
+      }),
+    }).then(r => r.ok).catch(() => false)
+
+    setSendingInvite(false)
+    showToast(emailSent ? `Invite sent to ${email}` : 'Invite link ready — copy and share it!')
   }
 
   const copyInviteLink = (link: string) => {
@@ -407,7 +421,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
               disabled={sendingInvite || !inviteEmail.trim()}
               className="bg-[#0d0d0f] text-white font-bold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
             >
-              {sendingInvite ? 'Generating…' : 'Generate Invite Link'}
+              {sendingInvite ? 'Sending…' : 'Send Invite'}
             </button>
           </div>
 
