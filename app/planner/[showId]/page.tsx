@@ -72,6 +72,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const [toast, setToast] = useState<Toast>(null)
   const [importing, setImporting] = useState<string | null>(null)
+  const [importingBets, setImportingBets] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
@@ -327,6 +328,32 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     setContent(newContent)
     setDuplicating(false)
     showToast('Duplicated from last week!')
+  }
+
+  const importLastWeeksBets = async () => {
+    if (!episodeId || !episodeDate) return
+    setImportingBets(true)
+    const { data: prevEps } = await supabase
+      .from('episodes').select('id')
+      .eq('show_id', showId).lt('episode_date', episodeDate)
+      .order('episode_date', { ascending: false }).limit(1)
+    if (!prevEps?.length) { showToast('No previous bets found'); setImportingBets(false); return }
+
+    const { data: prevContent } = await supabase
+      .from('section_content').select('section_name, content')
+      .eq('episode_id', prevEps[0].id)
+      .in('section_name', ['AFL Multis', 'Racing Bets'])
+      .eq('role', 'host1')
+    if (!prevContent?.length) { showToast('No previous bets found'); setImportingBets(false); return }
+
+    const imported = prevContent
+      .map((r: any) => `${r.section_name}:\n${r.content}`)
+      .join('\n\n')
+    const existing = getContent("Last Week's Betting", 'host1')
+    const merged = existing ? `${existing}\n\n${imported}` : imported
+    updateContent("Last Week's Betting", 'host1', merged)
+    setImportingBets(false)
+    showToast("Last week's bets imported!")
   }
 
   const archiveEpisode = async () => {
@@ -753,6 +780,16 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                               )}
                               <span className={`ml-auto text-xs font-mono px-2 py-0.5 rounded-full border ${status.cls}`}>{status.label}</span>
                             </button>
+                            {showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === "Last Week's Betting" && (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); importLastWeeksBets() }}
+                                disabled={importingBets}
+                                className="text-[10px] font-semibold text-[#0d0d0f]/50 hover:text-[#0d0d0f]/80 border border-[#0d0d0f]/15 hover:border-[#0d0d0f]/30 rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
+                              >
+                                {importingBets ? '…' : '↓ Import Last Week'}
+                              </button>
+                            )}
                             <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
                               className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
                               ×
