@@ -116,6 +116,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     if (!user) { router.push('/'); return }
 
     const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
+    if (!showData) { router.push('/dashboard'); return }
+    if (showData.owner_id !== user.id) {
+      const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', user.id).maybeSingle()
+      if (!membership) { router.push('/dashboard'); return }
+    }
     setShow(showData)
 
     const searchParams = new URLSearchParams(window.location.search)

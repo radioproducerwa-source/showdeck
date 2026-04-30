@@ -66,7 +66,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       Promise.all([
         supabase.from('shows').select('*').eq('id', showId).single(),
         supabase.from('episodes').select('*').eq('show_id', showId).order('episode_date', { ascending: false }).order('id', { ascending: false })
-      ]).then(([{ data: showData }, { data: eps }]) => {
+      ]).then(async ([{ data: showData }, { data: eps }]) => {
+        if (!showData) { router.push('/dashboard'); return }
+        if (showData.owner_id !== data.user!.id) {
+          const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', data.user!.id).maybeSingle()
+          if (!membership) { router.push('/dashboard'); return }
+        }
         setShow(showData)
         if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showData?.show_type)) {
           const todayDate = new Date().toLocaleDateString('en-CA')

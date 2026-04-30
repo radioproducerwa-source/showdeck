@@ -14,8 +14,12 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/'); return }
-      supabase.from('shows').select('*').eq('id', showId).single().then(({ data: showData }) => {
+      supabase.from('shows').select('*').eq('id', showId).single().then(async ({ data: showData }) => {
         if (!showData) { router.push('/dashboard'); return }
+        if (showData.owner_id !== data.user!.id) {
+          const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', data.user!.id).maybeSingle()
+          if (!membership) { router.push('/dashboard'); return }
+        }
         setShow(showData)
       })
     })

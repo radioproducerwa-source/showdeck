@@ -41,8 +41,12 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
       Promise.all([
         supabase.from('shows').select('id, name, show_type').eq('id', showId).single(),
         supabase.from('guests').select('*').eq('show_id', showId).order('name', { ascending: true }),
-      ]).then(([{ data: showData }, { data: guestData }]) => {
+      ]).then(async ([{ data: showData }, { data: guestData }]) => {
         if (!showData) { router.push('/dashboard'); return }
+        if (showData.owner_id !== data.user!.id) {
+          const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', data.user!.id).maybeSingle()
+          if (!membership) { router.push('/dashboard'); return }
+        }
         setShow(showData)
         setGuests(guestData || [])
         setLoading(false)
