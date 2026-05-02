@@ -140,22 +140,34 @@ function JoinContent() {
 
     const { data: inv } = await supabase
       .from('show_invites')
-      .select('id, show_id, email, role, accepted, token, shows(name)')
+      .select('id, show_id, email, role, accepted, user_id, token, shows(name)')
       .eq('token', token as string)
       .single()
 
     if (!inv) { setStatus('invalid'); acceptingRef.current = false; return }
-    if (inv.accepted) { setStatus('already_accepted'); acceptingRef.current = false; return }
 
     setInvite(inv)
     setShowName((inv.shows as any)?.name || '')
 
+    if (inv.accepted) {
+      // Invite was previously accepted. If it was by this user, ensure their membership
+      // exists (guards against a prior silent insert failure) then redirect.
+      if (inv.user_id === userId) {
+        await ensureMembership(inv, userId)
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle()
+        router.push(profile ? '/dashboard' : '/profile/setup')
+      } else {
+        setStatus('already_accepted')
+      }
+      acceptingRef.current = false
+      return
+    }
+
     await acceptInvite(inv, userId)
   }
 
-  const acceptInvite = async (inv: any, userId: string) => {
-    setStatus('accepting')
-
+  // Upserts the show_members row — safe to call multiple times
+  const ensureMembership = async (inv: any, userId: string) => {
     const { data: existing } = await supabase
       .from('show_members')
       .select('id')
@@ -169,6 +181,32 @@ function JoinContent() {
         user_id: userId,
         role: inv.role,
       })
+    }
+  }
+
+  const acceptInvite = async (inv: any, userId: string) => {
+    setStatus('accepting')
+
+    // Insert membership first — only mark invite accepted if this succeeds
+    const { data: existing } = await supabase
+      .from('show_members')
+      .select('id')
+      .eq('show_id', inv.show_id)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!existing) {
+      const { error: insertError } = await supabase.from('show_members').insert({
+        show_id: inv.show_id,
+        user_id: userId,
+        role: inv.role,
+      })
+      if (insertError) {
+        setStatus('auth_required')
+        setAuthMessage('Something went wrong saving your access. Please try again.')
+        acceptingRef.current = false
+        return
+      }
     }
 
     await supabase
