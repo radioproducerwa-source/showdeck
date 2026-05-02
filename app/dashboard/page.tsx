@@ -25,13 +25,16 @@ export default function Dashboard() {
       setProfile(profileData)
 
       // Owned shows
-      const { data: ownedShows } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
+      const { data: ownedShows, error: showsError } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
+      console.log('[dashboard] user id:', data.user.id)
+      console.log('[dashboard] ownedShows:', ownedShows, 'error:', showsError)
 
       // Shows the user is a member of (via invite)
-      const { data: memberRows } = await supabase
+      const { data: memberRows, error: memberError } = await supabase
         .from('show_members')
         .select('show_id')
         .eq('user_id', data.user.id)
+      console.log('[dashboard] memberRows:', memberRows, 'error:', memberError)
 
       const memberIds = (memberRows || []).map((r: any) => r.show_id).filter(Boolean)
       let memberShows: any[] = []
