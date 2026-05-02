@@ -462,42 +462,53 @@ export default function RadioPlannerPanel({ showId, show }: Props) {
       </div>
 
       {/* Week carousel */}
-      <div className="px-5 py-3 border-b border-[#e2e4e8] flex items-center gap-3 bg-white">
-        <button
-          onClick={() => setMonday(m => addDays(m, -7))}
-          className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
-        >‹</button>
-        <span className="text-xs text-[#6b6b7a] flex-shrink-0 w-44">{formatWeekRange(monday)}</span>
-        <div className="flex gap-1 flex-1">
+      <div className="px-4 sm:px-5 py-3 border-b border-[#e2e4e8] bg-white space-y-2">
+        {/* Nav row: arrows + label + This week */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setMonday(m => addDays(m, -7))}
+            className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
+          >‹</button>
+          <span className="text-xs text-[#6b6b7a] flex-1 text-center sm:flex-none sm:w-44 sm:text-left">{formatWeekRange(monday)}</span>
+          {/* Day buttons inline on desktop */}
+          <div className="hidden sm:flex gap-1 flex-1">
+            {DAYS.map((day, i) => {
+              const isToday = toISODate(dayDates[i]) === toISODate(new Date())
+              const isSelected = i === selectedDay
+              return (
+                <button key={day} onClick={() => setSelectedDay(i)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${isSelected ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:bg-[#f7f8fa]'}`}
+                >
+                  <div>{day}</div>
+                  <div className={`text-[10px] font-normal ${isSelected ? 'text-black/50' : isToday ? 'text-[#00a870]' : 'text-[#c8cad0]'}`}>{formatDayLabel(dayDates[i])}</div>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            onClick={() => setMonday(m => addDays(m, 7))}
+            className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
+          >›</button>
+          <button
+            onClick={() => { setMonday(getMondayOf(new Date())); setSelectedDay(Math.min(Math.max(new Date().getDay() - 1, 0), 4)) }}
+            className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] border border-[#e2e4e8] rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
+          >This week</button>
+        </div>
+        {/* Day buttons row on mobile only */}
+        <div className="flex sm:hidden gap-1">
           {DAYS.map((day, i) => {
             const isToday = toISODate(dayDates[i]) === toISODate(new Date())
             const isSelected = i === selectedDay
             return (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(i)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  isSelected
-                    ? 'bg-[#00e5a0] text-black'
-                    : 'text-[#6b6b7a] hover:bg-[#f7f8fa]'
-                }`}
+              <button key={day} onClick={() => setSelectedDay(i)}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${isSelected ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:bg-[#f7f8fa]'}`}
               >
                 <div>{day}</div>
-                <div className={`text-[10px] font-normal ${isSelected ? 'text-black/50' : isToday ? 'text-[#00a870]' : 'text-[#c8cad0]'}`}>
-                  {formatDayLabel(dayDates[i])}
-                </div>
+                <div className={`text-[10px] font-normal ${isSelected ? 'text-black/50' : isToday ? 'text-[#00a870]' : 'text-[#c8cad0]'}`}>{formatDayLabel(dayDates[i])}</div>
               </button>
             )
           })}
         </div>
-        <button
-          onClick={() => setMonday(m => addDays(m, 7))}
-          className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
-        >›</button>
-        <button
-          onClick={() => { setMonday(getMondayOf(new Date())); setSelectedDay(Math.min(Math.max(new Date().getDay() - 1, 0), 4)) }}
-          className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] border border-[#e2e4e8] rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
-        >This week</button>
       </div>
 
       {/* Mobile hour tabs */}
