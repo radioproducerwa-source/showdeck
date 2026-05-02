@@ -88,6 +88,9 @@ function JoinContent() {
   const [authLoading, setAuthLoading] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
   const [authMessageInfo, setAuthMessageInfo] = useState(false)
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendDone, setResendDone] = useState(false)
 
   // Prevent double-acceptance if onAuthStateChange fires while acceptance is in progress
   const acceptingRef = useRef(false)
@@ -238,23 +241,43 @@ function JoinContent() {
         password,
         options: { emailRedirectTo: `https://showdeck.live/join?token=${token}` },
       })
-      if (error) { setAuthMessage(error.message); setAuthLoading(false); return }
-      if (!data.session) {
-        // Email confirmation required — onAuthStateChange fires SIGNED_IN when they return
-        setAuthMessageInfo(true)
-        setAuthMessage('Check your email to confirm your account — the link will bring you straight back here to complete the invite.')
+      if (error) {
+        // "User already registered" means they signed up before but didn't confirm —
+        // switch them to sign-in mode so they can try again
+        if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists')) {
+          setIsSignUp(false)
+          setAuthMessage('An account with this email already exists. Sign in instead.')
+        } else {
+          setAuthMessage(error.message)
+        }
         setAuthLoading(false)
         return
       }
-      // If Supabase returned a session immediately (confirmation disabled),
-      // onAuthStateChange SIGNED_IN fires and handleAuthenticatedUser runs
+      if (!data.session) {
+        setAuthMessageInfo(true)
+        setAuthMessage('Confirmation email sent! Click the link in your inbox to complete joining the show.')
+        setAwaitingConfirmation(true)
+        setAuthLoading(false)
+        return
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setAuthMessage(error.message); setAuthLoading(false); return }
-      // onAuthStateChange SIGNED_IN fires → handleAuthenticatedUser runs
     }
 
     setAuthLoading(false)
+  }
+
+  const resendConfirmation = async () => {
+    setResendLoading(true)
+    await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `https://showdeck.live/join?token=${token}` },
+    })
+    setResendLoading(false)
+    setResendDone(true)
+    setTimeout(() => setResendDone(false), 4000)
   }
 
   // ── Loading ──────────────────────────────────────────────────────
@@ -410,11 +433,22 @@ function JoinContent() {
 
           {authMessage && (
             authMessageInfo ? (
-              <div className="mb-5 bg-[#edfdf6] border border-[#00e5a0]/40 rounded-xl px-4 py-3 flex items-start gap-2.5">
-                <svg className="w-4 h-4 text-[#00a870] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <p className="text-sm text-[#0a6b47]">{authMessage}</p>
+              <div className="mb-5 bg-[#edfdf6] border border-[#00e5a0]/40 rounded-xl px-4 py-3">
+                <div className="flex items-start gap-2.5 mb-3">
+                  <svg className="w-4 h-4 text-[#00a870] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm text-[#0a6b47]">{authMessage}</p>
+                </div>
+                {awaitingConfirmation && (
+                  <button
+                    onClick={resendConfirmation}
+                    disabled={resendLoading || resendDone}
+                    className="text-xs font-semibold text-[#00a870] hover:text-[#007a50] transition-colors disabled:opacity-60"
+                  >
+                    {resendDone ? '✓ Sent again!' : resendLoading ? 'Sending…' : "Didn't receive it? Resend confirmation email"}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="mb-5 bg-[#fef2f2] border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
