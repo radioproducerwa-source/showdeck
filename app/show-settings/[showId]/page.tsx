@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
-
-type Toast = { msg: string; phase: 'in' | 'out' } | null
+import Toast, { useToast } from '../../../components/Toast'
 
 const HEADER_COLORS = [
   { value: '#00e5a0', label: 'Green' },
@@ -30,7 +29,9 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [youtube, setYoutube] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
-  const [toast, setToast] = useState<Toast>(null)
+  const { toast, showToast } = useToast()
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [headerColor, setHeaderColor] = useState('#00e5a0')
   const [recurringSegments, setRecurringSegments] = useState<{ id: string; name: string }[]>([])
   const [newSegmentName, setNewSegmentName] = useState('')
@@ -42,7 +43,6 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [lastInviteLink, setLastInviteLink] = useState('')
   const [copiedInvite, setCopiedInvite] = useState(false)
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
-  const toastTimer = useRef<any>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -74,15 +74,6 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       })
     })
   }, [])
-
-  const showToast = (msg: string, isError = false) => {
-    clearTimeout(toastTimer.current)
-    setToast({ msg, phase: 'in' })
-    toastTimer.current = setTimeout(() => {
-      setToast(t => t ? { ...t, phase: 'out' } : null)
-      toastTimer.current = setTimeout(() => setToast(null), 220)
-    }, isError ? 3000 : 1800)
-  }
 
   const addSegment = async () => {
     const name = newSegmentName.trim()
@@ -217,17 +208,16 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     </div>
   )
 
+  const deleteShow = async () => {
+    setDeleting(true)
+    const { error } = await supabase.from('shows').delete().eq('id', showId)
+    if (error) { showToast('Delete failed: ' + error.message, true); setDeleting(false); return }
+    router.push('/dashboard')
+  }
+
   return (
     <main className="min-h-screen bg-white text-[#0d0d0f] p-8">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
-          toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'
-        }`}>
-          <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black flex-shrink-0">✓</span>
-          {toast.msg}
-        </div>
-      )}
+      <Toast toast={toast} />
 
       <div className="max-w-lg mx-auto">
         <div className="flex items-center justify-between gap-4 mb-10">
@@ -498,6 +488,39 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Danger zone */}
+        <div className="mt-12 pt-8 border-t border-[#e2e4e8]">
+          <h2 className="text-sm font-bold text-red-500 uppercase tracking-widest mb-4">Danger Zone</h2>
+          {!deleteConfirm ? (
+            <button
+              onClick={() => setDeleteConfirm(true)}
+              className="border border-red-200 text-red-500 text-sm font-semibold rounded-xl px-5 py-2.5 hover:bg-red-50 transition-colors"
+            >
+              Delete this show
+            </button>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+              <p className="text-sm font-semibold text-red-700 mb-1">Are you sure?</p>
+              <p className="text-xs text-red-500 mb-4">This will permanently delete the show, all episodes, and all content. This cannot be undone.</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={deleteShow}
+                  disabled={deleting}
+                  className="bg-red-500 text-white text-sm font-bold rounded-xl px-5 py-2.5 hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete permanently'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="text-sm text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           )}

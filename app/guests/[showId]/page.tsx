@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
+import Toast, { useToast } from '../../../components/Toast'
 
 type Guest = {
   id: string
@@ -13,8 +14,6 @@ type Guest = {
   email: string
   notes: string
 }
-
-type Toast = { msg: string; phase: 'in' | 'out' } | null
 
 const EMPTY_FORM = { name: '', title: '', phone: '', email: '', notes: '' }
 
@@ -28,11 +27,10 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [editForm, setEditForm] = useState({ ...EMPTY_FORM })
-  const [toast, setToast] = useState<Toast>(null)
+  const { toast, showToast } = useToast()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
-  const toastTimer = useRef<any>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -53,15 +51,6 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
       })
     })
   }, [])
-
-  const showToast = (msg: string) => {
-    clearTimeout(toastTimer.current)
-    setToast({ msg, phase: 'in' })
-    toastTimer.current = setTimeout(() => {
-      setToast(t => t ? { ...t, phase: 'out' } : null)
-      toastTimer.current = setTimeout(() => setToast(null), 220)
-    }, 1800)
-  }
 
   const openAdd = () => {
     setAdding(true)
@@ -135,15 +124,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
-          toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'
-        }`}>
-          <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black">✓</span>
-          {toast.msg}
-        </div>
-      )}
+      <Toast toast={toast} />
 
       {/* Header */}
       <header className="bg-white border-b border-[#e2e4e8] px-6 h-14 flex items-center justify-between sticky top-0 z-20">

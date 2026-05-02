@@ -1,5 +1,4 @@
 'use client'
-// dashboard
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
@@ -26,16 +25,13 @@ export default function Dashboard() {
       setProfile(profileData)
 
       // Owned shows
-      const { data: ownedShows, error: showsError } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
-      console.log('[dashboard] user id:', data.user.id)
-      console.log('[dashboard] ownedShows:', ownedShows, 'error:', showsError)
+      const { data: ownedShows } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
 
       // Shows the user is a member of (via invite)
-      const { data: memberRows, error: memberError } = await supabase
+      const { data: memberRows } = await supabase
         .from('show_members')
         .select('show_id')
         .eq('user_id', data.user.id)
-      console.log('[dashboard] memberRows:', memberRows, 'error:', memberError)
 
       const memberIds = (memberRows || []).map((r: any) => r.show_id).filter(Boolean)
       let memberShows: any[] = []
@@ -129,7 +125,24 @@ export default function Dashboard() {
       </header>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-[#6b6b7a]">Loading…</div>
+        <div className="max-w-5xl mx-auto px-6 py-10">
+          <div className="flex items-center justify-between mb-5">
+            <div className="h-3 w-20 bg-[#e2e4e8] rounded animate-pulse" />
+            <div className="h-9 w-28 bg-[#e2e4e8] rounded-xl animate-pulse" />
+          </div>
+          <div className="mb-6 h-10 bg-[#e2e4e8] rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white">
+                <div className="aspect-square bg-[#f0f1f3] animate-pulse" />
+                <div className="px-5 py-4 border-t border-[#e2e4e8] space-y-2">
+                  <div className="h-4 bg-[#e2e4e8] rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-[#e2e4e8] rounded animate-pulse w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : shows.length === 0 ? (
         <div className="max-w-sm mx-auto mt-24 text-center px-6">
           <div className="w-16 h-16 rounded-2xl bg-white border border-[#e2e4e8] flex items-center justify-center mx-auto mb-5">

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
+import Toast, { useToast } from '../../../components/Toast'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors, type DragEndEvent,
@@ -43,7 +44,6 @@ const getDefaultSections = (showType: string) => {
 }
 
 type SaveStatus = 'saved' | 'saving' | 'unsaved'
-type Toast = { msg: string; phase: 'in' | 'out' } | null
 
 const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
 
@@ -70,7 +70,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [episodeId, setEpisodeId] = useState<string | null>(null)
   const [episodeDate, setEpisodeDate] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
-  const [toast, setToast] = useState<Toast>(null)
+  const { toast, showToast } = useToast()
   const [importing, setImporting] = useState<string | null>(null)
   const [importingBets, setImportingBets] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
@@ -86,7 +86,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [savingTemplate, setSavingTemplate] = useState(false)
   const saveTimers = useRef<any>({})
   const titleTimer = useRef<any>(null)
-  const toastTimer = useRef<any>(null)
   const router = useRouter()
 
   const dndSensors = useSensors(
@@ -102,15 +101,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [sections])
-
-  const showToast = (msg: string) => {
-    clearTimeout(toastTimer.current)
-    setToast({ msg, phase: 'in' })
-    toastTimer.current = setTimeout(() => {
-      setToast(t => t ? { ...t, phase: 'out' } : null)
-      toastTimer.current = setTimeout(() => setToast(null), 220)
-    }, 1800)
-  }
 
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -377,7 +367,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       setSaveStatus('saving')
       const { error } = await supabase.from('episodes').update({ title: value }).eq('id', episodeId)
       setSaveStatus(error ? 'unsaved' : 'saved')
-      if (!error) showToast('Saved')
+      if (error) showToast('Save failed — check your connection', true)
+      else showToast('Saved')
     }, 800)
   }
 
@@ -397,7 +388,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       { onConflict: 'episode_id,section_name,role' }
     )
     setSaveStatus(error ? 'unsaved' : 'saved')
-    if (!error) showToast('Saved')
+    if (error) showToast('Save failed — check your connection', true)
+    else showToast('Saved')
   }
 
   const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
@@ -631,15 +623,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   return (
     <main className="min-h-screen text-[#0d0d0f] animate-page-in bg-white">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
-          toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'
-        }`}>
-          <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black flex-shrink-0">✓</span>
-          {toast.msg}
-        </div>
-      )}
+      <Toast toast={toast} />
 
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-[#e2e4e8] px-3 sm:px-6 py-2 sm:h-14">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
