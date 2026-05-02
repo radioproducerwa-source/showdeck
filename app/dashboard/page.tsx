@@ -103,9 +103,9 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
       {/* Nav */}
-      <header className="bg-white border-b border-[#e2e4e8] px-8 h-14 flex items-center justify-between">
+      <header className="bg-white border-b border-[#e2e4e8] px-4 sm:px-8 h-14 flex items-center justify-between">
         <Logo size={0.75} />
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <a href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-[#00e5a0] flex items-center justify-center">
               {profile?.avatar_url
@@ -117,10 +117,13 @@ export default function Dashboard() {
               <div className="text-[10px] text-[#6b6b7a] capitalize leading-tight">{profile?.role}</div>
             </div>
           </a>
-          <div className="w-px h-5 bg-[#e2e4e8]" />
+          <div className="hidden sm:block w-px h-5 bg-[#e2e4e8]" />
           <GlobalSearch />
-          <div className="w-px h-5 bg-[#e2e4e8]" />
-          <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">Sign out</button>
+          <div className="hidden sm:block w-px h-5 bg-[#e2e4e8]" />
+          <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 sm:px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">
+            <span className="hidden sm:inline">Sign out</span>
+            <span className="sm:hidden">↩</span>
+          </button>
         </div>
       </header>
 
