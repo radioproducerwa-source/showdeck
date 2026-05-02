@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo, { LogoIcon } from '../../components/Logo'
@@ -18,7 +18,6 @@ function BrandPanel({ showName, role }: { showName?: string; role?: string }) {
 
   return (
     <div className="hidden lg:flex flex-col w-[460px] flex-shrink-0 bg-[#0d0d0f] relative overflow-hidden">
-      {/* Subtle grid overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -29,7 +28,6 @@ function BrandPanel({ showName, role }: { showName?: string; role?: string }) {
       />
 
       <div className="relative z-10 flex flex-col h-full p-12">
-        {/* Logo */}
         <div className="flex items-center gap-3">
           <LogoIcon size={28} />
           <span
@@ -40,7 +38,6 @@ function BrandPanel({ showName, role }: { showName?: string; role?: string }) {
           </span>
         </div>
 
-        {/* Centre message */}
         <div className="my-auto">
           <p className="text-[#00e5a0] text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
             You've been invited
@@ -55,13 +52,11 @@ function BrandPanel({ showName, role }: { showName?: string; role?: string }) {
           )}
         </div>
 
-        {/* Tagline */}
         <p className="text-white/20 text-xs tracking-widest font-medium">
           Podcast planning, made together.
         </p>
       </div>
 
-      {/* Watermark icon */}
       <div className="absolute -bottom-20 -right-20 opacity-[0.035] pointer-events-none">
         <LogoIcon size={360} />
       </div>
@@ -89,52 +84,73 @@ function JoinContent() {
   const [showName, setShowName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(true)
   const [authLoading, setAuthLoading] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
+  const [authMessageInfo, setAuthMessageInfo] = useState(false)
+
+  // Prevent double-acceptance if onAuthStateChange fires while acceptance is in progress
+  const acceptingRef = useRef(false)
+
+  const roleLabel = (r: string) =>
+    r === 'host1' ? 'Host 1' : r === 'host2' ? 'Host 2' : 'Producer'
 
   useEffect(() => {
     if (!token) { setStatus('invalid'); return }
-    init()
+
+    // onAuthStateChange is the reliable entry point for both cases:
+    //   INITIAL_SESSION — user was already logged in (or no session yet)
+    //   SIGNED_IN       — user just confirmed their email and was redirected back here
+    // Using getUser() alone races against the hash-fragment token exchange on redirect.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          await handleAuthenticatedUser(session.user.id)
+        } else if (event === 'INITIAL_SESSION') {
+          // No session on page load — load invite details then show the auth form
+          await loadInviteForDisplay()
+        }
+      }
+    )
+
+    return () => subscription.unsubscribe()
   }, [token])
 
-  const init = async () => {
-    try {
-      const { data: inv } = await supabase
-        .from('show_invites')
-        .select('id, show_id, email, role, accepted, token, shows(name)')
-        .eq('token', token as string)
-        .single()
+  // Loads invite data for display purposes only (unauthenticated path)
+  const loadInviteForDisplay = async () => {
+    const { data: inv } = await supabase
+      .from('show_invites')
+      .select('id, show_id, email, role, accepted, token, shows(name)')
+      .eq('token', token as string)
+      .single()
 
-      if (inv) {
-        if (inv.accepted) { setStatus('already_accepted'); return }
-        setInvite(inv)
-        setShowName((inv.shows as any)?.name || '')
-        setEmail(inv.email || '')
-      }
-    } catch {
-      // RLS may block pre-auth lookup — handled after sign-in
-    }
+    if (!inv) { setStatus('invalid'); return }
+    if (inv.accepted) { setStatus('already_accepted'); return }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      let inv = invite
-      if (!inv) {
-        const { data } = await supabase
-          .from('show_invites')
-          .select('id, show_id, email, role, accepted, token, shows(name)')
-          .eq('token', token as string)
-          .single()
-        if (!data) { setStatus('invalid'); return }
-        if (data.accepted) { setStatus('already_accepted'); return }
-        inv = data
-        setInvite(inv)
-        setShowName((data.shows as any)?.name || '')
-      }
-      await acceptInvite(inv, user.id)
-    } else {
-      setStatus('auth_required')
-    }
+    setInvite(inv)
+    setShowName((inv.shows as any)?.name || '')
+    setEmail(inv.email || '')
+    setStatus('auth_required')
+  }
+
+  // Called any time we know the user is authenticated — always fetches fresh invite state
+  const handleAuthenticatedUser = async (userId: string) => {
+    if (acceptingRef.current) return
+    acceptingRef.current = true
+
+    const { data: inv } = await supabase
+      .from('show_invites')
+      .select('id, show_id, email, role, accepted, token, shows(name)')
+      .eq('token', token as string)
+      .single()
+
+    if (!inv) { setStatus('invalid'); acceptingRef.current = false; return }
+    if (inv.accepted) { setStatus('already_accepted'); acceptingRef.current = false; return }
+
+    setInvite(inv)
+    setShowName((inv.shows as any)?.name || '')
+
+    await acceptInvite(inv, userId)
   }
 
   const acceptInvite = async (inv: any, userId: string) => {
@@ -176,40 +192,31 @@ function JoinContent() {
   const handleAuth = async () => {
     setAuthLoading(true)
     setAuthMessage('')
-    let userId: string | null = null
+    setAuthMessageInfo(false)
 
     if (isSignUp) {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `https://showdeck.live/join?token=${token}` },
+      })
       if (error) { setAuthMessage(error.message); setAuthLoading(false); return }
-      if (data.session) {
-        userId = data.session.user.id
-      } else {
-        setAuthMessage('Check your email to confirm your account, then return to this invite link.')
+      if (!data.session) {
+        // Email confirmation required — onAuthStateChange fires SIGNED_IN when they return
+        setAuthMessageInfo(true)
+        setAuthMessage('Check your email to confirm your account — the link will bring you straight back here to complete the invite.')
         setAuthLoading(false)
         return
       }
+      // If Supabase returned a session immediately (confirmation disabled),
+      // onAuthStateChange SIGNED_IN fires and handleAuthenticatedUser runs
     } else {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setAuthMessage(error.message); setAuthLoading(false); return }
-      userId = data.user.id
-    }
-
-    let inv = invite
-    if (!inv) {
-      const { data } = await supabase
-        .from('show_invites')
-        .select('id, show_id, email, role, accepted, token, shows(name)')
-        .eq('token', token as string)
-        .single()
-      if (!data) { setAuthMessage('Invite not found or invalid.'); setAuthLoading(false); return }
-      if (data.accepted) { setStatus('already_accepted'); setAuthLoading(false); return }
-      inv = data
-      setInvite(inv)
-      setShowName((data.shows as any)?.name || '')
+      // onAuthStateChange SIGNED_IN fires → handleAuthenticatedUser runs
     }
 
     setAuthLoading(false)
-    await acceptInvite(inv, userId)
   }
 
   // ── Loading ──────────────────────────────────────────────────────
@@ -232,9 +239,9 @@ function JoinContent() {
     </main>
   )
 
-  // ── Invalid ──────────────────────────────────────────────────────
+  // ── Invalid or already accepted ──────────────────────────────────
 
-  if (status === 'invalid') return (
+  if (status === 'invalid' || status === 'already_accepted') return (
     <main className="min-h-screen flex">
       <BrandPanel />
       <StatusCard>
@@ -246,43 +253,15 @@ function JoinContent() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </div>
-        <h2 className="text-lg font-bold text-[#0d0d0f] mb-2">Invalid invite link</h2>
+        <h2 className="text-lg font-bold text-[#0d0d0f] mb-2">Invite unavailable</h2>
         <p className="text-[#6b6b7a] text-sm mb-6">
-          This invite link is invalid or has expired. Ask your show admin to send a new one.
+          This invite link has already been used or has expired.
         </p>
         <a
           href="/"
           className="inline-block bg-[#0d0d0f] text-white font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#2a2a2e] transition-colors"
         >
           Go to Showdeck
-        </a>
-      </StatusCard>
-    </main>
-  )
-
-  // ── Already accepted ─────────────────────────────────────────────
-
-  if (status === 'already_accepted') return (
-    <main className="min-h-screen flex">
-      <BrandPanel showName={showName} role={invite?.role} />
-      <StatusCard>
-        <div className="flex justify-center mb-6">
-          <Logo size={0.9} />
-        </div>
-        <div className="w-12 h-12 rounded-full bg-[#edfdf6] border border-[#00e5a0]/30 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-5 h-5 text-[#00a870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-bold text-[#0d0d0f] mb-2">Already accepted</h2>
-        <p className="text-[#6b6b7a] text-sm mb-6">
-          This invite has already been used. Sign in to access your shows.
-        </p>
-        <a
-          href="/"
-          className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#00ffc0] transition-colors"
-        >
-          Sign In
         </a>
       </StatusCard>
     </main>
@@ -312,15 +291,13 @@ function JoinContent() {
             </p>
           </>
         ) : (
-          <>
-            <div className="flex items-center justify-center gap-2 text-[#6b6b7a] text-sm mb-2">
-              <svg className="animate-spin w-4 h-4 text-[#00e5a0]" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-              Setting up your access…
-            </div>
-          </>
+          <div className="flex items-center justify-center gap-2 text-[#6b6b7a] text-sm">
+            <svg className="animate-spin w-4 h-4 text-[#00e5a0]" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            Setting up your access…
+          </div>
         )}
       </StatusCard>
     </main>
@@ -348,17 +325,13 @@ function JoinContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#00a870] mb-0.5">
-                  You've been invited to
-                </p>
-                {showName && <p className="font-bold text-[#0d0d0f] text-sm leading-snug">{showName}</p>}
+              <p className="text-sm text-[#0d0d0f] leading-snug pt-0.5">
+                You've been invited to join{' '}
+                {showName && <strong>{showName}</strong>}
                 {invite?.role && (
-                  <p className="text-xs text-[#6b6b7a] mt-0.5">
-                    Role: {invite.role === 'host1' ? 'Host 1' : invite.role === 'host2' ? 'Host 2' : 'Producer'}
-                  </p>
+                  <> as <strong>{roleLabel(invite.role)}</strong></>
                 )}
-              </div>
+              </p>
             </div>
           )}
 
@@ -391,19 +364,28 @@ function JoinContent() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              autoComplete="current-password"
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
               onKeyDown={e => e.key === 'Enter' && handleAuth()}
               className="w-full bg-[#f7f8fa] border border-[#e2e4e8] rounded-xl text-[#0d0d0f] px-4 py-3 text-sm outline-none focus:border-[#00e5a0] focus:bg-white transition-colors"
             />
           </div>
 
           {authMessage && (
-            <div className="mb-5 bg-[#fef2f2] border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
-              <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
-              <p className="text-sm text-red-700">{authMessage}</p>
-            </div>
+            authMessageInfo ? (
+              <div className="mb-5 bg-[#edfdf6] border border-[#00e5a0]/40 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-[#00a870] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm text-[#0a6b47]">{authMessage}</p>
+              </div>
+            ) : (
+              <div className="mb-5 bg-[#fef2f2] border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                <p className="text-sm text-red-700">{authMessage}</p>
+              </div>
+            )
           )}
 
           <button

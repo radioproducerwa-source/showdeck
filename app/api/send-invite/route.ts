@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const from = process.env.RESEND_FROM || 'Showdeck <invites@showdeck.fm>'
+  const from = process.env.RESEND_FROM || 'Showdeck <onboarding@resend.dev>'
 
   const { error } = await resend.emails.send({
     from,
