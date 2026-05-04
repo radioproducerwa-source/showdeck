@@ -39,7 +39,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [radioWeeks, setRadioWeeks] = useState<string[]>([])
-  const [todaySlots, setTodaySlots] = useState<Record<string, { title: string; notes: string }>>({})
+  const [weekSlots, setWeekSlots] = useState<Record<string, Record<string, { title: string; notes: string }>>>({})
+  const [selectedDow, setSelectedDow] = useState<number>(() => {
+    const d = new Date().getDay()
+    return d >= 1 && d <= 5 ? d : 1
+  })
   const [archiveSearch, setArchiveSearch] = useState('')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const router = useRouter()
@@ -77,11 +81,18 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         }
         setShow(showData)
         if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showData?.show_type)) {
-          const todayDate = new Date().toLocaleDateString('en-CA')
+          const now = new Date()
+          const nowDay = now.getDay()
+          const weekMon = new Date(now)
+          weekMon.setDate(now.getDate() + (nowDay === 0 ? -6 : 1 - nowDay))
+          const weekFri = new Date(weekMon)
+          weekFri.setDate(weekMon.getDate() + 4)
+          const mondayStr = weekMon.toLocaleDateString('en-CA')
+          const fridayStr = weekFri.toLocaleDateString('en-CA')
           Promise.all([
             supabase.from('radio_plans').select('plan_date').eq('show_id', showId),
-            supabase.from('radio_plans').select('hour,slot_key,title,notes').eq('show_id', showId).eq('plan_date', todayDate),
-          ]).then(([{ data: planRows }, { data: todayRows }]) => {
+            supabase.from('radio_plans').select('plan_date,hour,slot_key,title,notes').eq('show_id', showId).gte('plan_date', mondayStr).lte('plan_date', fridayStr),
+          ]).then(([{ data: planRows }, { data: weekRows }]) => {
             if (planRows) {
               const seen = new Set<string>()
               planRows.forEach((r: any) => {
@@ -93,10 +104,13 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               })
               setRadioWeeks(Array.from(seen).sort().reverse())
             }
-            if (todayRows) {
-              const map: Record<string, { title: string; notes: string }> = {}
-              todayRows.forEach((r: any) => { map[`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' } })
-              setTodaySlots(map)
+            if (weekRows) {
+              const map: Record<string, Record<string, { title: string; notes: string }>> = {}
+              weekRows.forEach((r: any) => {
+                if (!map[r.plan_date]) map[r.plan_date] = {}
+                map[r.plan_date][`${r.hour}-${r.slot_key}`] = { title: r.title || '', notes: r.notes || '' }
+              })
+              setWeekSlots(map)
             }
           })
         }
@@ -311,12 +325,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         {isRadio && (() => {
           const SLOT_KEYS = ['03', '10', '20', '33', '40', '5055']
           const HOURS = [6, 7, 8]
-          const totalSlots = SLOT_KEYS.length * HOURS.length
-          const filledCount = HOURS.reduce((acc, h) =>
-            acc + SLOT_KEYS.filter(k => todaySlots[`${h}-${k}`]?.title?.trim()).length, 0)
-          const fillPct = Math.round((filledCount / totalSlots) * 100)
           const todayDow = new Date().getDay() // 0=Sun
           const isWeekday = todayDow >= 1 && todayDow <= 5
+          const isSelectedToday = selectedDow === todayDow && isWeekday
+          // compute the calendar date for the selected day-of-week in the current week
+          const _wm = new Date()
+          const _wd = _wm.getDay()
+          _wm.setDate(_wm.getDate() + (_wd === 0 ? -6 : 1 - _wd))
+          const _sd = new Date(_wm)
+          _sd.setDate(_wm.getDate() + selectedDow - 1)
+          const selectedDate = _sd.toLocaleDateString('en-CA')
+          const currentSlots = weekSlots[selectedDate] || {}
+          const totalSlots = SLOT_KEYS.length * HOURS.length
+          const filledCount = HOURS.reduce((acc, h) =>
+            acc + SLOT_KEYS.filter(k => currentSlots[`${h}-${k}`]?.title?.trim()).length, 0)
+          const fillPct = Math.round((filledCount / totalSlots) * 100)
 
           const filteredWeeks = archiveSearch.trim()
             ? radioWeeks.filter(mondayStr => {
@@ -339,13 +362,17 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     {/* Day pills */}
                     <div className="flex items-center gap-1.5 mt-3">
                       {['Mon','Tue','Wed','Thu','Fri'].map((d, i) => {
-                        const isToday = isWeekday && todayDow === i + 1
+                        const dow = i + 1
+                        const isSelected = selectedDow === dow
+                        const isToday = isWeekday && todayDow === dow
                         return (
-                          <span key={d} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                            isToday
+                          <button key={d} onClick={() => setSelectedDow(dow)} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                            isSelected
                               ? 'bg-[#00e5a0] text-black'
-                              : 'bg-[#f7f8fa] text-[#6b6b7a] border border-[#e2e4e8]'
-                          }`}>{d}</span>
+                              : isToday
+                              ? 'bg-[#00e5a0]/20 text-[#00a870] border border-[#00e5a0]/40 hover:bg-[#00e5a0] hover:text-black'
+                              : 'bg-[#f7f8fa] text-[#6b6b7a] border border-[#e2e4e8] hover:border-[#00e5a0]/40 hover:text-[#0d0d0f]'
+                          }`}>{d}</button>
                         )
                       })}
                     </div>
@@ -363,18 +390,20 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 </div>
               </div>
 
-              {/* Today's Show grid */}
-              <a href={`/radio-planner/${showId}`}
+              {/* Selected Day's Show grid */}
+              <a href={`/radio-planner/${showId}?date=${selectedDate}`}
                 className="block bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden hover:border-[#00e5a0]/50 transition-colors group">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-[#e2e4e8]">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-sm font-bold text-[#0d0d0f]">Today's Show</span>
-                      <span className="text-xs text-[#6b6b7a] truncate">
-                        {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      <span className="text-sm font-bold text-[#0d0d0f]">
+                        {isSelectedToday ? "Today's Show" : ['Monday','Tuesday','Wednesday','Thursday','Friday'][selectedDow - 1]}
                       </span>
-                      {isWeekday && (
+                      <span className="text-xs text-[#6b6b7a] truncate">
+                        {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </span>
+                      {isSelectedToday && (
                         <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-[#ff5c3a]/10 text-[#ff5c3a] border border-[#ff5c3a]/20 rounded-full px-2 py-0.5 flex-shrink-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#ff5c3a] animate-pulse" />
                           On Air
@@ -410,7 +439,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       { slotKey: '40',   time: ':40', label: 'Segment', isInterview: true },
                       { slotKey: '5055', time: ':55', label: 'Segment' },
                     ]
-                    const hourFilled = slots.filter(s => todaySlots[`${hour}-${s.slotKey}`]?.title?.trim()).length
+                    const hourFilled = slots.filter(s => currentSlots[`${hour}-${s.slotKey}`]?.title?.trim()).length
                     return (
                       <div key={hour}>
                         {/* Hour header */}
@@ -424,7 +453,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         {/* Slot rows */}
                         <div className="divide-y divide-[#f0f1f3]">
                           {slots.map(s => {
-                            const slotData = todaySlots[`${hour}-${s.slotKey}`]
+                            const slotData = currentSlots[`${hour}-${s.slotKey}`]
                             const title = slotData?.title || ''
                             const notes = slotData?.notes || ''
                             const filled = title.trim().length > 0

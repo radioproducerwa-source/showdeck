@@ -6,9 +6,18 @@ import Logo from '../../../components/Logo'
 import RadioPlannerPanel from '../../../components/RadioPlannerPanel'
 import GlobalSearch from '../../../components/GlobalSearch'
 
+function getInitialDayFromUrl(): number | undefined {
+  if (typeof window === 'undefined') return undefined
+  const dateParam = new URLSearchParams(window.location.search).get('date')
+  if (!dateParam) return undefined
+  const dow = new Date(dateParam + 'T00:00:00').getDay() // 0=Sun
+  return dow >= 1 && dow <= 5 ? dow - 1 : undefined // 0=Mon…4=Fri
+}
+
 export default function RadioPlannerPage({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
   const [show, setShow] = useState<any>(null)
+  const [initialDay] = useState<number | undefined>(getInitialDayFromUrl)
   const router = useRouter()
 
   useEffect(() => {
@@ -44,7 +53,7 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
         <GlobalSearch />
       </header>
       <div className="max-w-5xl mx-auto px-6 py-8">
-        <RadioPlannerPanel showId={showId} show={show} />
+        <RadioPlannerPanel showId={showId} show={show} initialDay={initialDay} />
       </div>
     </main>
   )

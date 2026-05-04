@@ -96,11 +96,11 @@ function CopyButton({ value }: { value: string }) {
   )
 }
 
-type Props = { showId: string; show: any }
+type Props = { showId: string; show: any; initialDay?: number }
 
-export default function RadioPlannerPanel({ showId, show }: Props) {
+export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
   const [monday, setMonday]           = useState<Date>(getMondayOf(new Date()))
-  const [selectedDay, setSelectedDay] = useState<number>(Math.min(Math.max(new Date().getDay() - 1, 0), 4))
+  const [selectedDay, setSelectedDay] = useState<number>(initialDay ?? Math.min(Math.max(new Date().getDay() - 1, 0), 4))
   const [plans, setPlans]             = useState<Record<string, PlanMap>>({})
   const [saving, setSaving]           = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
