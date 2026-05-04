@@ -64,6 +64,7 @@ function SortableItem({ id, children }: { id: string; children: (listeners: any)
 export default function Planner({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
   const [show, setShow] = useState<any>(null)
+  const [isOwner, setIsOwner] = useState(false)
   const [sections, setSections] = useState<any[]>([])
   const [content, setContent] = useState<any>({})
   const [epTitle, setEpTitle] = useState('')
@@ -111,6 +112,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     if (showData.owner_id !== user.id) {
       const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', user.id).maybeSingle()
       if (!membership) { router.push('/dashboard'); return }
+    } else {
+      setIsOwner(true)
     }
     setShow(showData)
 
@@ -659,6 +662,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
               className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
               Export PDF
             </button>
+            {isOwner && <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
             <GlobalSearch />
           </div>
         </div>

@@ -226,7 +226,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         {show && (
           <div className="flex items-center gap-2">
             <GlobalSearch />
-            {isOwner && <a href={`/show-settings/${showId}`} className="hidden sm:block text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
+            {isOwner && <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
             {!isRadio && (
               <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-3 sm:px-4 py-1.5 text-sm hover:bg-[#00ffc0] transition-colors whitespace-nowrap">
                 + <span className="hidden sm:inline">New {epLabel}</span><span className="sm:hidden">New</span>
