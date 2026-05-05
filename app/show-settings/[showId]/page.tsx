@@ -158,6 +158,11 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       has_producer: hasProducer,
       producer_name: hasProducer ? producer.trim() : null,
       header_color: headerColor,
+      instagram: instagram.trim() || null,
+      tiktok: tiktok.trim() || null,
+      facebook: facebook.trim() || null,
+      x_twitter: xTwitter.trim() || null,
+      youtube: youtube.trim() || null,
     }).eq('id', showId)
     setSaving(false)
     if (error) {
