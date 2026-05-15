@@ -44,7 +44,7 @@ const ADDABLE_SLOT_TYPES: SlotTemplate[] = [
 
 type SlotData          = { title: string; notes: string; link: string }
 type PlanMap           = Record<string, SlotData>
-type Toast             = { msg: string; phase: 'in' | 'out' } | null
+type Toast             = { msg: string; phase: 'in' | 'out'; error?: boolean } | null
 type Guest             = { id: string; name: string; title: string | null; notes: string | null }
 type RecurringSegment  = { id: string; name: string }
 
@@ -128,9 +128,9 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
 
   const currentDate = () => toISODate(addDays(monday, selectedDay))
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, error = false) => {
     clearTimeout(toastTimer.current)
-    setToast({ msg, phase: 'in' })
+    setToast({ msg, phase: 'in', error })
     toastTimer.current = setTimeout(() => {
       setToast(t => t ? { ...t, phase: 'out' } : null)
       toastTimer.current = setTimeout(() => setToast(null), 220)
@@ -187,19 +187,17 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       setSaving(true)
       const slot = getSlot(date, hour, slotKey)
       const updated = { ...slot, [field]: value }
-      try {
-        await supabase.from('radio_plans').upsert({
-          show_id: showId,
-          plan_date: date,
-          hour,
-          slot_key: slotKey,
-          title: updated.title,
-          notes: updated.notes,
-          link: updated.link,
-        }, { onConflict: 'show_id,plan_date,hour,slot_key' })
-      } catch { /* table not yet created */ }
+      const { error } = await supabase.from('radio_plans').upsert({
+        show_id: showId,
+        plan_date: date,
+        hour,
+        slot_key: slotKey,
+        title: updated.title,
+        notes: updated.notes,
+        link: updated.link,
+      }, { onConflict: 'show_id,plan_date,hour,slot_key' })
       setSaving(false)
-      showToast('Saved')
+      showToast(error ? 'Save failed — check your connection' : 'Saved', !!error)
     }, 700)
   }
 
@@ -229,18 +227,20 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       return { ...prev, [date]: dayMap }
     })
     const save = async (h: number, sk: string, data: SlotData) => {
-      try {
-        await supabase.from('radio_plans').upsert({
-          show_id: showId, plan_date: date, hour: h, slot_key: sk,
-          title: data.title, notes: data.notes, link: data.link,
-        }, { onConflict: 'show_id,plan_date,hour,slot_key' })
-      } catch { /* ignore */ }
+      const { error } = await supabase.from('radio_plans').upsert({
+        show_id: showId, plan_date: date, hour: h, slot_key: sk,
+        title: data.title, notes: data.notes, link: data.link,
+      }, { onConflict: 'show_id,plan_date,hour,slot_key' })
+      return error
     }
     setSaving(true)
     Promise.all([
       save(dragSrc.hour, dragSrc.slotKey, dstData),
       save(hour, slotKey, srcData),
-    ]).then(() => { setSaving(false); showToast('Saved') })
+    ]).then(([e1, e2]) => {
+      setSaving(false)
+      showToast(e1 || e2 ? 'Save failed — check your connection' : 'Saved', !!(e1 || e2))
+    })
     setDragSrc(null); setDragOver(null)
   }
 
@@ -420,10 +420,13 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
     <div className="rounded-2xl border border-[#e2e4e8] bg-white overflow-hidden">
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0d0d0f] text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
-          toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'
-        }`}>
-          <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black">✓</span>
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl pointer-events-none ${
+          toast.error ? 'bg-red-600' : 'bg-[#0d0d0f]'
+        } ${toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'}`}>
+          {toast.error
+            ? <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px] font-black">✕</span>
+            : <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black">✓</span>
+          }
           {toast.msg}
         </div>
       )}

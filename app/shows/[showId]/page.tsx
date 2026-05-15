@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
+import Toast, { useToast } from '../../../components/Toast'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, type DragEndEvent,
@@ -46,6 +47,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   })
   const [archiveSearch, setArchiveSearch] = useState('')
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
+  const { toast, showToast } = useToast()
   const router = useRouter()
 
   const whiteboardSensors = useSensors(
@@ -157,7 +159,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   }
 
   const unarchiveEpisode = async (episodeId: string) => {
-    await supabase.from('episodes').update({ archived: false }).eq('id', episodeId)
+    const { error } = await supabase.from('episodes').update({ archived: false }).eq('id', episodeId)
+    if (error) { showToast('Failed to unarchive — check your connection', true); return }
     setEpisodes(prev => prev.map(e => e.id === episodeId ? { ...e, archived: false } : e))
   }
 
@@ -165,7 +168,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     if (!confirm(`Delete "${title || 'Untitled Episode'}"? This can't be undone.`)) return
     await supabase.from('section_content').delete().eq('episode_id', episodeId)
     await supabase.from('sections').delete().eq('episode_id', episodeId)
-    await supabase.from('episodes').delete().eq('id', episodeId)
+    const { error } = await supabase.from('episodes').delete().eq('id', episodeId)
+    if (error) { showToast('Delete failed — check your connection', true); return }
     setEpisodes(prev => prev.filter(e => e.id !== episodeId))
     if (currentEp?.id === episodeId) setCurrentEp(null)
   }
@@ -230,6 +234,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
+      <Toast toast={toast} />
       {/* Nav */}
       <header className="bg-white border-b border-[#e2e4e8] px-4 sm:px-8 h-14 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">

@@ -262,7 +262,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const removeSection = async (sectionId: string, sectionName: string) => {
     if (episodeId) await supabase.from('section_links').delete().eq('episode_id', episodeId).eq('section_name', sectionName)
-    await supabase.from('sections').delete().eq('id', sectionId)
+    const { error } = await supabase.from('sections').delete().eq('id', sectionId)
+    if (error) { showToast('Remove failed — check your connection', true); return }
     setSections(prev => prev.filter(s => s.id !== sectionId))
     setLinks(prev => { const n = { ...prev }; delete n[sectionName]; return n })
   }
@@ -321,7 +322,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       role: r.role,
       content: r.content,
     }))
-    await supabase.from('section_content').upsert(upserts, { onConflict: 'episode_id,section_name,role' })
+    const { error: upsertErr } = await supabase.from('section_content').upsert(upserts, { onConflict: 'episode_id,section_name,role' })
+    if (upsertErr) { showToast('Duplicate failed — check your connection', true); setDuplicating(false); return }
 
     const newContent: any = {}
     prevContent.forEach((r: any) => { newContent[`${r.section_name}-${r.role}`] = r.content })
@@ -454,9 +456,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     setSavingTemplate(true)
     await supabase.from('section_templates').delete().eq('show_id', showId)
     const rows = sections.map((s, i) => ({ show_id: showId, name: s.name, icon: s.icon || '📝', order_index: i }))
-    await supabase.from('section_templates').insert(rows)
+    const { error } = await supabase.from('section_templates').insert(rows)
     setSavingTemplate(false)
-    showToast('Template saved!')
+    showToast(error ? 'Failed to save template' : 'Template saved!', !!error)
   }
 
   const exportPdf = async () => {
