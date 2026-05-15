@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, use, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
@@ -109,6 +109,14 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [sections])
+
+  // Resize all visible textareas whenever content loads or a role panel is expanded
+  useLayoutEffect(() => {
+    document.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(el => {
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    })
+  }, [content, expandedRoles])
 
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -866,7 +874,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                             }}
                                             placeholder="Your notes…"
                                             className="w-full bg-white/60 text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none placeholder-[#c8b89a] block border-t border-black/5"
-                                            style={{ minHeight: '120px', maxHeight: '60vh', overflowY: 'auto' }}
+                                            style={{ minHeight: '120px', overflowY: 'hidden' }}
                                           />
                                         </div>
                                       </div>
