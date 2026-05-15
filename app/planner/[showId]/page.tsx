@@ -350,18 +350,21 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     if (!prevEps?.length) { showToast('No previous bets found'); setImportingBets(false); return }
 
     const { data: prevContent } = await supabase
-      .from('section_content').select('section_name, content')
+      .from('section_content').select('section_name, role, content')
       .eq('episode_id', prevEps[0].id)
       .in('section_name', ['AFL Multis', 'Racing Bets'])
-      .eq('role', 'host1')
+      .in('role', ['host1', 'host2'])
     if (!prevContent?.length) { showToast('No previous bets found'); setImportingBets(false); return }
 
-    const imported = prevContent
-      .map((r: any) => `${r.section_name}:\n${r.content}`)
-      .join('\n\n')
-    const existing = getContent("Last Week's Betting", 'host1')
-    const merged = existing ? `${existing}\n\n${imported}` : imported
-    updateContent("Last Week's Betting", 'host1', merged)
+    // Import each host's bets into their own "Last Week's Betting" section
+    for (const role of ['host1', 'host2']) {
+      const rows = prevContent.filter((r: any) => r.role === role)
+      if (!rows.length) continue
+      const imported = rows.map((r: any) => `${r.section_name}:\n${r.content}`).join('\n\n')
+      const existing = getContent("Last Week's Betting", role)
+      const merged = existing ? `${existing}\n\n${imported}` : imported
+      updateContent("Last Week's Betting", role, merged)
+    }
     setImportingBets(false)
     showToast("Last week's bets imported!")
   }
