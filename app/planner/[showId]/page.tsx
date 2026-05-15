@@ -665,24 +665,24 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
               <span className="text-[#f59e0b]">Unsaved</span>
             </span>
             <button onClick={saveAsTemplate} disabled={savingTemplate || sections.length === 0}
-              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40"
+              className="hidden sm:inline-flex text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40"
               title="Save current sections as the default template for new episodes">
               {savingTemplate ? 'Saving…' : '⬡ Save as Template'}
             </button>
             <button onClick={duplicateFromLastWeek} disabled={duplicating}
-              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40">
+              className="hidden sm:inline-flex text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40">
               {duplicating ? 'Duplicating…' : '↓ Duplicate last week'}
             </button>
             <button onClick={archiveEpisode} disabled={archiving || !episodeId}
-              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
+              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-2.5 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
               title="Archive this episode">
-              {archiving ? 'Archiving…' : '📦 Archive'}
+              {archiving ? '…' : '📦'}<span className="hidden sm:inline ml-1">{archiving ? 'Archiving…' : 'Archive'}</span>
             </button>
             <button onClick={exportPdf}
-              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-4 py-1.5 text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
-              Export PDF
+              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs sm:text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
+              <span className="hidden sm:inline">Export </span>PDF
             </button>
-            {isOwner && <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
+            {isOwner && <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs sm:text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
             <GlobalSearch />
           </div>
         </div>
@@ -701,7 +701,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-6 py-6">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6">
         <input
           type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
           placeholder={show.show_type === 'radio' ? 'BROADCAST TITLE…' : 'EPISODE TITLE…'}
@@ -764,7 +764,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                           style={{ backgroundColor: noteColor, boxShadow: '2px 6px 24px rgba(0,0,0,0.13), 0 1px 3px rgba(0,0,0,0.07)' }}>
 
                           {/* Card header */}
-                          <div className="w-full flex items-center gap-3 px-5 py-4" style={{ backgroundColor: noteColor }}>
+                          <div className="w-full flex items-center gap-3 px-3 sm:px-5 py-3 sm:py-4" style={{ backgroundColor: noteColor }}>
                             {/* Drag handle */}
                             <span
                               {...dragListeners}
