@@ -12,7 +12,19 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [isError, setIsError] = useState(false)
   const router = useRouter()
+
+  const friendlyError = (msg: string): string => {
+    const m = msg.toLowerCase()
+    if (m.includes('invalid login') || m.includes('invalid email or password') || m.includes('invalid credentials')) return 'Incorrect email or password. Please try again.'
+    if (m.includes('email not confirmed')) return 'Please confirm your email first — check your inbox for a confirmation link.'
+    if (m.includes('password should be at least') || m.includes('at least 6')) return 'Password must be at least 6 characters long.'
+    if (m.includes('rate limit') || m.includes('too many requests')) return 'Too many attempts — please wait a moment and try again.'
+    if (m.includes('already registered') || m.includes('already exists')) return 'An account with this email already exists. Try signing in instead.'
+    if (m.includes('user not found')) return 'No account found with this email address.'
+    return msg
+  }
 
   const handleGoogle = async () => {
     setGoogleLoading(true)
@@ -26,13 +38,14 @@ export default function Home() {
   const handleAuth = async () => {
     setLoading(true)
     setMessage('')
+    setIsError(false)
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setMessage(error.message)
-      else setMessage('Check your email to confirm your account!')
+      if (error) { setMessage(friendlyError(error.message)); setIsError(true) }
+      else { setMessage('Check your email to confirm your account!') }
     } else {
       const { error, data } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) { setMessage(error.message) }
+      if (error) { setMessage(friendlyError(error.message)); setIsError(true) }
       else {
         if (!rememberMe) {
           // Clear persisted session so it doesn't survive a browser restart
@@ -139,7 +152,15 @@ export default function Home() {
               <span className="text-sm text-[#6b6b7a]">Remember me</span>
             </label>
           )}
-          {message && <p className="text-sm mb-4 text-[#00a870]">{message}</p>}
+          {message && (
+            <div className={`mb-5 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm ${isError ? 'bg-[#fef2f2] border border-red-200 text-red-700' : 'bg-[#edfdf6] border border-[#00e5a0]/40 text-[#0a6b47]'}`}>
+              {isError
+                ? <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                : <svg className="w-4 h-4 text-[#00a870] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              }
+              {message}
+            </div>
+          )}
           <button
             onClick={handleAuth}
             disabled={loading}

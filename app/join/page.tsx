@@ -262,7 +262,19 @@ function JoinContent() {
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) { setAuthMessage(error.message); setAuthLoading(false); return }
+      if (error) {
+        const m = error.message.toLowerCase()
+        const friendly = (m.includes('invalid login') || m.includes('invalid credentials') || m.includes('invalid email or password'))
+          ? 'Incorrect email or password. Please try again.'
+          : m.includes('email not confirmed')
+          ? 'Please confirm your email first — check your inbox.'
+          : m.includes('rate limit') || m.includes('too many')
+          ? 'Too many attempts — please wait a moment and try again.'
+          : error.message
+        setAuthMessage(friendly)
+        setAuthLoading(false)
+        return
+      }
     }
 
     setAuthLoading(false)
