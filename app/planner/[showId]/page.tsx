@@ -34,12 +34,19 @@ const DEFAULT_SECTIONS: Record<string, { name: string; icon: string }[]> = {
     { name: 'Interview', icon: '🎤' },
     { name: 'Wrap', icon: '👋' },
   ],
+  other: [
+    { name: 'Intro', icon: '▶️' },
+    { name: 'Main Segment', icon: '💬' },
+    { name: 'Feature', icon: '⭐' },
+    { name: 'Outro', icon: '👋' },
+  ],
 }
 
 const getDefaultSections = (showType: string) => {
   if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showType)) {
     return DEFAULT_SECTIONS.radio
   }
+  if (showType === 'other') return DEFAULT_SECTIONS.other
   return DEFAULT_SECTIONS.podcast
 }
 
@@ -857,7 +864,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                             }}
                                             placeholder="Your notes…"
                                             className="w-full bg-white/60 text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none placeholder-[#c8b89a] block border-t border-black/5"
-                                            style={{ minHeight: '120px', overflowY: 'hidden' }}
+                                            style={{ minHeight: '120px', maxHeight: '60vh', overflowY: 'auto' }}
                                           />
                                         </div>
                                       </div>

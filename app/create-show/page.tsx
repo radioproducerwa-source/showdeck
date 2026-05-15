@@ -197,7 +197,7 @@ export default function CreateShow() {
                 <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Show Name</label>
                 <input type="text" value={showName} onChange={e => setShowName(e.target.value)}
                   className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-2 text-sm outline-none focus:border-[#00e5a0]"
-                  placeholder={isRadio ? 'e.g. Breakfast with Matt & Sarah' : 'e.g. The Footy Punt'} />
+                  placeholder={isRadio ? 'e.g. Breakfast with Matt & Sarah' : 'e.g. The Weekly Debrief'} />
               </div>
               <div className="mb-5">
                 <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">{host1Label}</label>

@@ -142,13 +142,13 @@ Definition of done:
 
 Remaining tasks for Phase 1 (priority order):
 
-Settings page — only visible to show owner (in progress)
-Interactive day selector on show detail page (in progress)
-Fix RLS on episodes, section_content, radio_plans tables
-Generic default sections for new users (not AFL/betting ones)
+✅ Settings page — only visible to show owner
+✅ Interactive day selector on show detail page
+✅ Fix RLS on episodes, section_content, radio_plans tables
+✅ Generic default sections for new users (not AFL/betting ones)
+✅ Show deletion option
 Test full invite flow end to end with Nick
 Supabase email confirmation template — Showdeck branded
-Show deletion option
 
 Phase 2 — Ready to Show Someone Else
 Start when Phase 1 is solid. Done when a stranger can sign up and get value without help.
@@ -189,7 +189,7 @@ Known gaps — fix these now:
  Settings page visible to non-owners — in progress
  No error states on save failures — user has no idea if auto-save breaks
  Silent failures on invite flow in edge cases
- Generic sections for new users not done — new signups get AFL/betting sections
+ ✅ Generic sections for new users — defaults are now show-type appropriate
 
 The most important test:
 Have Nick sign up completely fresh, without Robbie helping him, and watch where he gets confused or stuck. That's the real bug list.
@@ -255,14 +255,14 @@ When to do this: Month 3 — before any commercial conversation.
 The Master Checklist — Commercial Readiness
 Now (next 2 weeks) — solid for the core team
 
- RLS on all tables
+ ✅ RLS on all tables
  Error states visible everywhere
- Generic sections for new users
+ ✅ Generic sections for new users
  Nick fully onboarded and using it independently
  Carly onboarded on radio planner
- Settings page owner-only
- Interactive day selector working
- Show deletion option
+ ✅ Settings page owner-only
+ ✅ Interactive day selector working
+ ✅ Show deletion option
 
 Month 2 — ready for strangers
 

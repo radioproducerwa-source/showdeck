@@ -215,8 +215,29 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
 
   const deleteShow = async () => {
     setDeleting(true)
+
+    // Fetch all episode IDs for this show first
+    const { data: eps } = await supabase.from('episodes').select('id').eq('show_id', showId)
+    const episodeIds = (eps || []).map((e: any) => e.id)
+
+    if (episodeIds.length > 0) {
+      // Delete episode-level children that have no CASCADE
+      await supabase.from('section_links').delete().in('episode_id', episodeIds)
+      await supabase.from('section_content').delete().in('episode_id', episodeIds)
+      await supabase.from('sections').delete().in('episode_id', episodeIds)
+      await supabase.from('episodes').delete().in('id', episodeIds)
+    }
+
+    // Delete show-level children without CASCADE
+    await supabase.from('radio_plans').delete().eq('show_id', showId)
+    await supabase.from('show_invites').delete().eq('show_id', showId)
+    await supabase.from('show_members').delete().eq('show_id', showId)
+
+    // Delete the show — section_templates, radio_templates, recurring_segments,
+    // show_slot_layout, and guests all have ON DELETE CASCADE so they go automatically
     const { error } = await supabase.from('shows').delete().eq('id', showId)
     if (error) { showToast('Delete failed: ' + error.message, true); setDeleting(false); return }
+
     router.push('/dashboard')
   }
 
