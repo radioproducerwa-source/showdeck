@@ -147,13 +147,34 @@ export default function Dashboard() {
           </div>
         </div>
       ) : shows.length === 0 ? (
-        <div className="max-w-sm mx-auto mt-24 text-center px-6">
-          <div className="w-16 h-16 rounded-2xl bg-white border border-[#e2e4e8] flex items-center justify-center mx-auto mb-5">
-            <span className="text-2xl">🎙️</span>
+        <div className="max-w-md mx-auto mt-16 px-6">
+          <div className="text-center mb-10">
+            <div className="w-16 h-16 rounded-2xl bg-[#00e5a0]/10 border border-[#00e5a0]/20 flex items-center justify-center mx-auto mb-5">
+              <span className="text-2xl">🎙️</span>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Welcome to Showdeck{profile?.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''}</h2>
+            <p className="text-[#6b6b7a] text-sm leading-relaxed">Your show planning workspace. Create a show, plan your segments, and go to air with everything sorted.</p>
           </div>
-          <h2 className="text-xl font-bold mb-2">No shows yet</h2>
-          <p className="text-[#6b6b7a] mb-6 text-sm">Create your first show to get started</p>
-          <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-xl px-8 py-3 hover:bg-[#00ffc0] transition-colors inline-block">Create Show</a>
+
+          <div className="flex flex-col gap-3 mb-8">
+            {[
+              { step: '1', title: 'Create your show', desc: 'Add your show name, hosts, and type — podcast or radio.' },
+              { step: '2', title: 'Plan your episode', desc: 'Fill in each segment for your hosts, section by section.' },
+              { step: '3', title: 'Export & go to air', desc: 'Download a PDF runsheet or open it on any device.' },
+            ].map(({ step, title, desc }) => (
+              <div key={step} className="flex items-start gap-4 bg-white border border-[#e2e4e8] rounded-xl px-5 py-4">
+                <div className="w-7 h-7 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-xs font-black flex-shrink-0 mt-0.5">{step}</div>
+                <div>
+                  <p className="font-semibold text-sm text-[#0d0d0f]">{title}</p>
+                  <p className="text-xs text-[#6b6b7a] mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <a href="/create-show" className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3.5 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors flex items-center justify-center gap-2">
+            Create Your First Show →
+          </a>
         </div>
       ) : (
         <div className="max-w-5xl mx-auto px-6 py-10">

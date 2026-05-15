@@ -527,8 +527,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 {radioWeeks.length === 0 ? (
                   <div className="px-6 py-12 text-center">
                     <div className="text-3xl mb-3">📻</div>
-                    <p className="text-[#6b6b7a] text-sm font-medium">No runsheets yet</p>
-                    <p className="text-[#c8cad0] text-xs mt-1">Open the planner and start filling in segments.</p>
+                    <p className="text-[#6b6b7a] text-sm font-medium mb-1">No runsheets yet</p>
+                    <p className="text-[#c8cad0] text-xs mb-4">Fill in your first week of segments to see it here.</p>
+                    <a href={`/planner/${showId}?new=true`} className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2 text-xs hover:bg-[#00ffc0] transition-colors">
+                      Open Planner →
+                    </a>
                   </div>
                 ) : filteredWeeks.length === 0 ? (
                   <div className="px-6 py-10 text-center text-[#6b6b7a] text-sm">No weeks match "{archiveSearch}"</div>
