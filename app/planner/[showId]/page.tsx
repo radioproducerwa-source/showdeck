@@ -50,7 +50,7 @@ const getDefaultSections = (showType: string) => {
   return DEFAULT_SECTIONS.podcast
 }
 
-type SaveStatus = 'saved' | 'saving' | 'unsaved'
+type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
 
 const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
 
@@ -389,7 +389,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (!episodeId) return
       setSaveStatus('saving')
       const { error } = await supabase.from('episodes').update({ title: value }).eq('id', episodeId)
-      setSaveStatus(error ? 'unsaved' : 'saved')
+      setSaveStatus(error ? 'error' : 'saved')
       if (error) showToast('Save failed — check your connection', true)
       else showToast('Saved')
     }, 800)
@@ -410,7 +410,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       { episode_id: episodeId, section_name: sectionName, role, content: value },
       { onConflict: 'episode_id,section_name,role' }
     )
-    setSaveStatus(error ? 'unsaved' : 'saved')
+    setSaveStatus(error ? 'error' : 'saved')
     if (error) showToast('Save failed — check your connection', true)
     else showToast('Saved')
   }
@@ -660,10 +660,18 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
             </span>
           </div>
           <div className="flex items-center flex-wrap gap-2">
-            <span className={`text-xs flex items-center gap-1.5 transition-opacity ${saveStatus === 'unsaved' ? 'opacity-100' : 'opacity-0'}`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
-              <span className="text-[#f59e0b]">Unsaved</span>
-            </span>
+            {saveStatus === 'error' && (
+              <span className="text-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span className="text-red-500 font-medium">Save failed — check connection</span>
+              </span>
+            )}
+            {saveStatus === 'unsaved' && (
+              <span className="text-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
+                <span className="text-[#f59e0b]">Unsaved</span>
+              </span>
+            )}
             <button onClick={saveAsTemplate} disabled={savingTemplate || sections.length === 0}
               className="hidden sm:inline-flex text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40"
               title="Save current sections as the default template for new episodes">

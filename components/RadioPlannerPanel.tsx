@@ -103,6 +103,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
   const [selectedDay, setSelectedDay] = useState<number>(initialDay ?? Math.min(Math.max(new Date().getDay() - 1, 0), 4))
   const [plans, setPlans]             = useState<Record<string, PlanMap>>({})
   const [saving, setSaving]           = useState(false)
+  const [saveError, setSaveError]     = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [toast, setToast]             = useState<Toast>(null)
   const [activeHour, setActiveHour]   = useState<number>(HOURS[0])
@@ -197,7 +198,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
         link: updated.link,
       }, { onConflict: 'show_id,plan_date,hour,slot_key' })
       setSaving(false)
-      showToast(error ? 'Save failed — check your connection' : 'Saved', !!error)
+      if (error) { setSaveError(true); showToast('Save failed — check your connection', true) }
+      else { setSaveError(false); showToast('Saved') }
     }, 700)
   }
 
@@ -239,7 +241,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       save(hour, slotKey, srcData),
     ]).then(([e1, e2]) => {
       setSaving(false)
-      showToast(e1 || e2 ? 'Save failed — check your connection' : 'Saved', !!(e1 || e2))
+      if (e1 || e2) { setSaveError(true); showToast('Save failed — check your connection', true) }
+      else { setSaveError(false); showToast('Saved') }
     })
     setDragSrc(null); setDragOver(null)
   }
@@ -436,6 +439,12 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-[#0d0d0f]">📻 Radio Runsheet</span>
           {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
+          {!saving && saveError && (
+            <span className="text-xs flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span className="text-red-500 font-medium">Save failed — check connection</span>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
