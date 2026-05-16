@@ -1,5 +1,5 @@
 # SHOWDECK — Living Blueprint
-*Last updated: May 2026 — Chat 6 commercial roadmap + OAuth security added*
+*Last updated: May 2026 — Chat 7 Phase 1 complete, persistent save error states added*
 
 > This is a living document. Update it after every session, every lesson, every win and every mistake. The goal: build a product that works so well for Robbie that he'd miss it if it disappeared — then sell it to everyone else.
 
@@ -124,6 +124,12 @@ claude
 - Duplicate RLS policies cause silent conflicts. Always nuke and recreate cleanly rather than layering new policies on old ones.
 - The www → showdeck.live redirect was backwards in Vercel. showdeck.live should always be the primary domain pointing to Production.
 **Do differently:** Test on iPhone first when anything isn't working on the work computer. Never assume it's the code.
+
+### Chat 7 — Phase 1 Complete + Error States
+**Built:** Persistent save error states in both planners — red "Save failed — check connection" indicator stays visible in the header after a failed auto-save, not just during the toast. Added `CLAUDE.md` to the repo so Claude Code auto-loads project context at the start of every session.
+**Confirmed:** Nick and Carly both fully onboarded. Phase 1 is complete.
+**Learned:** "Unsaved" and "Save failed" need to be visually distinct — amber for pending, red for actual failure. A toast that fades is not enough; the indicator needs to persist until the next successful save.
+**Do differently:** Nothing — this was a clean, focused session.
 
 ### Chat 6 — Settings Fix + Commercial Planning + Security
 **Built:** Owner-only settings visibility ✅, interactive day selector ✅, Google OAuth login ✅, auto-expanding text areas ✅
@@ -319,25 +325,25 @@ Note: Google OAuth credentials need to be configured in Supabase dashboard (Auth
 
 ### The Master Checklist — Commercial Readiness
 
-#### Now (next 2 weeks) — solid for the core team
-- [ ] RLS on all tables *(in progress)*
-- [ ] Scrollable/expandable text areas in planner sections — hard to read long content on desktop, nearly unusable on iPhone
-- [ ] Error states visible everywhere
-- [ ] Generic sections for new users
-- [ ] Nick fully onboarded and using it independently
-- [ ] Carly onboarded on radio planner
-- [x] Settings page owner-only ✅ DONE
-- [x] Interactive day selector working ✅ DONE
-- [ ] Show deletion option
+#### Now (next 2 weeks) — solid for the core team ✅ COMPLETE
+- [x] RLS on all tables ✅
+- [x] Scrollable/expandable text areas ✅
+- [x] Error states visible everywhere ✅
+- [x] Generic sections for new users ✅
+- [x] Nick fully onboarded and using it independently ✅
+- [x] Carly onboarded on radio planner ✅
+- [x] Settings page owner-only ✅
+- [x] Interactive day selector working ✅
+- [x] Show deletion option ✅
 
 #### Month 2 — ready for strangers
-- [ ] Google OAuth login live (Sign in with Google)
-- [ ] Facebook OAuth as secondary option
+- [x] Google OAuth login live ✅
+- [x] Empty states with clear next actions ✅
+- [x] Human-readable error messages ✅
+- [x] Mobile experience polished ✅
 - [ ] Onboarding flow for new users
-- [ ] Empty states with clear next actions
 - [ ] Upgrade Supabase to Pro
 - [ ] UptimeRobot monitoring live
-- [ ] Human-readable error messages
 - [ ] The stranger test completed and bugs fixed
 
 #### Month 3 — sellable
