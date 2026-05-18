@@ -590,8 +590,6 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                   return (
                     <div
                       key={slot.slotKey}
-                      draggable
-                      onDragStart={e => handleSlotDragStart(e, hour, slot.slotKey)}
                       onDragOver={e => handleSlotDragOver(e, hour, slot.slotKey)}
                       onDrop={e => handleSlotDrop(e, hour, slot.slotKey)}
                       onDragEnd={handleSlotDragEnd}
@@ -600,11 +598,13 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                         background: '#ffffff',
                         border: isDragOver ? '1.5px solid #00e5a0' : hasContent ? '1px solid rgba(0,229,160,0.45)' : '1px solid #e2e4e8',
                         opacity: isDragSrc ? 0.45 : 1,
-                        cursor: 'grab',
                       }}
                     >
                       <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
-                        <span className="text-[12px] text-[#c8cad0] flex-shrink-0 cursor-grab select-none" title="Drag to swap">⠿</span>
+                        <span
+                          draggable
+                          onDragStart={e => handleSlotDragStart(e, hour, slot.slotKey)}
+                          className="text-[12px] text-[#c8cad0] flex-shrink-0 cursor-grab select-none touch-none" title="Drag to swap">⠿</span>
                         {slot.slotTime && (
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
