@@ -50,8 +50,9 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const { toast, showToast } = useToast()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
-  const [ideas, setIdeas] = useState<{ id: string; text: string; done: boolean; order_index: number }[]>([])
-  const [newIdeaText, setNewIdeaText] = useState('')
+  const [columns, setColumns] = useState<{ id: string; title: string; order_index: number }[]>([])
+  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number }[]>([])
+  const [newIdeaTextByCol, setNewIdeaTextByCol] = useState<Record<string, string>>({})
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -85,7 +86,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           setIsOwner(true)
         }
         setShow(showData)
-        supabase.from('show_ideas').select('*').eq('show_id', showId).order('order_index').then(({ data }) => setIdeas(data || []))
+        Promise.all([
+          supabase.from('show_idea_columns').select('*').eq('show_id', showId).order('order_index'),
+          supabase.from('show_ideas').select('*').eq('show_id', showId).order('order_index'),
+        ]).then(([{ data: cols }, { data: ideaRows }]) => {
+          const colList = cols || []
+          setIdeas(ideaRows || [])
+          if (colList.length === 0) {
+            supabase.from('show_idea_columns').insert([
+              { show_id: showId, title: 'Phoners / Topicals / Raves', order_index: 0 },
+              { show_id: showId, title: 'Show Tactics / Segments', order_index: 1 },
+            ]).select().then(({ data }) => setColumns(data || []))
+          } else {
+            setColumns(colList)
+          }
+        })
         if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showData?.show_type)) {
           const now = new Date()
           const nowDay = now.getDay()
@@ -207,12 +222,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     return 'ready'
   }
 
-  const addIdea = async () => {
-    const text = newIdeaText.trim()
+  const addIdea = async (columnId: string) => {
+    const text = (newIdeaTextByCol[columnId] || '').trim()
     if (!text) return
-    setNewIdeaText('')
-    const order_index = ideas.filter(i => !i.done).length
-    const { data, error } = await supabase.from('show_ideas').insert({ show_id: showId, text, done: false, order_index }).select().single()
+    setNewIdeaTextByCol(prev => ({ ...prev, [columnId]: '' }))
+    const order_index = ideas.filter(i => i.column_id === columnId && !i.done).length
+    const { data, error } = await supabase.from('show_ideas').insert({ show_id: showId, column_id: columnId, text, done: false, order_index }).select().single()
     if (error) { showToast('Failed to add idea — check your connection', true); return }
     setIdeas(prev => [...prev, data])
   }
@@ -225,6 +240,19 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const deleteIdea = async (id: string) => {
     setIdeas(prev => prev.filter(i => i.id !== id))
     await supabase.from('show_ideas').delete().eq('id', id)
+  }
+
+  const addColumn = async () => {
+    const { data } = await supabase.from('show_idea_columns').insert({ show_id: showId, title: 'New Column', order_index: columns.length }).select().single()
+    if (data) setColumns(prev => [...prev, data])
+  }
+
+  const updateColumnTitle = (id: string, title: string) => {
+    setColumns(prev => prev.map(c => c.id === id ? { ...c, title } : c))
+  }
+
+  const saveColumnTitle = async (id: string, title: string) => {
+    await supabase.from('show_idea_columns').update({ title }).eq('id', id)
   }
 
   const today = new Date().toLocaleDateString('en-CA')
@@ -601,75 +629,83 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         })()}
 
         {/* ── Radio: Ideas Board ── */}
-        {isRadio && activeTab === 'ideas' && (() => {
-          const activeIdeas = ideas.filter(i => !i.done)
-          const doneIdeas = ideas.filter(i => i.done)
-          return (
-            <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
-              {/* Add new idea */}
-              <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#e2e4e8]">
-                <div className="w-5 h-5 rounded-full border-2 border-[#e2e4e8] flex-shrink-0" />
-                <input
-                  type="text"
-                  value={newIdeaText}
-                  onChange={e => setNewIdeaText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') addIdea() }}
-                  placeholder="Add an idea…"
-                  className="flex-1 bg-transparent text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]"
-                />
-                {newIdeaText.trim() && (
-                  <button onClick={addIdea} className="text-[#00a870] text-sm font-semibold flex-shrink-0">Add</button>
-                )}
-              </div>
-
-              {/* Active ideas */}
-              {activeIdeas.length === 0 && doneIdeas.length === 0 && (
-                <div className="px-6 py-14 text-center">
-                  <div className="text-4xl mb-3">💡</div>
-                  <p className="text-[#6b6b7a] text-sm font-medium mb-1">No ideas yet</p>
-                  <p className="text-[#c8cad0] text-xs">Type above and press Enter to capture an idea.</p>
-                </div>
-              )}
-              {activeIdeas.map(idea => (
-                <div key={idea.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
-                  <button
-                    onClick={() => toggleIdea(idea.id, true)}
-                    className="w-5 h-5 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0"
-                  />
-                  <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
-                  <button
-                    onClick={() => deleteIdea(idea.id)}
-                    className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-xl leading-none flex-shrink-0"
-                  >×</button>
-                </div>
-              ))}
-
-              {/* Done section */}
-              {doneIdeas.length > 0 && (
-                <>
-                  <div className="px-5 py-2 bg-[#f7f8fa] border-t border-b border-[#e2e4e8]">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#c8cad0]">Done — {doneIdeas.length}</span>
-                  </div>
-                  {doneIdeas.map(idea => (
-                    <div key={idea.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors opacity-50">
-                      <button
-                        onClick={() => toggleIdea(idea.id, false)}
-                        className="w-5 h-5 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0"
-                      >
-                        <span className="text-black text-[9px] font-black">✓</span>
-                      </button>
-                      <span className="flex-1 text-sm text-[#6b6b7a] line-through">{idea.text}</span>
-                      <button
-                        onClick={() => deleteIdea(idea.id)}
-                        className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-xl leading-none flex-shrink-0"
-                      >×</button>
+        {isRadio && activeTab === 'ideas' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {columns.map(col => {
+                const colActive = ideas.filter(i => i.column_id === col.id && !i.done)
+                const colDone = ideas.filter(i => i.column_id === col.id && i.done)
+                const colText = newIdeaTextByCol[col.id] || ''
+                return (
+                  <div key={col.id} className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
+                    {/* Column header — editable title */}
+                    <div className="px-4 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa]">
+                      <input
+                        type="text"
+                        value={col.title}
+                        onChange={e => updateColumnTitle(col.id, e.target.value)}
+                        onBlur={e => saveColumnTitle(col.id, e.target.value)}
+                        className="w-full bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
+                      />
                     </div>
-                  ))}
-                </>
-              )}
+                    {/* Add idea input */}
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3]">
+                      <div className="w-4 h-4 rounded-full border-2 border-[#e2e4e8] flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={colText}
+                        onChange={e => setNewIdeaTextByCol(prev => ({ ...prev, [col.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') addIdea(col.id) }}
+                        placeholder="Add an idea…"
+                        className="flex-1 bg-transparent text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]"
+                      />
+                      {colText.trim() && (
+                        <button onClick={() => addIdea(col.id)} className="text-[#00a870] text-xs font-semibold flex-shrink-0">Add</button>
+                      )}
+                    </div>
+                    {/* Active ideas */}
+                    {colActive.length === 0 && colDone.length === 0 && (
+                      <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
+                    )}
+                    {colActive.map(idea => (
+                      <div key={idea.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
+                        <button onClick={() => toggleIdea(idea.id, true)}
+                          className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
+                        <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
+                        <button onClick={() => deleteIdea(idea.id)}
+                          className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                      </div>
+                    ))}
+                    {/* Done section */}
+                    {colDone.length > 0 && (
+                      <>
+                        <div className="px-4 py-1.5 bg-[#f7f8fa] border-t border-b border-[#e2e4e8]">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#c8cad0]">Done — {colDone.length}</span>
+                        </div>
+                        {colDone.map(idea => (
+                          <div key={idea.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors opacity-50">
+                            <button onClick={() => toggleIdea(idea.id, false)}
+                              className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0">
+                              <span className="text-black text-[8px] font-black">✓</span>
+                            </button>
+                            <span className="flex-1 text-sm text-[#6b6b7a] line-through">{idea.text}</span>
+                            <button onClick={() => deleteIdea(idea.id)}
+                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          )
-        })()}
+            {/* Add column */}
+            <button
+              onClick={addColumn}
+              className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
+            >+ Add Column</button>
+          </div>
+        )}
 
         {/* ── Podcast: Current Episode + Whiteboard + Archive ── */}
         {!isRadio && (
