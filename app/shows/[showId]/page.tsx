@@ -49,6 +49,9 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
   const { toast, showToast } = useToast()
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
+  const [ideas, setIdeas] = useState<{ id: string; text: string; done: boolean; order_index: number }[]>([])
+  const [newIdeaText, setNewIdeaText] = useState('')
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -82,6 +85,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           setIsOwner(true)
         }
         setShow(showData)
+        supabase.from('show_ideas').select('*').eq('show_id', showId).order('order_index').then(({ data }) => setIdeas(data || []))
         if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showData?.show_type)) {
           const now = new Date()
           const nowDay = now.getDay()
@@ -203,6 +207,26 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     return 'ready'
   }
 
+  const addIdea = async () => {
+    const text = newIdeaText.trim()
+    if (!text) return
+    setNewIdeaText('')
+    const order_index = ideas.filter(i => !i.done).length
+    const { data, error } = await supabase.from('show_ideas').insert({ show_id: showId, text, done: false, order_index }).select().single()
+    if (error) { showToast('Failed to add idea — check your connection', true); return }
+    setIdeas(prev => [...prev, data])
+  }
+
+  const toggleIdea = async (id: string, done: boolean) => {
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, done } : i))
+    await supabase.from('show_ideas').update({ done }).eq('id', id)
+  }
+
+  const deleteIdea = async (id: string) => {
+    setIdeas(prev => prev.filter(i => i.id !== id))
+    await supabase.from('show_ideas').delete().eq('id', id)
+  }
+
   const today = new Date().toLocaleDateString('en-CA')
   const isOnAir = currentEp?.episode_date === today
 
@@ -258,35 +282,26 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-4">
 
         {/* ── Show Header ── */}
-        <div className="relative rounded-2xl overflow-hidden">
-          {/* Header banner with per-show colour */}
-          {(() => {
-            const hc = show?.header_color || '#00e5a0'
-            const bg = hc === '#0d0d0f'
-              ? 'linear-gradient(135deg, #1a1a1a 0%, #0d0d0f 100%)'
-              : `linear-gradient(135deg, ${hc}40 0%, #0d0d0f 100%)`
-            return <div className="absolute inset-0" style={{ background: bg }} />
-          })()}
-          {/* Fade-to-page-bg at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#f7f8fa] to-transparent" />
-          {/* Content */}
-          <div className="relative z-10 px-7 pt-7 pb-10">
-            <div className="flex items-start gap-5">
+        <div className="relative bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
+          {/* Accent stripe using show colour */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: show?.header_color || '#00e5a0' }} />
+          <div className="px-7 py-5 pl-9">
+            <div className="flex items-center gap-5">
               {/* Logo */}
-              <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg ring-2 ring-white/20">
+              <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-[#e2e4e8]">
                 {show?.logo_url ? (
                   <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#00e5a0]/20">
-                    <span className="text-2xl font-black text-[#00e5a0]">{getInitials(show?.name || '')}</span>
+                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: (show?.header_color || '#00e5a0') + '20' }}>
+                    <span className="text-2xl font-black" style={{ color: show?.header_color || '#00e5a0' }}>{getInitials(show?.name || '')}</span>
                   </div>
                 )}
               </div>
-              <div className="flex-1 min-w-0 pt-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h1 className="text-xl sm:text-2xl font-bold text-white break-words leading-tight">{show?.name}</h1>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#0d0d0f] leading-tight truncate">{show?.name}</h1>
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex-shrink-0 ${
-                    isRadio ? 'bg-[#a78bfa]/25 text-[#c4b5fd]' : 'bg-[#00e5a0]/20 text-[#00e5a0]'
+                    isRadio ? 'bg-[#a78bfa]/15 text-[#7c3aed]' : 'bg-[#00e5a0]/15 text-[#00a870]'
                   }`}>
                     {show?.show_type === 'breakfast_radio' ? '🌅 Breakfast'
                       : show?.show_type === 'drive' ? '🚗 Drive'
@@ -296,24 +311,24 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   </span>
                 </div>
                 {/* Host row with upload */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-4">
                   {hosts.map(h => {
                     const inputKey = `${showId}-${h.slot}`
                     return (
                       <div key={h.slot} className="flex items-center gap-2 group/av cursor-pointer"
                         onClick={() => fileInputs.current[inputKey]?.click()}
                         title={`Upload ${h.name}'s photo`}>
-                        <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-white/20">
+                        <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-[#f0f1f3]">
                           {h.avatar
                             ? <img src={h.avatar} alt={h.name} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-black text-sm font-bold" style={{ backgroundColor: h.color }}>{h.name?.[0]}</div>}
+                            : <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: h.color }}>{h.name?.[0]}</div>}
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center">
                             <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-white leading-tight">{h.name}</div>
-                          <div className="text-[10px] text-white/50">{h.label}</div>
+                          <div className="text-sm font-semibold text-[#0d0d0f] leading-tight">{h.name}</div>
+                          <div className="text-[10px] text-[#9a9aaa]">{h.label}</div>
                         </div>
                         <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
                           onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(h.slot, f) }} />
@@ -326,8 +341,22 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           </div>
         </div>
 
+        {/* ── Radio tab switcher ── */}
+        {isRadio && (
+          <div className="flex gap-1 bg-white border border-[#e2e4e8] rounded-xl p-1">
+            <button
+              onClick={() => setActiveTab('runsheet')}
+              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'runsheet' ? 'bg-[#0d0d0f] text-white' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
+            >📋 Runsheet</button>
+            <button
+              onClick={() => setActiveTab('ideas')}
+              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'ideas' ? 'bg-[#0d0d0f] text-white' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
+            >💡 Ideas Board</button>
+          </div>
+        )}
+
         {/* ── Radio: Current Runsheet card + Today's Show + Archive ── */}
-        {isRadio && (() => {
+        {isRadio && activeTab === 'runsheet' && (() => {
           const SLOT_KEYS = ['03', '10', '20', '33', '40', '5055']
           const HOURS = [6, 7, 8]
           const todayDow = new Date().getDay() // 0=Sun
@@ -568,6 +597,77 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 )}
               </div>
             </>
+          )
+        })()}
+
+        {/* ── Radio: Ideas Board ── */}
+        {isRadio && activeTab === 'ideas' && (() => {
+          const activeIdeas = ideas.filter(i => !i.done)
+          const doneIdeas = ideas.filter(i => i.done)
+          return (
+            <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
+              {/* Add new idea */}
+              <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[#e2e4e8]">
+                <div className="w-5 h-5 rounded-full border-2 border-[#e2e4e8] flex-shrink-0" />
+                <input
+                  type="text"
+                  value={newIdeaText}
+                  onChange={e => setNewIdeaText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addIdea() }}
+                  placeholder="Add an idea…"
+                  className="flex-1 bg-transparent text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]"
+                />
+                {newIdeaText.trim() && (
+                  <button onClick={addIdea} className="text-[#00a870] text-sm font-semibold flex-shrink-0">Add</button>
+                )}
+              </div>
+
+              {/* Active ideas */}
+              {activeIdeas.length === 0 && doneIdeas.length === 0 && (
+                <div className="px-6 py-14 text-center">
+                  <div className="text-4xl mb-3">💡</div>
+                  <p className="text-[#6b6b7a] text-sm font-medium mb-1">No ideas yet</p>
+                  <p className="text-[#c8cad0] text-xs">Type above and press Enter to capture an idea.</p>
+                </div>
+              )}
+              {activeIdeas.map(idea => (
+                <div key={idea.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
+                  <button
+                    onClick={() => toggleIdea(idea.id, true)}
+                    className="w-5 h-5 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0"
+                  />
+                  <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
+                  <button
+                    onClick={() => deleteIdea(idea.id)}
+                    className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-xl leading-none flex-shrink-0"
+                  >×</button>
+                </div>
+              ))}
+
+              {/* Done section */}
+              {doneIdeas.length > 0 && (
+                <>
+                  <div className="px-5 py-2 bg-[#f7f8fa] border-t border-b border-[#e2e4e8]">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#c8cad0]">Done — {doneIdeas.length}</span>
+                  </div>
+                  {doneIdeas.map(idea => (
+                    <div key={idea.id} className="flex items-center gap-3 px-5 py-3 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors opacity-50">
+                      <button
+                        onClick={() => toggleIdea(idea.id, false)}
+                        className="w-5 h-5 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0"
+                      >
+                        <span className="text-black text-[9px] font-black">✓</span>
+                      </button>
+                      <span className="flex-1 text-sm text-[#6b6b7a] line-through">{idea.text}</span>
+                      <button
+                        onClick={() => deleteIdea(idea.id)}
+                        className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-xl leading-none flex-shrink-0"
+                      >×</button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
           )
         })()}
 
