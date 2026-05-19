@@ -346,11 +346,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           <div className="flex gap-1 bg-white border border-[#e2e4e8] rounded-xl p-1">
             <button
               onClick={() => setActiveTab('runsheet')}
-              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'runsheet' ? 'bg-[#0d0d0f] text-white' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
+              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'runsheet' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
             >📋 Runsheet</button>
             <button
               onClick={() => setActiveTab('ideas')}
-              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'ideas' ? 'bg-[#0d0d0f] text-white' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
+              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'ideas' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
             >💡 Ideas Board</button>
           </div>
         )}
