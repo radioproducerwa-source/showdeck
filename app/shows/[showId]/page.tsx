@@ -282,35 +282,26 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-4">
 
         {/* ── Show Header ── */}
-        <div className="relative rounded-2xl overflow-hidden">
-          {/* Header banner with per-show colour */}
-          {(() => {
-            const hc = show?.header_color || '#00e5a0'
-            const bg = hc === '#0d0d0f'
-              ? 'linear-gradient(135deg, #1a1a1a 0%, #0d0d0f 100%)'
-              : `linear-gradient(135deg, ${hc}40 0%, #0d0d0f 100%)`
-            return <div className="absolute inset-0" style={{ background: bg }} />
-          })()}
-          {/* Fade-to-page-bg at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#f7f8fa] to-transparent" />
-          {/* Content */}
-          <div className="relative z-10 px-7 pt-7 pb-10">
-            <div className="flex items-start gap-5">
+        <div className="relative bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
+          {/* Accent stripe using show colour */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: show?.header_color || '#00e5a0' }} />
+          <div className="px-7 py-5 pl-9">
+            <div className="flex items-center gap-5">
               {/* Logo */}
-              <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg ring-2 ring-white/20">
+              <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-[#e2e4e8]">
                 {show?.logo_url ? (
                   <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#00e5a0]/20">
-                    <span className="text-2xl font-black text-[#00e5a0]">{getInitials(show?.name || '')}</span>
+                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: (show?.header_color || '#00e5a0') + '20' }}>
+                    <span className="text-2xl font-black" style={{ color: show?.header_color || '#00e5a0' }}>{getInitials(show?.name || '')}</span>
                   </div>
                 )}
               </div>
-              <div className="flex-1 min-w-0 pt-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h1 className="text-xl sm:text-2xl font-bold text-white break-words leading-tight">{show?.name}</h1>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#0d0d0f] leading-tight truncate">{show?.name}</h1>
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex-shrink-0 ${
-                    isRadio ? 'bg-[#a78bfa]/25 text-[#c4b5fd]' : 'bg-[#00e5a0]/20 text-[#00e5a0]'
+                    isRadio ? 'bg-[#a78bfa]/15 text-[#7c3aed]' : 'bg-[#00e5a0]/15 text-[#00a870]'
                   }`}>
                     {show?.show_type === 'breakfast_radio' ? '🌅 Breakfast'
                       : show?.show_type === 'drive' ? '🚗 Drive'
@@ -320,24 +311,24 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   </span>
                 </div>
                 {/* Host row with upload */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-4">
                   {hosts.map(h => {
                     const inputKey = `${showId}-${h.slot}`
                     return (
                       <div key={h.slot} className="flex items-center gap-2 group/av cursor-pointer"
                         onClick={() => fileInputs.current[inputKey]?.click()}
                         title={`Upload ${h.name}'s photo`}>
-                        <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-white/20">
+                        <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-[#f0f1f3]">
                           {h.avatar
                             ? <img src={h.avatar} alt={h.name} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-black text-sm font-bold" style={{ backgroundColor: h.color }}>{h.name?.[0]}</div>}
+                            : <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: h.color }}>{h.name?.[0]}</div>}
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center">
                             <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-white leading-tight">{h.name}</div>
-                          <div className="text-[10px] text-white/50">{h.label}</div>
+                          <div className="text-sm font-semibold text-[#0d0d0f] leading-tight">{h.name}</div>
+                          <div className="text-[10px] text-[#9a9aaa]">{h.label}</div>
                         </div>
                         <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
                           onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(h.slot, f) }} />
