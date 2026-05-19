@@ -369,19 +369,17 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           </div>
         </div>
 
-        {/* ── Radio tab switcher ── */}
-        {isRadio && (
-          <div className="flex gap-1 bg-white border border-[#e2e4e8] rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab('runsheet')}
-              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'runsheet' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
-            >📋 Runsheet</button>
-            <button
-              onClick={() => setActiveTab('ideas')}
-              className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'ideas' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
-            >💡 Ideas Board</button>
-          </div>
-        )}
+        {/* ── Tab switcher (all show types) ── */}
+        <div className="flex gap-1 bg-white border border-[#e2e4e8] rounded-xl p-1">
+          <button
+            onClick={() => setActiveTab('runsheet')}
+            className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'runsheet' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
+          >{isRadio ? '📋 Runsheet' : '🎙️ Episodes'}</button>
+          <button
+            onClick={() => setActiveTab('ideas')}
+            className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'ideas' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
+          >💡 Ideas Board</button>
+        </div>
 
         {/* ── Radio: Current Runsheet card + Today's Show + Archive ── */}
         {isRadio && activeTab === 'runsheet' && (() => {
@@ -629,7 +627,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         })()}
 
         {/* ── Radio: Ideas Board ── */}
-        {isRadio && activeTab === 'ideas' && (
+        {activeTab === 'ideas' && (
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {columns.map(col => {
@@ -708,7 +706,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         )}
 
         {/* ── Podcast: Current Episode + Whiteboard + Archive ── */}
-        {!isRadio && (
+        {!isRadio && activeTab === 'runsheet' && (
           <>
             {currentEp ? (
               <div className="relative bg-gradient-to-r from-[#edfdf6] to-white border border-[#00e5a0]/40 rounded-2xl px-6 py-5 flex items-center justify-between overflow-hidden">
