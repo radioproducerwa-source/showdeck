@@ -118,6 +118,10 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
   const saveTimers   = useRef<Record<string, any>>({})
   const toastTimer   = useRef<any>(null)
   const linkFocusRef = useRef<string | null>(null)
+  const plansRef     = useRef<Record<string, PlanMap>>({})
+  const loadedDatesRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => { plansRef.current = plans }, [plans])
 
   useEffect(() => {
     loadDay(toISODate(addDays(getMondayOf(new Date()), selectedDay)))
@@ -139,7 +143,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
   }
 
   const loadDay = async (date: string) => {
-    if (plans[date]) return
+    if (loadedDatesRef.current.has(date)) return
+    loadedDatesRef.current.add(date)
     try {
       const { data } = await supabase
         .from('radio_plans')
@@ -186,7 +191,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
     clearTimeout(saveTimers.current[timerKey])
     saveTimers.current[timerKey] = setTimeout(async () => {
       setSaving(true)
-      const slot = getSlot(date, hour, slotKey)
+      const slot = plansRef.current[date]?.[`${hour}-${slotKey}`] || { title: '', notes: '', link: '' }
       const updated = { ...slot, [field]: value }
       const { error } = await supabase.from('radio_plans').upsert({
         show_id: showId,
