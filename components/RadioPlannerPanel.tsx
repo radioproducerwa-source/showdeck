@@ -453,41 +453,44 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       )}
 
       {/* Panel header */}
-      <div className="px-5 py-3.5 border-b border-[#e2e4e8] flex items-center justify-between bg-[#f7f8fa]">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-[#0d0d0f]">📻 Radio Runsheet</span>
-          {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
-          {!saving && saveError && (
-            <span className="text-xs flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-              <span className="text-red-500 font-medium">Save failed — check connection</span>
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setEditingLayout(v => !v)}
-            className={`border rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
-              editingLayout
-                ? 'border-[#f59e0b] bg-[#fef3c7] text-[#b45309]'
-                : 'border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0]'
-            }`}
-          >
-            {editingLayout ? 'Done' : 'Edit layout'}
-          </button>
-          <button
-            onClick={saveAsTemplate}
-            disabled={savingTemplate}
-            className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-40"
-          >
-            {savingTemplate ? 'Saving…' : 'Save as Template'}
-          </button>
-          <button
-            onClick={exportPdf}
-            className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
-          >
-            Export PDF
-          </button>
+      <div className="px-4 sm:px-5 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-bold text-[#0d0d0f] flex-shrink-0">📻 <span className="hidden sm:inline">Radio Runsheet</span></span>
+            {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
+            {!saving && saveError && (
+              <span className="text-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                <span className="text-red-500 font-medium hidden sm:inline">Save failed — check connection</span>
+                <span className="text-red-500 font-medium sm:hidden">Save failed</span>
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => setEditingLayout(v => !v)}
+              className={`border rounded-lg px-2.5 sm:px-4 py-1.5 text-xs font-medium transition-colors ${
+                editingLayout
+                  ? 'border-[#f59e0b] bg-[#fef3c7] text-[#b45309]'
+                  : 'border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0]'
+              }`}
+            >
+              {editingLayout ? 'Done' : <><span className="hidden sm:inline">Edit layout</span><span className="sm:hidden">Layout</span></>}
+            </button>
+            <button
+              onClick={saveAsTemplate}
+              disabled={savingTemplate}
+              className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-2.5 sm:px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-40"
+            >
+              {savingTemplate ? '…' : <><span className="hidden sm:inline">Save as Template</span><span className="sm:hidden">Template</span></>}
+            </button>
+            <button
+              onClick={exportPdf}
+              className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-2.5 sm:px-4 py-1.5 text-xs font-medium transition-colors"
+            >
+              <span className="hidden sm:inline">Export </span>PDF
+            </button>
+          </div>
         </div>
       </div>
 
@@ -665,7 +668,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                         value={sd.title}
                         onChange={e => updateSlot(date, hour, slot.slotKey, 'title', e.target.value)}
                         placeholder={defaultTitle || (slot.isInterview ? 'Guest name…' : 'Title…')}
-                        className="w-full bg-transparent text-sm text-[#0d0d0f] font-semibold px-3 py-1 outline-none placeholder-[#c8cad0]"
+                        className="w-full bg-transparent text-sm text-[#0d0d0f] font-semibold px-3 py-1.5 outline-none placeholder-[#c8cad0]"
                         style={{ cursor: 'text' }}
                         onMouseDown={e => e.stopPropagation()}
                       />
@@ -674,8 +677,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                         onChange={e => updateSlot(date, hour, slot.slotKey, 'notes', e.target.value)}
                         placeholder={slot.isInterview ? 'Topic / talking points…' : 'Notes…'}
                         rows={2}
-                        className="w-full bg-transparent text-xs text-[#6b6b7a] px-3 pb-1 outline-none resize-none placeholder-[#c8cad0]"
-                        style={{ cursor: 'text' }}
+                        className="w-full bg-transparent text-xs text-[#6b6b7a] px-3 pb-2 outline-none resize-none placeholder-[#c8cad0]"
+                        style={{ cursor: 'text', minHeight: '48px' }}
                         onMouseDown={e => e.stopPropagation()}
                       />
                       {(sd.link === '' ? [''] : sd.link.split('\n')).map((linkVal, idx, arr) => {
