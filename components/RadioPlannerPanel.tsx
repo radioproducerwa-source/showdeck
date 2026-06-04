@@ -171,6 +171,19 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
           map[`${r.hour}-${r.slot_time}`] = { title: r.title || '', notes: r.notes || '', link: '' }
         })
         setPlans(prev => ({ ...prev, [date]: map }))
+        // Persist template rows to DB so edits to individual slots don't wipe the rest
+        if (tmpl && tmpl.length > 0) {
+          const rows = tmpl.map((r: any) => ({
+            show_id: showId,
+            plan_date: date,
+            hour: r.hour,
+            slot_key: r.slot_time,
+            title: r.title || '',
+            notes: r.notes || '',
+            link: '',
+          }))
+          await supabase.from('radio_plans').upsert(rows, { onConflict: 'show_id,plan_date,hour,slot_key' })
+        }
       }
     } catch {
       setPlans(prev => ({ ...prev, [date]: {} }))
