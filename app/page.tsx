@@ -12,6 +12,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [facebookLoading, setFacebookLoading] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
   const router = useRouter()
@@ -43,6 +45,18 @@ export default function Home() {
       options: { redirectTo: window.location.origin + '/dashboard' },
     })
     setFacebookLoading(false)
+  }
+
+  const handleForgot = async () => {
+    if (!email.trim()) { setMessage('Enter your email address above first.'); setIsError(true); return }
+    setForgotLoading(true)
+    setMessage('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password',
+    })
+    setForgotLoading(false)
+    if (error) { setMessage(friendlyError(error.message)); setIsError(true) }
+    else { setMessage('Check your email — we sent a password reset link.'); setIsError(false); setShowForgot(false) }
   }
 
   const handleAuth = async () => {
@@ -164,15 +178,44 @@ export default function Home() {
             />
           </div>
           {!isSignUp && (
-            <label className="flex items-center gap-2.5 mb-5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-[#e2e4e8] accent-[#00e5a0] cursor-pointer"
-              />
-              <span className="text-sm text-[#6b6b7a]">Remember me</span>
-            </label>
+            <div className="flex items-center justify-between mb-5">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-[#e2e4e8] accent-[#00e5a0] cursor-pointer"
+                />
+                <span className="text-sm text-[#6b6b7a]">Remember me</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => { setShowForgot(true); setMessage(''); setIsError(false) }}
+                className="text-sm text-[#6b6b7a] hover:text-[#00a870] transition-colors"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+          {showForgot && (
+            <div className="mb-5 rounded-xl border border-[#e2e4e8] p-4 bg-[#f7f8fa]">
+              <p className="text-sm text-[#4a4a5a] mb-3">Enter your email above and we'll send you a reset link.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleForgot}
+                  disabled={forgotLoading}
+                  className="flex-1 bg-[#0d0d0f] text-white font-semibold rounded-lg px-4 py-2 text-sm hover:bg-[#2a2a2f] transition-colors disabled:opacity-50"
+                >
+                  {forgotLoading ? 'Sending…' : 'Send reset link'}
+                </button>
+                <button
+                  onClick={() => setShowForgot(false)}
+                  className="text-sm text-[#6b6b7a] hover:text-[#0d0d0f] px-3 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
           {message && (
             <div className={`mb-5 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm ${isError ? 'bg-[#fef2f2] border border-red-200 text-red-700' : 'bg-[#edfdf6] border border-[#00e5a0]/40 text-[#0a6b47]'}`}>
