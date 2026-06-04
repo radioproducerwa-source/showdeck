@@ -806,10 +806,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                 {importingBets ? '…' : '↓ Import Last Week'}
                               </button>
                             )}
-                            <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
-                              className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
-                              ×
-                            </button>
+                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === "Last Week's Betting") && (
+                              <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
+                                className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
+                                ×
+                              </button>
+                            )}
                             <button type="button" onClick={() => toggleCollapse(section.name)}
                               className="text-[#0d0d0f]/30 text-xs flex-shrink-0 transition-transform duration-200"
                               style={{ transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>
