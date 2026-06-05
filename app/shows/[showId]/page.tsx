@@ -51,10 +51,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
   const [columns, setColumns] = useState<{ id: string; title: string; order_index: number }[]>([])
-  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number; url?: string }[]>([])
+  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number; url?: string; notes?: string }[]>([])
   const [newIdeaTextByCol, setNewIdeaTextByCol] = useState<Record<string, string>>({})
   const [ideaLinkOpen, setIdeaLinkOpen] = useState<Record<string, boolean>>({})
   const [ideaLinkInput, setIdeaLinkInput] = useState<Record<string, string>>({})
+  const [ideaNotesOpen, setIdeaNotesOpen] = useState<Record<string, boolean>>({})
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -249,6 +250,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, url } : i))
     setIdeaLinkOpen(prev => ({ ...prev, [id]: false }))
     await supabase.from('show_ideas').update({ url: url || null }).eq('id', id)
+  }
+
+  const saveIdeaNotes = async (id: string, notes: string) => {
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes } : i))
+    await supabase.from('show_ideas').update({ notes: notes || null }).eq('id', id)
   }
 
   const getDomain = (url: string) => {
@@ -681,7 +687,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     )}
                     {colActive.map(idea => (
                       <div key={idea.id} className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
-                        <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
                           <button onClick={() => toggleIdea(idea.id, true)}
                             className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
                           <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
@@ -700,9 +706,25 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                               🔗
                             </button>
                           )}
+                          <button onClick={() => setIdeaNotesOpen(prev => ({ ...prev, [idea.id]: !prev[idea.id] }))}
+                            className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
+                            {ideaNotesOpen[idea.id] ? 'hide' : '+ note'}
+                          </button>
                           <button onClick={() => deleteIdea(idea.id)}
                             className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
                         </div>
+                        {(ideaNotesOpen[idea.id] || idea.notes) && (
+                          <div className="px-11 pb-2">
+                            <textarea
+                              value={idea.notes || ''}
+                              onChange={e => setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, notes: e.target.value } : i))}
+                              onBlur={e => saveIdeaNotes(idea.id, e.target.value)}
+                              placeholder="Add notes…"
+                              rows={2}
+                              className="w-full bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-xs text-[#4a4a5a] outline-none focus:border-[#00e5a0] resize-none placeholder-[#c8cad0]"
+                            />
+                          </div>
+                        )}
                         {ideaLinkOpen[idea.id] && (
                           <div className="flex items-center gap-2 px-4 pb-2.5">
                             <input
