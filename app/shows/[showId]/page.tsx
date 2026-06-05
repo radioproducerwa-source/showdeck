@@ -691,21 +691,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           <button onClick={() => toggleIdea(idea.id, true)}
                             className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
                           <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
-                          {idea.url ? (
-                            <span className="flex items-center gap-1 flex-shrink-0">
-                              <a href={idea.url} target="_blank" rel="noopener noreferrer"
-                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[80px] truncate block">
-                                🔗 {getDomain(idea.url)}
-                              </a>
-                              <button onClick={() => saveIdeaUrl(idea.id, '')}
-                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] text-xs transition-all">×</button>
-                            </span>
-                          ) : (
-                            <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
-                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] border border-transparent hover:border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 transition-all flex-shrink-0">
-                              🔗
-                            </button>
-                          )}
                           <button onClick={() => setIdeaNotesOpen(prev => ({ ...prev, [idea.id]: !prev[idea.id] }))}
                             className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
                             {ideaNotesOpen[idea.id] ? 'hide' : '+ note'}
@@ -725,26 +710,43 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                             />
                           </div>
                         )}
-                        {ideaLinkOpen[idea.id] && (
-                          <div className="flex items-center gap-2 px-4 pb-2.5">
-                            <input
-                              type="url"
-                              value={ideaLinkInput[idea.id] || ''}
-                              onChange={e => setIdeaLinkInput(prev => ({ ...prev, [idea.id]: e.target.value }))}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')
-                                if (e.key === 'Escape') setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))
-                              }}
-                              placeholder="Paste a URL…"
-                              autoFocus
-                              className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
-                            />
-                            <button onClick={() => saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')}
-                              className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Save</button>
-                            <button onClick={() => setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))}
-                              className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
-                          </div>
-                        )}
+                        {/* Link — always below notes */}
+                        <div className="px-11 pb-2.5">
+                          {idea.url ? (
+                            <span className="flex items-center gap-1">
+                              <a href={idea.url} target="_blank" rel="noopener noreferrer"
+                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[200px] truncate block">
+                                🔗 {getDomain(idea.url)}
+                              </a>
+                              <button onClick={() => saveIdeaUrl(idea.id, '')}
+                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] text-xs transition-all">×</button>
+                            </span>
+                          ) : ideaLinkOpen[idea.id] ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="url"
+                                value={ideaLinkInput[idea.id] || ''}
+                                onChange={e => setIdeaLinkInput(prev => ({ ...prev, [idea.id]: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')
+                                  if (e.key === 'Escape') setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))
+                                }}
+                                placeholder="Paste a URL…"
+                                autoFocus
+                                className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
+                              />
+                              <button onClick={() => saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')}
+                                className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Save</button>
+                              <button onClick={() => setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))}
+                                className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
+                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] transition-all">
+                              + add link
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {/* Done section */}
