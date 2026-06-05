@@ -28,6 +28,19 @@ function SortableNote({ id, children }: { id: string; children: (dragListeners: 
   )
 }
 
+function SortableIdeaItem({ id, children }: { id: string; children: (dragListeners: any) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      {...attributes}
+    >
+      {children(listeners)}
+    </div>
+  )
+}
+
 export default function ShowDetail({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
   const [show, setShow] = useState<any>(null)
@@ -51,8 +64,13 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
   const [columns, setColumns] = useState<{ id: string; title: string; order_index: number }[]>([])
-  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number }[]>([])
+  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number; url?: string; notes?: string }[]>([])
   const [newIdeaTextByCol, setNewIdeaTextByCol] = useState<Record<string, string>>({})
+  const [ideaLinkOpen, setIdeaLinkOpen] = useState<Record<string, boolean>>({})
+  const [ideaLinkInput, setIdeaLinkInput] = useState<Record<string, string>>({})
+  const [ideaNotesOpen, setIdeaNotesOpen] = useState<Record<string, boolean>>({})
+  const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState<string | null>(null)
+  const [colDeleteConfirm, setColDeleteConfirm] = useState<string | null>(null)
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -67,6 +85,32 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       const newIdx = prev.findIndex((s: any) => s.id === over.id)
       const next = arrayMove(prev, oldIdx, newIdx)
       Promise.all(next.map((s: any, i: number) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id))).catch(() => {})
+      return next
+    })
+  }
+
+  const handleIdeaDndEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setIdeas(prev => {
+      const oldIdx = prev.findIndex(i => i.id === active.id)
+      const newIdx = prev.findIndex(i => i.id === over.id)
+      const next = arrayMove(prev, oldIdx, newIdx)
+      const colId = prev[oldIdx].column_id
+      const colItems = next.filter(i => i.column_id === colId && !i.done)
+      Promise.all(colItems.map((i, idx) => supabase.from('show_ideas').update({ order_index: idx }).eq('id', i.id))).catch(() => {})
+      return next
+    })
+  }
+
+  const handleColumnDndEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setColumns(prev => {
+      const oldIdx = prev.findIndex(c => c.id === active.id)
+      const newIdx = prev.findIndex(c => c.id === over.id)
+      const next = arrayMove(prev, oldIdx, newIdx)
+      Promise.all(next.map((c, i) => supabase.from('show_idea_columns').update({ order_index: i }).eq('id', c.id))).catch(() => {})
       return next
     })
   }
@@ -242,9 +286,32 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     await supabase.from('show_ideas').delete().eq('id', id)
   }
 
+  const saveIdeaUrl = async (id: string, raw: string) => {
+    const url = raw.trim() ? (raw.trim().startsWith('http') ? raw.trim() : `https://${raw.trim()}`) : ''
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, url } : i))
+    setIdeaLinkOpen(prev => ({ ...prev, [id]: false }))
+    await supabase.from('show_ideas').update({ url: url || null }).eq('id', id)
+  }
+
+  const saveIdeaNotes = async (id: string, notes: string) => {
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes } : i))
+    await supabase.from('show_ideas').update({ notes: notes || null }).eq('id', id)
+  }
+
+  const getDomain = (url: string) => {
+    try { return new URL(url).hostname.replace('www.', '') }
+    catch { return url.slice(0, 30) }
+  }
+
   const addColumn = async () => {
     const { data } = await supabase.from('show_idea_columns').insert({ show_id: showId, title: 'New Column', order_index: columns.length }).select().single()
     if (data) setColumns(prev => [...prev, data])
+  }
+
+  const deleteColumn = async (id: string) => {
+    setColumns(prev => prev.filter(c => c.id !== id))
+    setIdeas(prev => prev.filter(i => i.column_id !== id))
+    await supabase.from('show_idea_columns').delete().eq('id', id)
   }
 
   const updateColumnTitle = (id: string, title: string) => {
@@ -628,23 +695,41 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
 
         {/* ── Radio: Ideas Board ── */}
         {activeTab === 'ideas' && (
+          <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDndEnd}>
           <div className="space-y-3">
+            <SortableContext items={columns.map(c => c.id)} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {columns.map(col => {
                 const colActive = ideas.filter(i => i.column_id === col.id && !i.done)
                 const colDone = ideas.filter(i => i.column_id === col.id && i.done)
                 const colText = newIdeaTextByCol[col.id] || ''
                 return (
-                  <div key={col.id} className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
-                    {/* Column header — editable title */}
-                    <div className="px-4 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa]">
+                  <SortableIdeaItem key={col.id} id={col.id}>
+                  {(colDragListeners) => (
+                  <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
+                    {/* Column header — drag handle + editable title */}
+                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
+                      <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none text-xs">⠿⠿</span>
                       <input
                         type="text"
                         value={col.title}
                         onChange={e => updateColumnTitle(col.id, e.target.value)}
                         onBlur={e => saveColumnTitle(col.id, e.target.value)}
-                        className="w-full bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
+                        onMouseDown={e => e.stopPropagation()}
+                        className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
                       />
+                      {colDeleteConfirm === col.id ? (
+                        <span className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
+                          <button onClick={() => { deleteColumn(col.id); setColDeleteConfirm(null) }}
+                            className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
+                          <button onClick={() => setColDeleteConfirm(null)}
+                            className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setColDeleteConfirm(col.id)}
+                          className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                      )}
                     </div>
                     {/* Add idea input */}
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3]">
@@ -665,15 +750,89 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     {colActive.length === 0 && colDone.length === 0 && (
                       <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
                     )}
+                    <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleIdeaDndEnd}>
+                    <SortableContext items={colActive.map(i => i.id)} strategy={rectSortingStrategy}>
                     {colActive.map(idea => (
-                      <div key={idea.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
-                        <button onClick={() => toggleIdea(idea.id, true)}
-                          className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
-                        <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
-                        <button onClick={() => deleteIdea(idea.id)}
-                          className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                      <SortableIdeaItem key={idea.id} id={idea.id}>
+                      {(dragListeners) => (
+                      <div className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
+                        <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                          <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 text-xs select-none touch-none">⠿</span>
+                          <button onClick={() => toggleIdea(idea.id, true)}
+                            className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
+                          <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
+                          <button onClick={() => setIdeaNotesOpen(prev => ({ ...prev, [idea.id]: !prev[idea.id] }))}
+                            className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
+                            {ideaNotesOpen[idea.id] ? 'hide' : '+ note'}
+                          </button>
+                          {ideaDeleteConfirm === idea.id ? (
+                            <span className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
+                              <button onClick={() => { deleteIdea(idea.id); setIdeaDeleteConfirm(null) }}
+                                className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
+                              <button onClick={() => setIdeaDeleteConfirm(null)}
+                                className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
+                            </span>
+                          ) : (
+                            <button onClick={() => setIdeaDeleteConfirm(idea.id)}
+                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                          )}
+                        </div>
+                        {(ideaNotesOpen[idea.id] || idea.notes) && (
+                          <div className="px-11 pb-2">
+                            <textarea
+                              value={idea.notes || ''}
+                              onChange={e => setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, notes: e.target.value } : i))}
+                              onBlur={e => saveIdeaNotes(idea.id, e.target.value)}
+                              placeholder="Add notes…"
+                              rows={2}
+                              className="w-full bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-xs text-[#4a4a5a] outline-none focus:border-[#00e5a0] resize-none placeholder-[#c8cad0]"
+                            />
+                          </div>
+                        )}
+                        {/* Link — always below notes */}
+                        <div className="px-11 pb-2.5">
+                          {idea.url ? (
+                            <span className="flex items-center gap-1">
+                              <a href={idea.url} target="_blank" rel="noopener noreferrer"
+                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[200px] truncate block">
+                                🔗 {getDomain(idea.url)}
+                              </a>
+                              <button onClick={() => saveIdeaUrl(idea.id, '')}
+                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] text-xs transition-all">×</button>
+                            </span>
+                          ) : ideaLinkOpen[idea.id] ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="url"
+                                value={ideaLinkInput[idea.id] || ''}
+                                onChange={e => setIdeaLinkInput(prev => ({ ...prev, [idea.id]: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')
+                                  if (e.key === 'Escape') setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))
+                                }}
+                                placeholder="Paste a URL…"
+                                autoFocus
+                                className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
+                              />
+                              <button onClick={() => saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')}
+                                className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Save</button>
+                              <button onClick={() => setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))}
+                                className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
+                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] transition-all">
+                              + add link
+                            </button>
+                          )}
+                        </div>
                       </div>
+                      )}
+                      </SortableIdeaItem>
                     ))}
+                    </SortableContext>
+                    </DndContext>
                     {/* Done section */}
                     {colDone.length > 0 && (
                       <>
@@ -694,15 +853,19 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       </>
                     )}
                   </div>
+                  )}
+                  </SortableIdeaItem>
                 )
               })}
             </div>
+            </SortableContext>
             {/* Add column */}
             <button
               onClick={addColumn}
               className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
             >+ Add Column</button>
           </div>
+          </DndContext>
         )}
 
         {/* ── Podcast: Current Episode + Whiteboard + Archive ── */}
