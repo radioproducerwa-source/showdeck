@@ -28,6 +28,19 @@ function SortableNote({ id, children }: { id: string; children: (dragListeners: 
   )
 }
 
+function SortableIdeaItem({ id, children }: { id: string; children: (dragListeners: any) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      {...attributes}
+    >
+      {children(listeners)}
+    </div>
+  )
+}
+
 export default function ShowDetail({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
   const [show, setShow] = useState<any>(null)
@@ -56,6 +69,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const [ideaLinkOpen, setIdeaLinkOpen] = useState<Record<string, boolean>>({})
   const [ideaLinkInput, setIdeaLinkInput] = useState<Record<string, string>>({})
   const [ideaNotesOpen, setIdeaNotesOpen] = useState<Record<string, boolean>>({})
+  const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState<string | null>(null)
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -70,6 +84,20 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       const newIdx = prev.findIndex((s: any) => s.id === over.id)
       const next = arrayMove(prev, oldIdx, newIdx)
       Promise.all(next.map((s: any, i: number) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id))).catch(() => {})
+      return next
+    })
+  }
+
+  const handleIdeaDndEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setIdeas(prev => {
+      const oldIdx = prev.findIndex(i => i.id === active.id)
+      const newIdx = prev.findIndex(i => i.id === over.id)
+      const next = arrayMove(prev, oldIdx, newIdx)
+      const colId = prev[oldIdx].column_id
+      const colItems = next.filter(i => i.column_id === colId && !i.done)
+      Promise.all(colItems.map((i, idx) => supabase.from('show_ideas').update({ order_index: idx }).eq('id', i.id))).catch(() => {})
       return next
     })
   }
@@ -648,6 +676,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
 
         {/* ── Radio: Ideas Board ── */}
         {activeTab === 'ideas' && (
+          <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleIdeaDndEnd}>
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {columns.map(col => {
@@ -685,9 +714,13 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     {colActive.length === 0 && colDone.length === 0 && (
                       <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
                     )}
+                    <SortableContext items={colActive.map(i => i.id)} strategy={rectSortingStrategy}>
                     {colActive.map(idea => (
-                      <div key={idea.id} className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
-                        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+                      <SortableIdeaItem key={idea.id} id={idea.id}>
+                      {(dragListeners) => (
+                      <div className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
+                        <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                          <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 text-xs select-none touch-none">⠿</span>
                           <button onClick={() => toggleIdea(idea.id, true)}
                             className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
                           <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
@@ -695,8 +728,18 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                             className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
                             {ideaNotesOpen[idea.id] ? 'hide' : '+ note'}
                           </button>
-                          <button onClick={() => deleteIdea(idea.id)}
-                            className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                          {ideaDeleteConfirm === idea.id ? (
+                            <span className="flex items-center gap-1.5 flex-shrink-0">
+                              <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
+                              <button onClick={() => { deleteIdea(idea.id); setIdeaDeleteConfirm(null) }}
+                                className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
+                              <button onClick={() => setIdeaDeleteConfirm(null)}
+                                className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
+                            </span>
+                          ) : (
+                            <button onClick={() => setIdeaDeleteConfirm(idea.id)}
+                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                          )}
                         </div>
                         {(ideaNotesOpen[idea.id] || idea.notes) && (
                           <div className="px-11 pb-2">
@@ -748,7 +791,10 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           )}
                         </div>
                       </div>
+                      )}
+                      </SortableIdeaItem>
                     ))}
+                    </SortableContext>
                     {/* Done section */}
                     {colDone.length > 0 && (
                       <>
@@ -778,6 +824,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
             >+ Add Column</button>
           </div>
+          </DndContext>
         )}
 
         {/* ── Podcast: Current Episode + Whiteboard + Archive ── */}
