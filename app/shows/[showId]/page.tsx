@@ -102,6 +102,18 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     })
   }
 
+  const handleColumnDndEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setColumns(prev => {
+      const oldIdx = prev.findIndex(c => c.id === active.id)
+      const newIdx = prev.findIndex(c => c.id === over.id)
+      const next = arrayMove(prev, oldIdx, newIdx)
+      Promise.all(next.map((c, i) => supabase.from('show_idea_columns').update({ order_index: i }).eq('id', c.id))).catch(() => {})
+      return next
+    })
+  }
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/'); return }
@@ -676,23 +688,28 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
 
         {/* ── Radio: Ideas Board ── */}
         {activeTab === 'ideas' && (
-          <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleIdeaDndEnd}>
+          <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDndEnd}>
           <div className="space-y-3">
+            <SortableContext items={columns.map(c => c.id)} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {columns.map(col => {
                 const colActive = ideas.filter(i => i.column_id === col.id && !i.done)
                 const colDone = ideas.filter(i => i.column_id === col.id && i.done)
                 const colText = newIdeaTextByCol[col.id] || ''
                 return (
-                  <div key={col.id} className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
-                    {/* Column header — editable title */}
-                    <div className="px-4 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa]">
+                  <SortableIdeaItem key={col.id} id={col.id}>
+                  {(colDragListeners) => (
+                  <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
+                    {/* Column header — drag handle + editable title */}
+                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2">
+                      <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none text-xs">⠿⠿</span>
                       <input
                         type="text"
                         value={col.title}
                         onChange={e => updateColumnTitle(col.id, e.target.value)}
                         onBlur={e => saveColumnTitle(col.id, e.target.value)}
-                        className="w-full bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
+                        onMouseDown={e => e.stopPropagation()}
+                        className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
                       />
                     </div>
                     {/* Add idea input */}
@@ -714,6 +731,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     {colActive.length === 0 && colDone.length === 0 && (
                       <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
                     )}
+                    <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleIdeaDndEnd}>
                     <SortableContext items={colActive.map(i => i.id)} strategy={rectSortingStrategy}>
                     {colActive.map(idea => (
                       <SortableIdeaItem key={idea.id} id={idea.id}>
@@ -795,6 +813,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       </SortableIdeaItem>
                     ))}
                     </SortableContext>
+                    </DndContext>
                     {/* Done section */}
                     {colDone.length > 0 && (
                       <>
@@ -815,9 +834,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       </>
                     )}
                   </div>
+                  )}
+                  </SortableIdeaItem>
                 )
               })}
             </div>
+            </SortableContext>
             {/* Add column */}
             <button
               onClick={addColumn}
