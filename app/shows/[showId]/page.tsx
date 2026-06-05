@@ -51,8 +51,10 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
   const [columns, setColumns] = useState<{ id: string; title: string; order_index: number }[]>([])
-  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number }[]>([])
+  const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number; url?: string }[]>([])
   const [newIdeaTextByCol, setNewIdeaTextByCol] = useState<Record<string, string>>({})
+  const [ideaLinkOpen, setIdeaLinkOpen] = useState<Record<string, boolean>>({})
+  const [ideaLinkInput, setIdeaLinkInput] = useState<Record<string, string>>({})
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -240,6 +242,18 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const deleteIdea = async (id: string) => {
     setIdeas(prev => prev.filter(i => i.id !== id))
     await supabase.from('show_ideas').delete().eq('id', id)
+  }
+
+  const saveIdeaUrl = async (id: string, raw: string) => {
+    const url = raw.trim() ? (raw.trim().startsWith('http') ? raw.trim() : `https://${raw.trim()}`) : ''
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, url } : i))
+    setIdeaLinkOpen(prev => ({ ...prev, [id]: false }))
+    await supabase.from('show_ideas').update({ url: url || null }).eq('id', id)
+  }
+
+  const getDomain = (url: string) => {
+    try { return new URL(url).hostname.replace('www.', '') }
+    catch { return url.slice(0, 30) }
   }
 
   const addColumn = async () => {
@@ -666,12 +680,49 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
                     )}
                     {colActive.map(idea => (
-                      <div key={idea.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
-                        <button onClick={() => toggleIdea(idea.id, true)}
-                          className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
-                        <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
-                        <button onClick={() => deleteIdea(idea.id)}
-                          className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                      <div key={idea.id} className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
+                        <div className="flex items-center gap-3 px-4 py-3">
+                          <button onClick={() => toggleIdea(idea.id, true)}
+                            className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
+                          <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
+                          {idea.url ? (
+                            <span className="flex items-center gap-1 flex-shrink-0">
+                              <a href={idea.url} target="_blank" rel="noopener noreferrer"
+                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[80px] truncate block">
+                                🔗 {getDomain(idea.url)}
+                              </a>
+                              <button onClick={() => saveIdeaUrl(idea.id, '')}
+                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] text-xs transition-all">×</button>
+                            </span>
+                          ) : (
+                            <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
+                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] border border-transparent hover:border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 transition-all flex-shrink-0">
+                              🔗
+                            </button>
+                          )}
+                          <button onClick={() => deleteIdea(idea.id)}
+                            className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                        </div>
+                        {ideaLinkOpen[idea.id] && (
+                          <div className="flex items-center gap-2 px-4 pb-2.5">
+                            <input
+                              type="url"
+                              value={ideaLinkInput[idea.id] || ''}
+                              onChange={e => setIdeaLinkInput(prev => ({ ...prev, [idea.id]: e.target.value }))}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')
+                                if (e.key === 'Escape') setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))
+                              }}
+                              placeholder="Paste a URL…"
+                              autoFocus
+                              className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
+                            />
+                            <button onClick={() => saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')}
+                              className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Save</button>
+                            <button onClick={() => setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))}
+                              className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {/* Done section */}
