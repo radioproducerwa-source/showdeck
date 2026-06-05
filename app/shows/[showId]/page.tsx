@@ -70,7 +70,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const [ideaLinkInput, setIdeaLinkInput] = useState<Record<string, string>>({})
   const [ideaNotesOpen, setIdeaNotesOpen] = useState<Record<string, boolean>>({})
   const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState<string | null>(null)
-  const [colDeleteConfirm, setColDeleteConfirm] = useState<string | null>(null)
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -306,12 +305,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const addColumn = async () => {
     const { data } = await supabase.from('show_idea_columns').insert({ show_id: showId, title: 'New Column', order_index: columns.length }).select().single()
     if (data) setColumns(prev => [...prev, data])
-  }
-
-  const deleteColumn = async (id: string) => {
-    setColumns(prev => prev.filter(c => c.id !== id))
-    setIdeas(prev => prev.filter(i => i.column_id !== id))
-    await supabase.from('show_idea_columns').delete().eq('id', id)
   }
 
   const updateColumnTitle = (id: string, title: string) => {
@@ -708,7 +701,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   {(colDragListeners) => (
                   <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
                     {/* Column header — drag handle + editable title */}
-                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
+                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2">
                       <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none text-xs">⠿⠿</span>
                       <input
                         type="text"
@@ -718,18 +711,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         onMouseDown={e => e.stopPropagation()}
                         className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
                       />
-                      {colDeleteConfirm === col.id ? (
-                        <span className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
-                          <button onClick={() => { deleteColumn(col.id); setColDeleteConfirm(null) }}
-                            className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
-                          <button onClick={() => setColDeleteConfirm(null)}
-                            className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
-                        </span>
-                      ) : (
-                        <button onClick={() => setColDeleteConfirm(col.id)}
-                          className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
-                      )}
                     </div>
                     {/* Add idea input */}
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3]">

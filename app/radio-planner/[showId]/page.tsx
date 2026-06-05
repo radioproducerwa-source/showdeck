@@ -40,19 +40,19 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
 
   return (
     <main className="min-h-screen bg-[#f7f8fa]">
-      <header className="bg-white border-b border-[#e2e4e8] px-6 h-14 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Show</a>
-          <span className="text-[#e2e4e8]">|</span>
+      <header className="bg-white border-b border-[#e2e4e8] px-3 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-20">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors flex-shrink-0">← <span className="hidden sm:inline">Show</span></a>
+          <span className="text-[#e2e4e8] hidden sm:inline">|</span>
           <Logo size={0.65} />
           {show.logo_url && (
-            <img src={show.logo_url} alt="logo" className="w-6 h-6 rounded object-cover opacity-80" />
+            <img src={show.logo_url} alt="logo" className="w-6 h-6 rounded object-cover opacity-80 flex-shrink-0" />
           )}
-          <span className="text-[#6b6b7a] text-xs border-l border-[#e2e4e8] pl-3">{show.name}</span>
+          <span className="text-[#6b6b7a] text-xs border-l border-[#e2e4e8] pl-2 sm:pl-3 truncate">{show.name}</span>
         </div>
         <GlobalSearch />
       </header>
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-2 sm:px-6 py-4 sm:py-8">
         <RadioPlannerPanel showId={showId} show={show} initialDay={initialDay} />
       </div>
     </main>
