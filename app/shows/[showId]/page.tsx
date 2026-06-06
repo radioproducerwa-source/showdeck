@@ -859,11 +859,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               })}
             </div>
             </SortableContext>
+            {columns.length === 0 && (
+              <div className="text-center py-14 bg-white border border-[#e2e4e8] rounded-2xl">
+                <div className="text-4xl mb-3">💡</div>
+                <p className="text-[#6b6b7a] text-sm font-medium mb-1">No columns yet</p>
+                <p className="text-[#c8cad0] text-xs mb-5">Add a column to start collecting and organising show ideas</p>
+                <button onClick={addColumn} className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2 text-xs hover:bg-[#00ffc0] transition-colors">+ Add First Column</button>
+              </div>
+            )}
             {/* Add column */}
-            <button
-              onClick={addColumn}
-              className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
-            >+ Add Column</button>
+            {columns.length > 0 && (
+              <button
+                onClick={addColumn}
+                className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
+              >+ Add Column</button>
+            )}
           </div>
           </DndContext>
         )}
