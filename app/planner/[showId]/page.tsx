@@ -196,6 +196,21 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       }
       setSections(existingSections)
 
+      // Punt Pals: ensure Last Week's Betting always exists on every episode
+      if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
+        const missing = (["Last Week's Betting"] as string[]).filter(
+          name => !(existingSections || []).some((s: any) => s.name === name)
+        )
+        if (missing.length > 0) {
+          const maxOrder = Math.max(...(existingSections || []).map((s: any) => s.sort_order ?? 0), -1)
+          const { data: added } = await supabase.from('sections').insert(
+            missing.map((name, i) => ({ episode_id: episode.id, name, icon: '📊', sort_order: maxOrder + 1 + i }))
+          ).select()
+          if (added) existingSections = [...(existingSections || []), ...added]
+          setSections(existingSections)
+        }
+      }
+
       const [{ data: saved }, { data: savedLinks }] = await Promise.all([
         supabase.from('section_content').select('*').eq('episode_id', episode.id),
         supabase.from('section_links').select('*').eq('episode_id', episode.id)
