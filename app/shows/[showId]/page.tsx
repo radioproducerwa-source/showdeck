@@ -211,8 +211,22 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           Promise.all([
             supabase.from('sections').select('*').eq('episode_id', latest.id).order('sort_order', { ascending: true }).order('id', { ascending: true }),
             supabase.from('section_content').select('*').eq('episode_id', latest.id)
-          ]).then(([{ data: secs }, { data: contentRows }]) => {
-            setSections(secs || [])
+          ]).then(async ([{ data: secs }, { data: contentRows }]) => {
+            let loadedSections = secs || []
+            // Punt Pals: ensure Last Week's Betting always exists
+            if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
+              const missing = (["Last Week's Betting"] as string[]).filter(
+                name => !loadedSections.some((s: any) => s.name === name)
+              )
+              if (missing.length > 0) {
+                const maxOrder = Math.max(...loadedSections.map((s: any) => s.sort_order ?? 0), -1)
+                const { data: added } = await supabase.from('sections').insert(
+                  missing.map((name, i) => ({ episode_id: latest.id, name, icon: '📊', sort_order: maxOrder + 1 + i }))
+                ).select()
+                if (added) loadedSections = [...loadedSections, ...added]
+              }
+            }
+            setSections(loadedSections)
             const map: Record<string, string> = {}
             contentRows?.forEach((r: any) => { map[`${r.section_name}-${r.role}`] = r.content })
             setContentMap(map)
