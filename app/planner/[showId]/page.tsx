@@ -296,7 +296,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const raw = (linkInput[sectionName] || '').trim()
     if (!raw || !episodeId) return
     const url = raw.startsWith('http') ? raw : `https://${raw}`
-    const { data } = await supabase.from('section_links').insert({ episode_id: episodeId, section_name: sectionName, url }).select().single()
+    const { data, error } = await supabase.from('section_links').insert({ episode_id: episodeId, section_name: sectionName, url }).select().single()
+    if (error) { showToast('Could not save link — try again', true); return }
     if (data) {
       setLinks(prev => ({ ...prev, [sectionName]: [...(prev[sectionName] || []), { id: data.id, url: data.url }] }))
       setLinkInput(prev => ({ ...prev, [sectionName]: '' }))
