@@ -81,6 +81,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const { toast, showToast } = useToast()
   const [importing, setImporting] = useState<string | null>(null)
   const [importingBets, setImportingBets] = useState(false)
+  const [importingGF, setImportingGF] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
@@ -196,9 +197,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       }
       setSections(existingSections)
 
-      // Punt Pals: ensure Last Week's Betting always exists on every episode
+      // Punt Pals: ensure protected sections always exist on every episode
       if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
-        const missing = (["Last Week's Betting"] as string[]).filter(
+        const missing = (["Last Week's Betting", 'Launching Towards the GF Challenge'] as string[]).filter(
           name => !(existingSections || []).some((s: any) => s.name === name)
         )
         if (missing.length > 0) {
@@ -383,6 +384,31 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     }
     setImportingBets(false)
     showToast("Last week's bets imported!")
+  }
+
+  const importGFProgress = async () => {
+    if (!episodeId || !episodeDate) return
+    setImportingGF(true)
+    const { data: prevEps } = await supabase
+      .from('episodes').select('id')
+      .eq('show_id', showId).lt('episode_date', episodeDate)
+      .order('episode_date', { ascending: false }).limit(1)
+    if (!prevEps?.length) { showToast('No previous episode found'); setImportingGF(false); return }
+
+    const { data: prevContent } = await supabase
+      .from('section_content').select('role, content')
+      .eq('episode_id', prevEps[0].id)
+      .eq('section_name', 'Launching Towards the GF Challenge')
+      .in('role', ['host1', 'host2'])
+    if (!prevContent?.length) { showToast('No previous content found'); setImportingGF(false); return }
+
+    for (const role of ['host1', 'host2']) {
+      const row = prevContent.find((r: any) => r.role === role)
+      if (!row?.content) continue
+      updateContent('Launching Towards the GF Challenge', role, row.content)
+    }
+    setImportingGF(false)
+    showToast('GF progress imported!')
   }
 
   const archiveEpisode = async () => {
@@ -822,7 +848,17 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                 {importingBets ? '…' : '↓ Import Last Week'}
                               </button>
                             )}
-                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && (["Last Week's Betting", 'AFL Multis', 'Racing Bets'] as string[]).includes(section.name)) && (
+                            {showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === 'Launching Towards the GF Challenge' && (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); importGFProgress() }}
+                                disabled={importingGF}
+                                className="text-[10px] font-semibold text-[#0d0d0f]/50 hover:text-[#0d0d0f]/80 border border-[#0d0d0f]/15 hover:border-[#0d0d0f]/30 rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
+                              >
+                                {importingGF ? '…' : '↓ Import Last Week'}
+                              </button>
+                            )}
+                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && (["Last Week's Betting", 'AFL Multis', 'Racing Bets', 'Launching Towards the GF Challenge'] as string[]).includes(section.name)) && (
                               <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
                                 className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
                                 ×

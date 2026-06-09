@@ -215,7 +215,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             let loadedSections = secs || []
             // Punt Pals: ensure Last Week's Betting always exists
             if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
-              const missing = (["Last Week's Betting"] as string[]).filter(
+              const missing = (["Last Week's Betting", 'Launching Towards the GF Challenge'] as string[]).filter(
                 name => !loadedSections.some((s: any) => s.name === name)
               )
               if (missing.length > 0) {
