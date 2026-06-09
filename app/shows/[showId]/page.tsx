@@ -63,7 +63,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const { toast, showToast } = useToast()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
-  const [columns, setColumns] = useState<{ id: string; title: string; order_index: number }[]>([])
+  const [columns, setColumns] = useState<{ id: string; title: string; order_index: number; mode: string; last_cleared_week: string | null }[]>([])
   const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number; url?: string; notes?: string }[]>([])
   const [newIdeaTextByCol, setNewIdeaTextByCol] = useState<Record<string, string>>({})
   const [ideaLinkOpen, setIdeaLinkOpen] = useState<Record<string, boolean>>({})
@@ -133,16 +133,40 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         Promise.all([
           supabase.from('show_idea_columns').select('*').eq('show_id', showId).order('order_index'),
           supabase.from('show_ideas').select('*').eq('show_id', showId).order('order_index'),
-        ]).then(([{ data: cols }, { data: ideaRows }]) => {
-          const colList = cols || []
-          setIdeas(ideaRows || [])
+        ]).then(async ([{ data: cols }, { data: ideaRows }]) => {
+          let colList = cols || []
+          let ideas = ideaRows || []
           if (colList.length === 0) {
-            supabase.from('show_idea_columns').insert([
+            const { data } = await supabase.from('show_idea_columns').insert([
               { show_id: showId, title: 'Phoners / Topicals / Raves', order_index: 0 },
               { show_id: showId, title: 'Show Tactics / Segments', order_index: 1 },
-            ]).select().then(({ data }) => setColumns(data || []))
-          } else {
-            setColumns(colList)
+            ]).select()
+            colList = data || []
+          }
+          // Auto-clear completed items from weekly columns when a new week starts
+          const monday = (() => {
+            const d = new Date()
+            const day = d.getDay()
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+            const m = new Date(d); m.setDate(diff)
+            return m.toISOString().split('T')[0]
+          })()
+          const weeklyDue = colList.filter((c: any) => c.mode === 'weekly' && c.last_cleared_week !== monday)
+          let totalCleared = 0
+          for (const col of weeklyDue) {
+            const completed = ideas.filter((i: any) => i.column_id === col.id && i.done)
+            if (completed.length > 0) {
+              await supabase.from('show_ideas').delete().eq('column_id', col.id).eq('done', true)
+              ideas = ideas.filter((i: any) => !(i.column_id === col.id && i.done))
+              totalCleared += completed.length
+            }
+            await supabase.from('show_idea_columns').update({ last_cleared_week: monday }).eq('id', col.id)
+            colList = colList.map((c: any) => c.id === col.id ? { ...c, last_cleared_week: monday } : c)
+          }
+          setIdeas(ideas)
+          setColumns(colList)
+          if (totalCleared > 0) {
+            showToast(`Weekly columns refreshed — ${totalCleared} completed ${totalCleared === 1 ? 'item' : 'items'} cleared`, false)
           }
         })
         if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showData?.show_type)) {
@@ -312,6 +336,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     setColumns(prev => prev.filter(c => c.id !== id))
     setIdeas(prev => prev.filter(i => i.column_id !== id))
     await supabase.from('show_idea_columns').delete().eq('id', id)
+  }
+
+  const toggleColumnMode = async (id: string, current: string) => {
+    const next = current === 'weekly' ? 'permanent' : 'weekly'
+    setColumns(prev => prev.map(c => c.id === id ? { ...c, mode: next } : c))
+    await supabase.from('show_idea_columns').update({ mode: next }).eq('id', id)
   }
 
   const updateColumnTitle = (id: string, title: string) => {
@@ -718,6 +748,20 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         onMouseDown={e => e.stopPropagation()}
                         className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
                       />
+                      <button
+                        onClick={() => toggleColumnMode(col.id, col.mode || 'permanent')}
+                        title={col.mode === 'weekly' ? 'Weekly: completed items auto-clear each Monday — click to switch to Permanent' : 'Permanent: items stay forever — click to switch to Weekly'}
+                        className={`flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover/col:opacity-100 ${
+                          col.mode === 'weekly'
+                            ? 'bg-[#a78bfa]/20 text-[#7c3aed] hover:bg-[#a78bfa]/35'
+                            : 'bg-[#e2e4e8] text-[#9a9aaa] hover:bg-[#d8dae0] hover:text-[#6b6b7a]'
+                        }`}
+                      >
+                        {col.mode === 'weekly' ? '↻ Weekly' : '· Perm'}
+                      </button>
+                      {col.mode === 'weekly' && (
+                        <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#a78bfa]/20 text-[#7c3aed] group-hover/col:hidden">↻ Weekly</span>
+                      )}
                       {colDeleteConfirm === col.id ? (
                         <span className="flex items-center gap-1.5 flex-shrink-0">
                           <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
