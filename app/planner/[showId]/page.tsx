@@ -352,14 +352,19 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const { data: prevContent } = await supabase
       .from('section_content').select('section_name, role, content')
       .eq('episode_id', prevEps[0].id)
-      .eq('section_name', "This Week's Bets")
+      .in('section_name', ['AFL Multis', 'Racing Bets'])
       .in('role', ['host1', 'host2'])
     if (!prevContent?.length) { showToast('No previous bets found'); setImportingBets(false); return }
 
     for (const role of ['host1', 'host2']) {
-      const row = prevContent.find((r: any) => r.role === role)
-      if (!row?.content) continue
-      updateContent("Last Week's Betting", role, row.content)
+      const parts = ['AFL Multis', 'Racing Bets']
+        .map(name => {
+          const row = prevContent.find((r: any) => r.role === role && r.section_name === name)
+          return row?.content ? `${name}:\n${row.content}` : null
+        })
+        .filter(Boolean)
+      if (!parts.length) continue
+      updateContent("Last Week's Betting", role, parts.join('\n\n'))
     }
     setImportingBets(false)
     showToast("Last week's bets imported!")
@@ -802,7 +807,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                 {importingBets ? '…' : '↓ Import Last Week'}
                               </button>
                             )}
-                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === "Last Week's Betting") && (
+                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && (["Last Week's Betting", 'AFL Multis', 'Racing Bets'] as string[]).includes(section.name)) && (
                               <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
                                 className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
                                 ×
