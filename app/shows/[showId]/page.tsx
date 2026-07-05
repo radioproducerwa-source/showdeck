@@ -63,13 +63,14 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const { toast, showToast } = useToast()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'runsheet' | 'ideas'>('runsheet')
-  const [columns, setColumns] = useState<{ id: string; title: string; order_index: number }[]>([])
+  const [columns, setColumns] = useState<{ id: string; title: string; order_index: number; mode: string; last_cleared_week: string | null }[]>([])
   const [ideas, setIdeas] = useState<{ id: string; column_id: string | null; text: string; done: boolean; order_index: number; url?: string; notes?: string }[]>([])
   const [newIdeaTextByCol, setNewIdeaTextByCol] = useState<Record<string, string>>({})
   const [ideaLinkOpen, setIdeaLinkOpen] = useState<Record<string, boolean>>({})
   const [ideaLinkInput, setIdeaLinkInput] = useState<Record<string, string>>({})
   const [ideaNotesOpen, setIdeaNotesOpen] = useState<Record<string, boolean>>({})
   const [ideaDeleteConfirm, setIdeaDeleteConfirm] = useState<string | null>(null)
+  const [colDeleteConfirm, setColDeleteConfirm] = useState<string | null>(null)
 
   const whiteboardSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -132,16 +133,40 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         Promise.all([
           supabase.from('show_idea_columns').select('*').eq('show_id', showId).order('order_index'),
           supabase.from('show_ideas').select('*').eq('show_id', showId).order('order_index'),
-        ]).then(([{ data: cols }, { data: ideaRows }]) => {
-          const colList = cols || []
-          setIdeas(ideaRows || [])
+        ]).then(async ([{ data: cols }, { data: ideaRows }]) => {
+          let colList = cols || []
+          let ideas = ideaRows || []
           if (colList.length === 0) {
-            supabase.from('show_idea_columns').insert([
+            const { data } = await supabase.from('show_idea_columns').insert([
               { show_id: showId, title: 'Phoners / Topicals / Raves', order_index: 0 },
               { show_id: showId, title: 'Show Tactics / Segments', order_index: 1 },
-            ]).select().then(({ data }) => setColumns(data || []))
-          } else {
-            setColumns(colList)
+            ]).select()
+            colList = data || []
+          }
+          // Auto-clear completed items from weekly columns when a new week starts
+          const monday = (() => {
+            const d = new Date()
+            const day = d.getDay()
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+            const m = new Date(d); m.setDate(diff)
+            return m.toISOString().split('T')[0]
+          })()
+          const weeklyDue = colList.filter((c: any) => c.mode === 'weekly' && c.last_cleared_week !== monday)
+          let totalCleared = 0
+          for (const col of weeklyDue) {
+            const completed = ideas.filter((i: any) => i.column_id === col.id && i.done)
+            if (completed.length > 0) {
+              await supabase.from('show_ideas').delete().eq('column_id', col.id).eq('done', true)
+              ideas = ideas.filter((i: any) => !(i.column_id === col.id && i.done))
+              totalCleared += completed.length
+            }
+            await supabase.from('show_idea_columns').update({ last_cleared_week: monday }).eq('id', col.id)
+            colList = colList.map((c: any) => c.id === col.id ? { ...c, last_cleared_week: monday } : c)
+          }
+          setIdeas(ideas)
+          setColumns(colList)
+          if (totalCleared > 0) {
+            showToast(`Weekly columns refreshed — ${totalCleared} completed ${totalCleared === 1 ? 'item' : 'items'} cleared`, false)
           }
         })
         if (['radio', 'breakfast_radio', 'drive', 'evening'].includes(showData?.show_type)) {
@@ -186,8 +211,22 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           Promise.all([
             supabase.from('sections').select('*').eq('episode_id', latest.id).order('sort_order', { ascending: true }).order('id', { ascending: true }),
             supabase.from('section_content').select('*').eq('episode_id', latest.id)
-          ]).then(([{ data: secs }, { data: contentRows }]) => {
-            setSections(secs || [])
+          ]).then(async ([{ data: secs }, { data: contentRows }]) => {
+            let loadedSections = secs || []
+            // Punt Pals: ensure Last Week's Betting always exists
+            if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
+              const missing = (["Last Week's Betting", 'Launching Towards the GF Challenge'] as string[]).filter(
+                name => !loadedSections.some((s: any) => s.name === name)
+              )
+              if (missing.length > 0) {
+                const maxOrder = Math.max(...loadedSections.map((s: any) => s.sort_order ?? 0), -1)
+                const { data: added } = await supabase.from('sections').insert(
+                  missing.map((name, i) => ({ episode_id: latest.id, name, icon: '📊', sort_order: maxOrder + 1 + i }))
+                ).select()
+                if (added) loadedSections = [...loadedSections, ...added]
+              }
+            }
+            setSections(loadedSections)
             const map: Record<string, string> = {}
             contentRows?.forEach((r: any) => { map[`${r.section_name}-${r.role}`] = r.content })
             setContentMap(map)
@@ -305,6 +344,18 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const addColumn = async () => {
     const { data } = await supabase.from('show_idea_columns').insert({ show_id: showId, title: 'New Column', order_index: columns.length }).select().single()
     if (data) setColumns(prev => [...prev, data])
+  }
+
+  const deleteColumn = async (id: string) => {
+    setColumns(prev => prev.filter(c => c.id !== id))
+    setIdeas(prev => prev.filter(i => i.column_id !== id))
+    await supabase.from('show_idea_columns').delete().eq('id', id)
+  }
+
+  const toggleColumnMode = async (id: string, current: string) => {
+    const next = current === 'weekly' ? 'permanent' : 'weekly'
+    setColumns(prev => prev.map(c => c.id === id ? { ...c, mode: next } : c))
+    await supabase.from('show_idea_columns').update({ mode: next }).eq('id', id)
   }
 
   const updateColumnTitle = (id: string, title: string) => {
@@ -700,8 +751,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   <SortableIdeaItem key={col.id} id={col.id}>
                   {(colDragListeners) => (
                   <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
-                    {/* Column header — drag handle + editable title */}
-                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2">
+                    {/* Column header — drag handle + editable title + delete */}
+                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
                       <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none text-xs">⠿⠿</span>
                       <input
                         type="text"
@@ -711,6 +762,32 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         onMouseDown={e => e.stopPropagation()}
                         className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
                       />
+                      <button
+                        onClick={() => toggleColumnMode(col.id, col.mode || 'permanent')}
+                        title={col.mode === 'weekly' ? 'Weekly: completed items auto-clear each Monday — click to switch to Permanent' : 'Permanent: items stay forever — click to switch to Weekly'}
+                        className={`flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover/col:opacity-100 ${
+                          col.mode === 'weekly'
+                            ? 'bg-[#a78bfa]/20 text-[#7c3aed] hover:bg-[#a78bfa]/35'
+                            : 'bg-[#e2e4e8] text-[#9a9aaa] hover:bg-[#d8dae0] hover:text-[#6b6b7a]'
+                        }`}
+                      >
+                        {col.mode === 'weekly' ? '↻ Weekly' : '· Perm'}
+                      </button>
+                      {col.mode === 'weekly' && (
+                        <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#a78bfa]/20 text-[#7c3aed] group-hover/col:hidden">↻ Weekly</span>
+                      )}
+                      {colDeleteConfirm === col.id ? (
+                        <span className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
+                          <button onClick={() => { deleteColumn(col.id); setColDeleteConfirm(null) }}
+                            className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
+                          <button onClick={() => setColDeleteConfirm(null)}
+                            className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setColDeleteConfirm(col.id)}
+                          className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                      )}
                     </div>
                     {/* Add idea input */}
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3]">
@@ -840,11 +917,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               })}
             </div>
             </SortableContext>
+            {columns.length === 0 && (
+              <div className="text-center py-14 bg-white border border-[#e2e4e8] rounded-2xl">
+                <div className="text-4xl mb-3">💡</div>
+                <p className="text-[#6b6b7a] text-sm font-medium mb-1">No columns yet</p>
+                <p className="text-[#c8cad0] text-xs mb-5">Add a column to start collecting and organising show ideas</p>
+                <button onClick={addColumn} className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2 text-xs hover:bg-[#00ffc0] transition-colors">+ Add First Column</button>
+              </div>
+            )}
             {/* Add column */}
-            <button
-              onClick={addColumn}
-              className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
-            >+ Add Column</button>
+            {columns.length > 0 && (
+              <button
+                onClick={addColumn}
+                className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
+              >+ Add Column</button>
+            )}
           </div>
           </DndContext>
         )}
@@ -990,75 +1077,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             )}
 
             {/* Episode Archive */}
-            <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#e2e4e8] flex items-center justify-between">
+            <a
+              href={`/archive/${showId}`}
+              className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-5 flex items-center justify-between hover:border-[#00e5a0] hover:shadow-sm transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-lg flex-shrink-0 group-hover:border-[#00e5a0]/40 transition-colors">
+                  📦
+                </div>
                 <div>
-                  <span className="text-sm font-semibold">Episode Archive</span>
-                  <span className="text-xs text-[#6b6b7a] ml-2">{episodes.length} {epLabelPlural}</span>
+                  <div className="font-semibold text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors">Episode Archive</div>
+                  <div className="text-xs text-[#6b6b7a] mt-0.5">{episodes.length} {epLabelPlural} total</div>
                 </div>
               </div>
-              <div className="px-6 py-3 border-b border-[#e2e4e8]">
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder={`Search ${epLabelPlural}...`}
-                  className="w-full bg-[#f7f8fa] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm text-[#0d0d0f] outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]" />
-              </div>
-              {filtered.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-[#6b6b7a] text-sm mb-4">
-                    {search ? `No ${epLabelPlural} match your search.` : `No ${epLabelPlural} yet. Create your first one!`}
-                  </p>
-                  {!search && (
-                    <a href={`/planner/${showId}?new=true`}
-                      className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
-                      + New {epLabel}
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <div className="divide-y divide-[#e2e4e8]">
-                  {filtered.map((ep) => (
-                    <div key={ep.id} className={`flex items-center justify-between px-6 py-4 hover:bg-[#f7f8fa] transition-colors group ${ep.archived ? 'opacity-60' : ''}`}>
-                      <a href={`/planner/${showId}?episodeId=${ep.id}`} className="flex-1 flex items-center gap-4 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-xs font-bold text-[#6b6b7a] flex-shrink-0">
-                          {ep.archived
-                            ? <span>📦</span>
-                            : episodes.filter((e: any) => !e.archived).indexOf(ep) === 0
-                              ? <span className="text-[#00a870]">▶</span>
-                              : episodes.length - episodes.indexOf(ep)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors truncate">
-                              {ep.title || `Untitled ${epLabel}`}
-                            </div>
-                            {ep.archived && (
-                              <span className="text-[9px] font-bold uppercase tracking-widest bg-[#f7f8fa] border border-[#e2e4e8] text-[#6b6b7a] px-1.5 py-0.5 rounded-full flex-shrink-0">Archived</span>
-                            )}
-                          </div>
-                          <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDateShort(ep.episode_date)}</div>
-                        </div>
-                      </a>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        {ep.archived ? (
-                          <button onClick={() => unarchiveEpisode(ep.id)}
-                            className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#00a870] hover:border-[#00e5a0]/40 transition-colors opacity-0 group-hover:opacity-100">
-                            Unarchive
-                          </button>
-                        ) : (
-                          <a href={`/planner/${showId}?episodeId=${ep.id}`}
-                            className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] transition-colors opacity-0 group-hover:opacity-100">
-                            Open
-                          </a>
-                        )}
-                        <button onClick={() => deleteEpisode(ep.id, ep.title)}
-                          className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none opacity-0 group-hover:opacity-100 transition-all"
-                          title="Delete episode">×</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 group-hover:border-[#00e5a0]/40 transition-colors">View all →</span>
+            </a>
           </>
         )}
 

@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [epTitles, setEpTitles] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [showWelcome, setShowWelcome] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -23,6 +24,9 @@ export default function Dashboard() {
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
       if (!profileData) { router.push('/profile/setup'); return }
       setProfile(profileData)
+      if (typeof window !== 'undefined' && !localStorage.getItem('showdeck_welcomed')) {
+        setShowWelcome(true)
+      }
 
       // Owned shows
       const { data: ownedShows } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
@@ -71,6 +75,11 @@ export default function Dashboard() {
       setLoading(false)
     })
   }, [])
+
+  const dismissWelcome = () => {
+    localStorage.setItem('showdeck_welcomed', '1')
+    setShowWelcome(false)
+  }
 
   const signOut = async () => {
     await supabase.auth.signOut()
@@ -257,6 +266,42 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+        </div>
+      )}
+      {showWelcome && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-[#0d0d0f] px-8 pt-8 pb-6 text-center relative">
+              <div className="w-14 h-14 rounded-2xl bg-[#00e5a0]/10 border border-[#00e5a0]/20 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🎙️</span>
+              </div>
+              <h2 className="text-white text-2xl font-bold mb-2">Welcome to Showdeck</h2>
+              <p className="text-white/50 text-sm leading-relaxed">Your all-in-one workspace for planning radio and podcast shows — from episode ideas to live runsheets.</p>
+            </div>
+            <div className="px-8 py-6 space-y-4">
+              {[
+                { icon: '📋', title: 'Plan every episode', desc: 'Write your segments section by section, for each host and producer.' },
+                { icon: '📻', title: 'Radio runsheets', desc: 'Timed slots for your broadcast week, ready to go on air.' },
+                { icon: '💡', title: 'Ideas Board', desc: 'Capture show ideas and topics in columns — like a whiteboard for your team.' },
+              ].map(({ icon, title, desc }) => (
+                <div key={title} className="flex items-start gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-lg flex-shrink-0">{icon}</div>
+                  <div>
+                    <p className="font-semibold text-sm text-[#0d0d0f]">{title}</p>
+                    <p className="text-xs text-[#6b6b7a] mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-8 pb-8">
+              <button
+                onClick={dismissWelcome}
+                className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3.5 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors"
+              >
+                Let's Go →
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

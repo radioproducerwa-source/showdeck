@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/archive-episodes",
       "schedule": "0 7 * * 5"
+    },
+    {
+      "path": "/api/cron/ping",
+      "schedule": "0 8 * * *"
     }
   ]
 }

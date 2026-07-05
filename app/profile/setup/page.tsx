@@ -49,6 +49,36 @@ export default function ProfileSetup() {
     setUploading(false)
   }
 
+  const createSampleShow = async (userId: string, name: string) => {
+    const today = new Date().toISOString().split('T')[0]
+    const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+    const { data: show } = await supabase.from('shows').insert({
+      name: 'Sample Podcast',
+      owner_id: userId,
+      show_type: 'podcast',
+      host1_name: name,
+      host2_name: 'Co-Host',
+      has_producer: false,
+    }).select().single()
+    if (!show) return
+    await supabase.from('sections').insert([
+      { show_id: show.id, name: 'Show Intro',         icon: '🎙️', order_index: 0 },
+      { show_id: show.id, name: 'Main Topic',         icon: '💬', order_index: 1 },
+      { show_id: show.id, name: 'Guest Interview',    icon: '🎤', order_index: 2 },
+      { show_id: show.id, name: 'Listener Questions', icon: '❓', order_index: 3 },
+      { show_id: show.id, name: 'Outro',              icon: '👋', order_index: 4 },
+    ])
+    const { data: ep1 } = await supabase.from('episodes').insert({ show_id: show.id, title: 'Introducing Showdeck', episode_date: today }).select().single()
+    await supabase.from('episodes').insert({ show_id: show.id, title: 'Your Next Episode', episode_date: nextWeek })
+    if (ep1) {
+      await supabase.from('section_content').insert([
+        { episode_id: ep1.id, section_name: 'Show Intro',  role: 'host1', content: `Welcome to Sample Podcast! Write your opening here — hook your listener in the first 30 seconds.` },
+        { episode_id: ep1.id, section_name: 'Main Topic',  role: 'host1', content: `This is your main segment. Use this space to write talking points, facts, or a script for your section.` },
+        { episode_id: ep1.id, section_name: 'Outro',       role: 'host1', content: `Thanks for listening! Subscribe and leave a review — it really helps the show grow.` },
+      ])
+    }
+  }
+
   const handleSave = async () => {
     if (!displayName.trim()) { setError('Please enter your name'); return }
     if (!role) { setError('Please choose a role'); return }
@@ -60,6 +90,7 @@ export default function ProfileSetup() {
       avatar_url: avatarUrl,
     })
     if (saveError) { setError(saveError.message); setSaving(false); return }
+    await createSampleShow(user.id, displayName.trim())
     window.location.href = '/dashboard'
   }
 

@@ -81,6 +81,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const { toast, showToast } = useToast()
   const [importing, setImporting] = useState<string | null>(null)
   const [importingBets, setImportingBets] = useState(false)
+  const [importingGF, setImportingGF] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
@@ -196,6 +197,21 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       }
       setSections(existingSections)
 
+      // Punt Pals: ensure protected sections always exist on every episode
+      if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
+        const missing = (["Last Week's Betting", 'Launching Towards the GF Challenge'] as string[]).filter(
+          name => !(existingSections || []).some((s: any) => s.name === name)
+        )
+        if (missing.length > 0) {
+          const maxOrder = Math.max(...(existingSections || []).map((s: any) => s.sort_order ?? 0), -1)
+          const { data: added } = await supabase.from('sections').insert(
+            missing.map((name, i) => ({ episode_id: episode.id, name, icon: '📊', sort_order: maxOrder + 1 + i }))
+          ).select()
+          if (added) existingSections = [...(existingSections || []), ...added]
+          setSections(existingSections)
+        }
+      }
+
       const [{ data: saved }, { data: savedLinks }] = await Promise.all([
         supabase.from('section_content').select('*').eq('episode_id', episode.id),
         supabase.from('section_links').select('*').eq('episode_id', episode.id)
@@ -280,7 +296,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const raw = (linkInput[sectionName] || '').trim()
     if (!raw || !episodeId) return
     const url = raw.startsWith('http') ? raw : `https://${raw}`
-    const { data } = await supabase.from('section_links').insert({ episode_id: episodeId, section_name: sectionName, url }).select().single()
+    const { data, error } = await supabase.from('section_links').insert({ episode_id: episodeId, section_name: sectionName, url }).select().single()
+    if (error) { showToast('Could not save link — try again', true); return }
     if (data) {
       setLinks(prev => ({ ...prev, [sectionName]: [...(prev[sectionName] || []), { id: data.id, url: data.url }] }))
       setLinkInput(prev => ({ ...prev, [sectionName]: '' }))
@@ -356,17 +373,43 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       .in('role', ['host1', 'host2'])
     if (!prevContent?.length) { showToast('No previous bets found'); setImportingBets(false); return }
 
-    // Import each host's bets into their own "Last Week's Betting" section
     for (const role of ['host1', 'host2']) {
-      const rows = prevContent.filter((r: any) => r.role === role)
-      if (!rows.length) continue
-      const imported = rows.map((r: any) => `${r.section_name}:\n${r.content}`).join('\n\n')
-      const existing = getContent("Last Week's Betting", role)
-      const merged = existing ? `${existing}\n\n${imported}` : imported
-      updateContent("Last Week's Betting", role, merged)
+      const parts = ['AFL Multis', 'Racing Bets']
+        .map(name => {
+          const row = prevContent.find((r: any) => r.role === role && r.section_name === name)
+          return row?.content ? `${name}:\n${row.content}` : null
+        })
+        .filter(Boolean)
+      if (!parts.length) continue
+      updateContent("Last Week's Betting", role, parts.join('\n\n'))
     }
     setImportingBets(false)
     showToast("Last week's bets imported!")
+  }
+
+  const importGFProgress = async () => {
+    if (!episodeId || !episodeDate) return
+    setImportingGF(true)
+    const { data: prevEps } = await supabase
+      .from('episodes').select('id')
+      .eq('show_id', showId).lt('episode_date', episodeDate)
+      .order('episode_date', { ascending: false }).limit(1)
+    if (!prevEps?.length) { showToast('No previous episode found'); setImportingGF(false); return }
+
+    const { data: prevContent } = await supabase
+      .from('section_content').select('role, content')
+      .eq('episode_id', prevEps[0].id)
+      .eq('section_name', 'Launching Towards the GF Challenge')
+      .in('role', ['host1', 'host2'])
+    if (!prevContent?.length) { showToast('No previous content found'); setImportingGF(false); return }
+
+    for (const role of ['host1', 'host2']) {
+      const row = prevContent.find((r: any) => r.role === role)
+      if (!row?.content) continue
+      updateContent('Launching Towards the GF Challenge', role, row.content)
+    }
+    setImportingGF(false)
+    showToast('GF progress imported!')
   }
 
   const archiveEpisode = async () => {
@@ -806,7 +849,17 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                 {importingBets ? '…' : '↓ Import Last Week'}
                               </button>
                             )}
-                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === "Last Week's Betting") && (
+                            {showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === 'Launching Towards the GF Challenge' && (
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); importGFProgress() }}
+                                disabled={importingGF}
+                                className="text-[10px] font-semibold text-[#0d0d0f]/50 hover:text-[#0d0d0f]/80 border border-[#0d0d0f]/15 hover:border-[#0d0d0f]/30 rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
+                              >
+                                {importingGF ? '…' : '↓ Import Last Week'}
+                              </button>
+                            )}
+                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && (["Last Week's Betting", 'AFL Multis', 'Racing Bets', 'Launching Towards the GF Challenge'] as string[]).includes(section.name)) && (
                               <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
                                 className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
                                 ×
