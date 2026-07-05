@@ -481,15 +481,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         </div>
 
         {/* ── Tab switcher (all show types) ── */}
-        <div className="flex gap-1 bg-white border border-[#e2e4e8] rounded-xl p-1">
+        <div className="flex gap-2 bg-white border border-[#e2e4e8] rounded-2xl p-1.5">
           <button
             onClick={() => setActiveTab('runsheet')}
-            className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'runsheet' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
-          >{isRadio ? '📋 Runsheet' : '🎙️ Episodes'}</button>
+            className={`flex-1 flex flex-col items-center gap-1 py-4 rounded-xl font-bold transition-all ${activeTab === 'runsheet' ? 'bg-[#00e5a0] text-black shadow-sm' : 'text-[#6b6b7a] hover:text-[#0d0d0f] hover:bg-[#f7f8fa]'}`}
+          >
+            <span className="text-2xl leading-none">{isRadio ? '📋' : '🎙️'}</span>
+            <span className="text-sm tracking-wide">{isRadio ? 'Runsheet' : 'Episodes'}</span>
+          </button>
           <button
             onClick={() => setActiveTab('ideas')}
-            className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${activeTab === 'ideas' ? 'bg-[#00e5a0] text-black' : 'text-[#6b6b7a] hover:text-[#0d0d0f]'}`}
-          >💡 Ideas Board</button>
+            className={`flex-1 flex flex-col items-center gap-1 py-4 rounded-xl font-bold transition-all ${activeTab === 'ideas' ? 'bg-[#00e5a0] text-black shadow-sm' : 'text-[#6b6b7a] hover:text-[#0d0d0f] hover:bg-[#f7f8fa]'}`}
+          >
+            <span className="text-2xl leading-none">💡</span>
+            <span className="text-sm tracking-wide">Ideas Board</span>
+          </button>
         </div>
 
         {/* ── Radio: Current Runsheet card + Today's Show + Archive ── */}
