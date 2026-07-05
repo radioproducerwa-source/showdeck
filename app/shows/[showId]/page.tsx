@@ -1077,75 +1077,21 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             )}
 
             {/* Episode Archive */}
-            <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#e2e4e8] flex items-center justify-between">
+            <a
+              href={`/archive/${showId}`}
+              className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-5 flex items-center justify-between hover:border-[#00e5a0] hover:shadow-sm transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-lg flex-shrink-0 group-hover:border-[#00e5a0]/40 transition-colors">
+                  📦
+                </div>
                 <div>
-                  <span className="text-sm font-semibold">Episode Archive</span>
-                  <span className="text-xs text-[#6b6b7a] ml-2">{episodes.length} {epLabelPlural}</span>
+                  <div className="font-semibold text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors">Episode Archive</div>
+                  <div className="text-xs text-[#6b6b7a] mt-0.5">{episodes.length} {epLabelPlural} total</div>
                 </div>
               </div>
-              <div className="px-6 py-3 border-b border-[#e2e4e8]">
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder={`Search ${epLabelPlural}...`}
-                  className="w-full bg-[#f7f8fa] border border-[#e2e4e8] rounded-lg px-4 py-2 text-sm text-[#0d0d0f] outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]" />
-              </div>
-              {filtered.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-[#6b6b7a] text-sm mb-4">
-                    {search ? `No ${epLabelPlural} match your search.` : `No ${epLabelPlural} yet. Create your first one!`}
-                  </p>
-                  {!search && (
-                    <a href={`/planner/${showId}?new=true`}
-                      className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
-                      + New {epLabel}
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <div className="divide-y divide-[#e2e4e8]">
-                  {filtered.map((ep) => (
-                    <div key={ep.id} className={`flex items-center justify-between px-6 py-4 hover:bg-[#f7f8fa] transition-colors group ${ep.archived ? 'opacity-60' : ''}`}>
-                      <a href={`/planner/${showId}?episodeId=${ep.id}`} className="flex-1 flex items-center gap-4 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-xs font-bold text-[#6b6b7a] flex-shrink-0">
-                          {ep.archived
-                            ? <span>📦</span>
-                            : episodes.filter((e: any) => !e.archived).indexOf(ep) === 0
-                              ? <span className="text-[#00a870]">▶</span>
-                              : episodes.length - episodes.indexOf(ep)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors truncate">
-                              {ep.title || `Untitled ${epLabel}`}
-                            </div>
-                            {ep.archived && (
-                              <span className="text-[9px] font-bold uppercase tracking-widest bg-[#f7f8fa] border border-[#e2e4e8] text-[#6b6b7a] px-1.5 py-0.5 rounded-full flex-shrink-0">Archived</span>
-                            )}
-                          </div>
-                          <div className="text-[#6b6b7a] text-xs mt-0.5">{formatDateShort(ep.episode_date)}</div>
-                        </div>
-                      </a>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        {ep.archived ? (
-                          <button onClick={() => unarchiveEpisode(ep.id)}
-                            className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#00a870] hover:border-[#00e5a0]/40 transition-colors opacity-0 group-hover:opacity-100">
-                            Unarchive
-                          </button>
-                        ) : (
-                          <a href={`/planner/${showId}?episodeId=${ep.id}`}
-                            className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] transition-colors opacity-0 group-hover:opacity-100">
-                            Open
-                          </a>
-                        )}
-                        <button onClick={() => deleteEpisode(ep.id, ep.title)}
-                          className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none opacity-0 group-hover:opacity-100 transition-all"
-                          title="Delete episode">×</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 group-hover:border-[#00e5a0]/40 transition-colors">View all →</span>
+            </a>
           </>
         )}
 
