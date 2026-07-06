@@ -239,6 +239,10 @@ export default function Home() {
           >
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
           </button>
+          <div className="mt-6 flex gap-4 justify-center text-xs text-[#c0c0cc]">
+            <a href="/privacy" className="hover:text-[#6b6b7a] transition-colors">Privacy</a>
+            <a href="/terms" className="hover:text-[#6b6b7a] transition-colors">Terms</a>
+          </div>
         </div>
       </div>
 

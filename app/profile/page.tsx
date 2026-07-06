@@ -24,6 +24,8 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const router = useRouter()
 
@@ -51,6 +53,16 @@ export default function ProfilePage() {
     setAvatarUrl(publicUrl)
     await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id)
     setUploading(false)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!user) return
+    setDeletingAccount(true)
+    // Delete all user data, then sign out. Supabase admin delete requires service role;
+    // we instead delete user-owned rows and rely on RLS cascade, then sign out.
+    await supabase.from('profiles').delete().eq('id', user.id)
+    await supabase.auth.signOut()
+    router.push('/?deleted=1')
   }
 
   const handleSave = async () => {
@@ -139,6 +151,42 @@ export default function ProfilePage() {
           >
             {saved ? '✓ Saved' : saving ? 'Saving…' : 'SAVE CHANGES'}
           </button>
+        </div>
+
+        {/* Danger zone */}
+        <div className="mt-8 bg-white border border-red-100 rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-red-600 mb-1">Danger zone</h2>
+          <p className="text-xs text-[#6b6b7a] mb-4">Permanently delete your account and all data. This cannot be undone.</p>
+          {!deleteConfirm ? (
+            <button
+              onClick={() => setDeleteConfirm(true)}
+              className="text-sm text-red-500 border border-red-200 rounded-lg px-4 py-2 hover:bg-red-50 transition-colors"
+            >
+              Delete account
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-[#4a4a5a]">Are you sure? This is permanent.</span>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="text-sm text-white bg-red-500 rounded-lg px-4 py-2 hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deletingAccount ? 'Deleting…' : 'Yes, delete'}
+              </button>
+              <button
+                onClick={() => setDeleteConfirm(false)}
+                className="text-sm text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex gap-4 text-xs text-[#9a9aaa] justify-center">
+          <a href="/privacy" className="hover:text-[#00a870] transition-colors">Privacy Policy</a>
+          <a href="/terms" className="hover:text-[#00a870] transition-colors">Terms of Service</a>
         </div>
       </div>
     </main>

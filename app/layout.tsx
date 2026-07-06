@@ -15,8 +15,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Showdeck",
-  description: "The collaborative show planning workspace",
+  title: "Showdeck — Plan every episode, together",
+  description: "The collaborative show planning workspace for podcast and radio teams. Plan segments, manage runsheets, and keep your whole team in sync.",
+  openGraph: {
+    title: "Showdeck — Plan every episode, together",
+    description: "The collaborative show planning workspace for podcast and radio teams.",
+    url: "https://showdeck.live",
+    siteName: "Showdeck",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Showdeck — Plan every episode, together",
+    description: "The collaborative show planning workspace for podcast and radio teams.",
+  },
 };
 
 export default async function RootLayout({
