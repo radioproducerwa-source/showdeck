@@ -461,7 +461,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
 
   const getWordCount = (sectionName: string) => {
-    const all = ['host1', 'host2', 'producer'].map(r => getContent(sectionName, r)).join(' ')
+    const all = ['communal', 'host1', 'host2', 'producer'].map(r => getContent(sectionName, r)).join(' ')
     return all.trim().split(/\s+/).filter(Boolean).length
   }
 
@@ -471,7 +471,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   }
 
   const getStatus = (sectionName: string) => {
-    const total = getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
+    const total = getContent(sectionName, 'communal').length + getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
     if (total === 0) return { label: 'EMPTY', cls: 'text-[#6b6b7a] border-[#e2e4e8] bg-black/10', border: 'transparent' }
     if (total < 20) return { label: 'DRAFT', cls: 'text-[#d49c00] border-[#f5c842]/40 bg-[#f5c842]/20', border: '#f5c842' }
     return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/20', border: '#00e5a0' }
@@ -607,6 +607,33 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       doc.text(st.label, pw - mr - 4, y + 7.2, { align: 'right' })
 
       y += 15
+
+      const communalText = getContent(section.name, 'communal')
+      if (communalText.trim()) {
+        pageNum = checkPage(12, pageNum, estPages)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7)
+        doc.setTextColor(150, 152, 162)
+        doc.text('TOPICS & TALKING POINTS', ml, y)
+        y += 4.5
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9.5)
+        doc.setTextColor(30, 32, 40)
+        const communalLines = doc.splitTextToSize(communalText, cw - 4)
+        for (const line of communalLines) {
+          pageNum = checkPage(6, pageNum, estPages)
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(9.5)
+          doc.setTextColor(30, 32, 40)
+          doc.text(line, ml + 2, y)
+          y += 5
+        }
+        y += 4
+        doc.setDrawColor(228, 230, 236)
+        doc.setLineWidth(0.2)
+        doc.line(ml, y, pw - mr, y)
+        y += 6
+      }
 
       const roles = ['host1', 'host2', ...(show?.has_producer ? ['producer'] : [])]
       for (const role of roles) {
@@ -875,6 +902,24 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                           {/* Collapsible body */}
                           {!isCollapsed && (
                             <div className="bg-white/70 backdrop-blur-sm border-t border-black/10">
+
+                              {/* Communal / shared topics area */}
+                              <div className="px-3 sm:px-5 pt-3 pb-2.5 border-b border-black/10">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-[#0d0d0f]/35 mb-1.5">Topics &amp; Talking Points</p>
+                                <textarea
+                                  value={getContent(section.name, 'communal')}
+                                  onChange={e => updateContent(section.name, 'communal', e.target.value)}
+                                  onInput={e => {
+                                    const el = e.currentTarget
+                                    el.style.height = 'auto'
+                                    el.style.height = el.scrollHeight + 'px'
+                                  }}
+                                  placeholder="Add the topics and key points for this segment — visible to everyone…"
+                                  className="w-full bg-transparent text-sm text-[#1a1a1a] outline-none resize-none placeholder-[#c8b89a] block leading-relaxed"
+                                  style={{ minHeight: '52px', overflowY: 'hidden' }}
+                                />
+                              </div>
+
                               <div className="divide-y divide-black/10">
                                 {(['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[]).map((role) => {
                                   const isHost1 = role === 'host1'
