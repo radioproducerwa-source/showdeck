@@ -33,6 +33,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [headerColor, setHeaderColor] = useState('#00e5a0')
+  const [episodeNumberStart, setEpisodeNumberStart] = useState(1)
   const [recurringSegments, setRecurringSegments] = useState<{ id: string; name: string }[]>([])
   const [newSegmentName, setNewSegmentName] = useState('')
   const [ownerProfile, setOwnerProfile] = useState<{ display_name?: string; email?: string } | null>(null)
@@ -62,6 +63,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
         setXTwitter(showData.x_twitter || '')
         setYoutube(showData.youtube || '')
         setHeaderColor(showData.header_color || '#00e5a0')
+        setEpisodeNumberStart(showData.episode_number_start ?? 1)
       })
       supabase.from('recurring_segments').select('id, name').eq('show_id', showId).order('created_at').then(({ data }) => {
         if (data) setRecurringSegments(data)
@@ -163,6 +165,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       facebook: facebook.trim() || null,
       x_twitter: xTwitter.trim() || null,
       youtube: youtube.trim() || null,
+      episode_number_start: Math.max(1, episodeNumberStart || 1),
     }).eq('id', showId)
     setSaving(false)
     if (error) {
@@ -362,6 +365,21 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                 )
               })}
             </div>
+          </div>
+
+          {/* Episode numbering */}
+          <div className="border-t border-[#e2e4e8] pt-4">
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest mb-1 block">Starting Episode Number</label>
+            <p className="text-[10px] text-[#9a9aaa] mb-3">
+              The number of your first episode on Showdeck. Set this if your show was already running before you joined — e.g. if you're on episode 100, enter 100 and the archive will count up correctly from there.
+            </p>
+            <input
+              type="number"
+              min={1}
+              value={episodeNumberStart}
+              onChange={e => setEpisodeNumberStart(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-28 bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-2.5 text-sm outline-none focus:border-[#00e5a0]"
+            />
           </div>
 
           <button onClick={handleSave} disabled={saving}

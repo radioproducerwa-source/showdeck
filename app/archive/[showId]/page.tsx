@@ -109,7 +109,7 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
                 <div key={ep.id} className="flex items-center justify-between px-6 py-4 hover:bg-[#f7f8fa] transition-colors group">
                   <a href={`/planner/${showId}?episodeId=${ep.id}`} className="flex-1 flex items-center gap-4">
                     <div className="w-8 h-8 rounded-lg bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-xs font-bold text-[#6b6b7a] flex-shrink-0">
-                      {episodes.length - i}
+                      {(show?.episode_number_start ?? 1) - 1 + (episodes.length - i)}
                     </div>
                     <div>
                       <div className="font-semibold text-sm group-hover:text-[#00a870] transition-colors">{ep.title || 'Untitled Episode'}</div>
