@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import { useShowAccess } from '../../../lib/useShowAccess'
 import { formatEpisodeDate } from '../../../lib/dates'
+import { IconMic, IconX, IconPlus, PageLoader } from '../../../components/icons'
 
 export default function Archive({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
@@ -82,11 +83,7 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
     </div>
   )
 
-  if (access.status === 'loading' || loading) return (
-    <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center">
-      <div className="text-[#6b6b7a]">Loading...</div>
-    </div>
-  )
+  if (access.status === 'loading' || loading) return <PageLoader />
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f]">
@@ -97,8 +94,8 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
           <Logo size={0.65} />
         </div>
         {show && (
-          <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-1.5 text-sm hover:bg-[#00ffc0] transition-colors">
-            + {show.show_type === 'radio' ? 'New Broadcast' : 'New Episode'}
+          <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-semibold rounded-xl px-4 py-1.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all inline-flex items-center gap-1.5">
+            <IconPlus size={13} /> {show.show_type === 'radio' ? 'New broadcast' : 'New episode'}
           </a>
         )}
       </header>
@@ -116,7 +113,7 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
           {deleteError && (
             <div className="px-6 py-3 bg-[#fff1ee] border-b border-[#ffd0c4] text-[#ff5c3a] text-xs font-semibold flex items-center justify-between gap-3">
               <span>{deleteError}</span>
-              <button onClick={() => setDeleteError(null)} className="text-[#ff5c3a] hover:text-[#ff3a1a] text-base leading-none flex-shrink-0" title="Dismiss">×</button>
+              <button onClick={() => setDeleteError(null)} className="text-[#ff5c3a] hover:text-[#ff3a1a] flex-shrink-0" title="Dismiss"><IconX size={13} /></button>
             </div>
           )}
           <div className="px-6 py-4 border-b border-[#e2e4e8]">
@@ -131,14 +128,16 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
 
           {filtered.length === 0 ? (
             <div className="px-6 py-14 text-center">
-              <div className="text-4xl mb-3">🎙️</div>
+              <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center mx-auto mb-3 text-[#c8cad0]">
+                <IconMic size={26} />
+              </div>
               <p className="text-[#6b6b7a] text-sm mb-5">
                 {search ? 'No episodes match your search.' : "No episodes yet. Create your first one!"}
               </p>
               {!search && (
                 <a href={`/planner/${showId}?new=true`}
-                  className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
-                  + {show?.show_type === 'radio' ? 'New Broadcast' : 'New Episode'}
+                  className="inline-flex items-center gap-1.5 bg-[#00e5a0] text-black font-semibold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all">
+                  <IconPlus size={13} /> {show?.show_type === 'radio' ? 'New broadcast' : 'New episode'}
                 </a>
               )}
             </div>
@@ -169,8 +168,8 @@ export default function Archive({ params }: { params: Promise<{ showId: string }
                           Open
                         </a>
                         <button onClick={() => setDeleteConfirm(ep.id)}
-                          className="text-[#c8cad0] hover:text-[#ff5c3a] text-lg leading-none transition-all"
-                          title="Delete episode">×</button>
+                          className="text-[#c8cad0] hover:text-[#ff5c3a] transition-all"
+                          title="Delete episode"><IconX size={14} /></button>
                       </>
                     )}
                   </div>

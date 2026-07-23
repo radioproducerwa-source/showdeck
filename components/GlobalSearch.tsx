@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 import { fetchAccessibleShows } from '../lib/shows'
+import { IconSearch, IconMic, IconRadio, IconX, IconChevronRight, Spinner } from './icons'
 
 type ShowResult = {
   id: string
@@ -101,9 +102,8 @@ export default function GlobalSearch() {
       })
     : shows.map(show => ({ kind: 'show', show }))
 
-  const showTypeLabel = (t: string) =>
-    t === 'breakfast_radio' ? '🌅' : t === 'drive' ? '🚗' : t === 'evening' ? '🌙' :
-    t === 'radio' ? '📻' : '🎙️'
+  const isRadioType = (t: string) =>
+    t === 'radio' || t === 'breakfast_radio' || t === 'drive' || t === 'evening'
 
   const navigate = (href: string) => { setOpen(false); router.push(href) }
 
@@ -128,7 +128,7 @@ export default function GlobalSearch() {
         title="Search (⌘K)"
         className="flex items-center gap-1.5 text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors"
       >
-        <span>🔍</span>
+        <IconSearch size={15} />
         <span className="hidden sm:inline">Search</span>
         <span className="hidden sm:inline text-[10px] text-[#c8cad0] border border-[#e2e4e8] rounded px-1 py-px leading-none">⌘K</span>
       </button>
@@ -148,7 +148,7 @@ export default function GlobalSearch() {
           >
             {/* Input */}
             <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#e2e4e8]">
-              <span className="text-[#c8cad0] text-base flex-shrink-0">🔍</span>
+              <span className="text-[#c8cad0] flex-shrink-0"><IconSearch size={16} /></span>
               <input
                 ref={inputRef}
                 type="text"
@@ -159,7 +159,7 @@ export default function GlobalSearch() {
                 className="flex-1 text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0] bg-transparent"
               />
               {query && (
-                <button onClick={() => setQuery('')} className="text-[#c8cad0] hover:text-[#6b6b7a] text-xl leading-none flex-shrink-0">×</button>
+                <button onClick={() => setQuery('')} className="text-[#c8cad0] hover:text-[#6b6b7a] flex-shrink-0" aria-label="Clear search"><IconX size={14} /></button>
               )}
               <kbd className="hidden sm:flex text-[10px] text-[#c8cad0] border border-[#e2e4e8] rounded px-1.5 py-0.5 leading-none flex-shrink-0">esc</kbd>
             </div>
@@ -167,7 +167,7 @@ export default function GlobalSearch() {
             {/* Results */}
             <div className="max-h-[52vh] overflow-y-auto">
               {loading ? (
-                <div className="px-4 py-8 text-center text-sm text-[#6b6b7a]">Loading…</div>
+                <div className="px-4 py-8 flex justify-center"><Spinner size={20} className="text-[#9a9aaa]" /></div>
               ) : loadFailed ? (
                 <div className="px-4 py-8 text-center text-sm text-[#6b6b7a]">
                   Couldn&apos;t load —{' '}
@@ -197,7 +197,9 @@ export default function GlobalSearch() {
                           onMouseEnter={() => setActiveIndex(i)}
                           className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#f7f8fa] transition-colors text-left ${i === activeIndex ? 'bg-[#f7f8fa]' : ''}`}
                         >
-                          <span className="text-base w-6 text-center flex-shrink-0">{showTypeLabel(item.show.show_type)}</span>
+                          <span className="w-6 h-6 rounded-md bg-[#f7f8fa] border border-[#e2e4e8] text-[#6b6b7a] flex items-center justify-center flex-shrink-0">
+                            {isRadioType(item.show.show_type) ? <IconRadio size={14} /> : <IconMic size={14} />}
+                          </span>
                           <span className="text-sm font-semibold text-[#0d0d0f] truncate">{item.show.name}</span>
                           <span className="ml-auto text-[10px] text-[#c8cad0] flex-shrink-0">Show →</span>
                         </button>
@@ -209,7 +211,7 @@ export default function GlobalSearch() {
                           onMouseEnter={() => setActiveIndex(i)}
                           className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#f7f8fa] transition-colors text-left ${i === activeIndex ? 'bg-[#f7f8fa]' : ''}`}
                         >
-                          <span className="text-[#c8cad0] text-xs w-6 text-center flex-shrink-0">▸</span>
+                          <span className="text-[#c8cad0] w-6 flex items-center justify-center flex-shrink-0"><IconChevronRight size={13} /></span>
                           <div className="min-w-0">
                             <div className="text-sm text-[#0d0d0f] truncate">{item.ep.title}</div>
                             <div className="text-[10px] text-[#6b6b7a]">{item.show.name}</div>

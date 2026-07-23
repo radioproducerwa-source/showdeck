@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 import Logo, { LogoIcon } from '../../components/Logo'
+import { IconCheck, IconX, IconMail, Spinner, PageLoader } from '../../components/icons'
 
 type Status =
   | 'loading'
@@ -289,10 +290,7 @@ function JoinContent() {
           <Logo size={0.9} />
         </div>
         <div className="flex items-center justify-center gap-2 text-[#6b6b7a] text-sm">
-          <svg className="animate-spin w-4 h-4 text-[#00e5a0]" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-          </svg>
+          <Spinner size={16} className="text-[#00e5a0]" />
           Verifying invite…
         </div>
       </StatusCard>
@@ -308,10 +306,8 @@ function JoinContent() {
         <div className="flex justify-center mb-6">
           <Logo size={0.9} />
         </div>
-        <div className="w-12 h-12 rounded-full bg-[#fef2f2] border border-red-100 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
+        <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4 text-red-500">
+          <IconX size={20} />
         </div>
         <h2 className="text-lg font-bold text-[#0d0d0f] mb-2">Something went wrong</h2>
         <p className="text-[#6b6b7a] text-sm mb-6">
@@ -336,10 +332,8 @@ function JoinContent() {
         <div className="flex justify-center mb-6">
           <Logo size={0.9} />
         </div>
-        <div className="w-12 h-12 rounded-full bg-[#fef2f2] border border-red-100 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4 text-red-500">
+          <IconX size={20} />
         </div>
         <h2 className="text-lg font-bold text-[#0d0d0f] mb-2">Invite unavailable</h2>
         <p className="text-[#6b6b7a] text-sm mb-6">
@@ -366,10 +360,8 @@ function JoinContent() {
         </div>
         {status === 'done' ? (
           <>
-            <div className="w-14 h-14 rounded-full bg-[#edfdf6] border border-[#00e5a0]/30 flex items-center justify-center mx-auto mb-5">
-              <svg className="w-7 h-7 text-[#00a870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="w-12 h-12 rounded-full bg-[#00e5a0]/15 flex items-center justify-center mx-auto mb-5 text-[#00a870]">
+              <IconCheck size={24} strokeWidth={2.5} />
             </div>
             <h2 className="text-xl font-bold text-[#0d0d0f] mb-2">You're in!</h2>
             <p className="text-[#6b6b7a] text-sm">
@@ -380,10 +372,7 @@ function JoinContent() {
           </>
         ) : (
           <div className="flex items-center justify-center gap-2 text-[#6b6b7a] text-sm">
-            <svg className="animate-spin w-4 h-4 text-[#00e5a0]" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-            </svg>
+            <Spinner size={16} className="text-[#00e5a0]" />
             Setting up your access…
           </div>
         )}
@@ -408,10 +397,8 @@ function JoinContent() {
           {/* Invite context banner */}
           {(showName || invite?.role) && (
             <div className="mb-6 bg-[#edfdf6] border border-[#00e5a0]/40 rounded-xl px-4 py-3.5 flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-[#00e5a0]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <svg className="w-3.5 h-3.5 text-[#00a870]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
+              <div className="w-7 h-7 rounded-full bg-[#00e5a0]/20 flex items-center justify-center flex-shrink-0 mt-0.5 text-[#00a870]">
+                <IconMail size={14} />
               </div>
               <p className="text-sm text-[#0d0d0f] leading-snug pt-0.5">
                 You've been invited to join{' '}
@@ -462,9 +449,7 @@ function JoinContent() {
             authMessageInfo ? (
               <div className="mb-5 bg-[#edfdf6] border border-[#00e5a0]/40 rounded-xl px-4 py-3">
                 <div className="flex items-start gap-2.5 mb-3">
-                  <svg className="w-4 h-4 text-[#00a870] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+                  <span className="text-[#00a870] flex-shrink-0 mt-0.5"><IconMail size={15} /></span>
                   <p className="text-sm text-[#0a6b47]">{authMessage}</p>
                 </div>
                 {awaitingConfirmation && (
@@ -479,9 +464,7 @@ function JoinContent() {
               </div>
             ) : (
               <div className="mb-5 bg-[#fef2f2] border border-red-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
-                <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                </svg>
+                <span className="text-red-400 flex-shrink-0 mt-0.5"><IconX size={15} /></span>
                 <p className="text-sm text-red-700">{authMessage}</p>
               </div>
             )
@@ -490,15 +473,10 @@ function JoinContent() {
           <button
             onClick={handleAuth}
             disabled={authLoading || !email || !password}
-            className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-sm tracking-widest mb-3 hover:bg-[#00ffc0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-4 text-sm mb-3 hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {authLoading && (
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-            )}
-            {authLoading ? 'One moment…' : isSignUp ? 'CREATE ACCOUNT & JOIN' : 'SIGN IN & JOIN'}
+            {authLoading && <Spinner size={16} />}
+            {authLoading ? 'One moment…' : isSignUp ? 'Create account & join' : 'Sign in & join'}
           </button>
 
           <button
@@ -515,11 +493,7 @@ function JoinContent() {
 
 export default function JoinPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center text-[#6b6b7a] text-sm">
-        Loading…
-      </div>
-    }>
+    <Suspense fallback={<PageLoader />}>
       <JoinContent />
     </Suspense>
   )

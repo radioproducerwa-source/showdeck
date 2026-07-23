@@ -3,17 +3,18 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { LogoIcon } from '../../../components/Logo'
+import { IconMic, IconSettings, IconPencil, IconRadio, IconSearch, IconUsers, IconClipboard, IconSparkles, PageLoader } from '../../../components/icons'
 
 const ROLES = [
-  { value: 'host',        label: 'Host',           icon: '🎙️' },
-  { value: 'co-host',     label: 'Co-Host',        icon: '🎙️' },
-  { value: 'presenter',   label: 'Presenter',      icon: '🎤' },
-  { value: 'producer',    label: 'Producer',       icon: '🎛️' },
-  { value: 'newsreader',  label: 'Newsreader',     icon: '📰' },
-  { value: 'journalist',  label: 'Journalist',     icon: '📝' },
-  { value: 'engineer',    label: 'Sound Engineer', icon: '🎧' },
-  { value: 'researcher',  label: 'Researcher',     icon: '🔍' },
-  { value: 'other',       label: 'Other',          icon: '👤' },
+  { value: 'host',        label: 'Host',           icon: IconMic },
+  { value: 'co-host',     label: 'Co-Host',        icon: IconMic },
+  { value: 'presenter',   label: 'Presenter',      icon: IconMic },
+  { value: 'producer',    label: 'Producer',       icon: IconSettings },
+  { value: 'newsreader',  label: 'Newsreader',     icon: IconPencil },
+  { value: 'journalist',  label: 'Journalist',     icon: IconPencil },
+  { value: 'engineer',    label: 'Sound Engineer', icon: IconRadio },
+  { value: 'researcher',  label: 'Researcher',     icon: IconSearch },
+  { value: 'other',       label: 'Other',          icon: IconUsers },
 ]
 
 export default function ProfileSetup() {
@@ -105,7 +106,7 @@ export default function ProfileSetup() {
     router.push('/dashboard')
   }
 
-  if (!user) return <div className="min-h-screen bg-[#f7f8fa]" />
+  if (!user) return <PageLoader />
 
   return (
     <main className="min-h-screen flex">
@@ -123,12 +124,12 @@ export default function ProfileSetup() {
           </p>
           <div className="flex flex-col gap-4">
             {[
-              { icon: '👤', text: 'Your name appears on every runsheet' },
-              { icon: '🎭', text: 'Your role helps teammates understand your part in the show' },
-              { icon: '📸', text: 'A photo makes collaboration feel personal' },
-            ].map(({ icon, text }) => (
+              { icon: IconClipboard, text: 'Your name appears on every runsheet' },
+              { icon: IconUsers, text: 'Your role helps teammates understand your part in the show' },
+              { icon: IconSparkles, text: 'A photo makes collaboration feel personal' },
+            ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#00e5a0]/10 flex items-center justify-center flex-shrink-0 text-base">{icon}</div>
+                <div className="w-8 h-8 rounded-lg bg-[#00e5a0]/10 flex items-center justify-center flex-shrink-0 text-[#00e5a0]"><Icon size={15} /></div>
                 <span className="text-white/60 text-sm">{text}</span>
               </div>
             ))}
@@ -197,7 +198,7 @@ export default function ProfileSetup() {
                       : 'border-[#e2e4e8] bg-white text-[#6b6b7a] hover:border-[#00e5a0]/50 hover:text-[#0d0d0f]'
                   }`}
                 >
-                  <span className="text-xl leading-none">{r.icon}</span>
+                  <span className={role === r.value ? 'text-[#00a870]' : 'text-[#6b6b7a]'}><r.icon size={18} /></span>
                   <span className="text-xs font-medium leading-tight">{r.label}</span>
                 </button>
               ))}
@@ -209,9 +210,9 @@ export default function ProfileSetup() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-60"
+            className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-4 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'CONTINUE TO DASHBOARD'}
+            {saving ? 'Saving…' : 'Continue to dashboard'}
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import Logo from '../../../components/Logo'
 import RadioPlannerPanel from '../../../components/RadioPlannerPanel'
 import GlobalSearch from '../../../components/GlobalSearch'
 import { useShowAccess } from '../../../lib/useShowAccess'
+import { PageLoader } from '../../../components/icons'
 
 function getInitialDayFromUrl(): number | undefined {
   if (typeof window === 'undefined') return undefined
@@ -18,9 +19,7 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
   const access = useShowAccess(showId)
   const [initialDay] = useState<number | undefined>(getInitialDayFromUrl)
 
-  if (access.status === 'loading') return (
-    <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center text-[#6b6b7a]">Loading…</div>
-  )
+  if (access.status === 'loading') return <PageLoader />
 
   if (access.status === 'error') return (
     <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center px-6">

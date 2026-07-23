@@ -3,17 +3,18 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo'
+import { IconMic, IconSettings, IconPencil, IconRadio, IconSearch, IconUsers, PageLoader } from '../../components/icons'
 
 const ROLES = [
-  { value: 'host',        label: 'Host',           icon: '🎙️' },
-  { value: 'co-host',     label: 'Co-Host',        icon: '🎙️' },
-  { value: 'presenter',   label: 'Presenter',      icon: '🎤' },
-  { value: 'producer',    label: 'Producer',       icon: '🎛️' },
-  { value: 'newsreader',  label: 'Newsreader',     icon: '📰' },
-  { value: 'journalist',  label: 'Journalist',     icon: '📝' },
-  { value: 'engineer',    label: 'Sound Engineer', icon: '🎧' },
-  { value: 'researcher',  label: 'Researcher',     icon: '🔍' },
-  { value: 'other',       label: 'Other',          icon: '👤' },
+  { value: 'host',        label: 'Host',           icon: IconMic },
+  { value: 'co-host',     label: 'Co-Host',        icon: IconMic },
+  { value: 'presenter',   label: 'Presenter',      icon: IconMic },
+  { value: 'producer',    label: 'Producer',       icon: IconSettings },
+  { value: 'newsreader',  label: 'Newsreader',     icon: IconPencil },
+  { value: 'journalist',  label: 'Journalist',     icon: IconPencil },
+  { value: 'engineer',    label: 'Sound Engineer', icon: IconRadio },
+  { value: 'researcher',  label: 'Researcher',     icon: IconSearch },
+  { value: 'other',       label: 'Other',          icon: IconUsers },
 ]
 
 export default function ProfilePage() {
@@ -82,7 +83,7 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  if (!user) return <div className="min-h-screen bg-white" />
+  if (!user) return <PageLoader />
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f]">
@@ -145,7 +146,7 @@ export default function ProfilePage() {
                       : 'border-[#e2e4e8] bg-white text-[#6b6b7a] hover:border-[#00e5a0]/50 hover:text-[#0d0d0f]'
                   }`}
                 >
-                  <span className="text-xl leading-none">{r.icon}</span>
+                  <span className={role === r.value ? 'text-[#00a870]' : 'text-[#6b6b7a]'}><r.icon size={18} /></span>
                   <span className="text-xs font-medium leading-tight">{r.label}</span>
                 </button>
               ))}
@@ -155,9 +156,9 @@ export default function ProfilePage() {
           <button
             onClick={handleSave}
             disabled={saving || !displayName.trim() || !role}
-            className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-50"
+            className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-3 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-50"
           >
-            {saved ? '✓ Saved' : saving ? 'Saving…' : 'SAVE CHANGES'}
+            {saved ? 'Saved' : saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
 

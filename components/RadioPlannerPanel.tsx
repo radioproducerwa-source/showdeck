@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { IconRadio, IconGrip, IconUsers, IconDownload, IconSearch, IconX, IconCheck, IconPlus, IconArrowLeft, IconArrowRight, Spinner } from './icons'
 
 type SlotTemplate = {
   slotTime: string | null
@@ -491,8 +492,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
           toast.error ? 'bg-red-600' : 'bg-[#0d0d0f]'
         } ${toast.phase === 'in' ? 'animate-toast-in' : 'animate-toast-out'}`}>
           {toast.error
-            ? <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px] font-black">✕</span>
-            : <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black">✓</span>
+            ? <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center"><IconX size={9} strokeWidth={3} /></span>
+            : <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black"><IconCheck size={9} strokeWidth={3} /></span>
           }
           {toast.msg}
         </div>
@@ -513,7 +514,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       <div className="px-4 sm:px-5 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-bold text-[#0d0d0f] flex-shrink-0">📻 <span className="hidden sm:inline">Radio Runsheet</span></span>
+            <span className="text-sm font-bold text-[#0d0d0f] flex-shrink-0 flex items-center gap-1.5"><IconRadio size={15} /> <span className="hidden sm:inline">Radio Runsheet</span></span>
             {saving && <span className="text-xs text-[#6b6b7a]">Saving…</span>}
             {!saving && saveError && (
               <span className="text-xs flex items-center gap-1.5">
@@ -539,13 +540,14 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
               disabled={savingTemplate}
               className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-2.5 sm:px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-40"
             >
-              {savingTemplate ? '…' : <><span className="hidden sm:inline">Save as Template</span><span className="sm:hidden">Template</span></>}
+              {savingTemplate ? <Spinner size={12} className="inline-block" /> : <><span className="hidden sm:inline">Save as template</span><span className="sm:hidden">Template</span></>}
             </button>
             <button
               onClick={exportPdf}
-              className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-2.5 sm:px-4 py-1.5 text-xs font-medium transition-colors"
+              className="border border-[#e2e4e8] text-[#6b6b7a] hover:text-[#0d0d0f] hover:border-[#c8cad0] rounded-lg px-2.5 sm:px-4 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              <span className="hidden sm:inline">Export </span>PDF
+              <IconDownload size={13} />
+              <span><span className="hidden sm:inline">Export </span>PDF</span>
             </button>
           </div>
         </div>
@@ -557,8 +559,9 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setMonday(m => addDays(m, -7))}
-            className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
-          >‹</button>
+            className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-[#6b6b7a] flex-shrink-0 shadow-sm"
+            aria-label="Previous week"
+          ><IconArrowLeft size={15} /></button>
           <span className="text-xs text-[#6b6b7a] flex-1 text-center sm:flex-none sm:w-44 sm:text-left">{formatWeekRange(monday)}</span>
           {/* Day buttons inline on desktop */}
           <div className="hidden sm:flex gap-1 flex-1">
@@ -577,8 +580,9 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
           </div>
           <button
             onClick={() => setMonday(m => addDays(m, 7))}
-            className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-base font-bold text-[#6b6b7a] flex-shrink-0 shadow-sm"
-          >›</button>
+            className="w-9 h-9 rounded-lg border-2 border-[#c8cad0] bg-white hover:border-[#0d0d0f] hover:text-[#0d0d0f] flex items-center justify-center transition-all text-[#6b6b7a] flex-shrink-0 shadow-sm"
+            aria-label="Next week"
+          ><IconArrowRight size={15} /></button>
           <button
             onClick={() => { setMonday(getMondayOf(new Date())); setSelectedDay(Math.min(Math.max(new Date().getDay() - 1, 0), 4)) }}
             className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] border border-[#e2e4e8] rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
@@ -632,7 +636,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                     {hour}AM
                   </div>
                 </div>
-                <div className="text-4xl opacity-30">📻</div>
+                <div className="opacity-30" style={{ color: '#00e5a0' }}><IconRadio size={36} /></div>
               </div>
 
               {/* Slots */}
@@ -652,8 +656,9 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                         {editingLayout && hour === HOURS[0] && (
                           <button
                             onClick={() => deleteSlotFromLayout(slot.slotKey)}
-                            className="text-[#c8cad0] hover:text-[#e53935] transition-colors text-[10px] leading-none ml-2 flex-shrink-0"
-                          >✕</button>
+                            className="text-[#c8cad0] hover:text-[#e53935] transition-colors ml-2 flex-shrink-0"
+                            aria-label="Remove slot"
+                          ><IconX size={11} /></button>
                         )}
                       </div>
                     )
@@ -682,7 +687,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                         <span
                           draggable
                           onDragStart={e => handleSlotDragStart(e, hour, slot.slotKey)}
-                          className="text-[12px] text-[#c8cad0] flex-shrink-0 cursor-grab select-none touch-none" title="Drag to swap">⠿</span>
+                          className="text-[#c8cad0] flex-shrink-0 cursor-grab select-none touch-none" title="Drag to swap"><IconGrip size={13} /></span>
                         {slot.slotTime && (
                           <span className="text-[10px] font-bold text-[#00a870] flex-shrink-0 font-mono">{slot.slotTime}</span>
                         )}
@@ -691,17 +696,18 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                           <button
                             onMouseDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); deleteSlotFromLayout(slot.slotKey) }}
-                            className="ml-auto text-[#c8cad0] hover:text-[#e53935] transition-colors text-[10px] leading-none flex-shrink-0 px-1"
+                            className="ml-auto text-[#c8cad0] hover:text-[#e53935] transition-colors flex-shrink-0 px-1"
                             style={{ cursor: 'pointer' }}
-                          >✕</button>
+                            aria-label="Remove slot"
+                          ><IconX size={11} /></button>
                         ) : (
                           <button
                             onMouseDown={e => e.stopPropagation()}
                             onClick={e => { e.stopPropagation(); openGuestPicker(hour, slot.slotKey) }}
-                            className="ml-auto text-[9px] font-semibold text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors flex-shrink-0"
+                            className="ml-auto text-[9px] font-semibold text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors flex-shrink-0 flex items-center gap-1"
                             style={{ cursor: 'pointer' }}
                           >
-                            📋 Guests
+                            <IconUsers size={10} /> Guests
                           </button>
                         )}
                       </div>
@@ -786,9 +792,10 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
                               <button
                                 onMouseDown={e => e.stopPropagation()}
                                 onClick={removeLink}
-                                className="pr-2.5 text-[#c8cad0] hover:text-[#e53935] transition-colors text-[10px] leading-none flex-shrink-0"
+                                className="pr-2.5 text-[#c8cad0] hover:text-[#e53935] transition-colors flex-shrink-0"
                                 tabIndex={-1}
-                              >✕</button>
+                                aria-label="Remove link"
+                              ><IconX size={11} /></button>
                             )}
                           </div>
                         )
@@ -811,9 +818,9 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
               <button
                 key={type.label}
                 onClick={() => addSlotToLayout(type)}
-                className="border border-[#e2e4e8] bg-white text-[#6b6b7a] hover:border-[#0d0d0f] hover:text-[#0d0d0f] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                className="border border-[#e2e4e8] bg-white text-[#6b6b7a] hover:border-[#0d0d0f] hover:text-[#0d0d0f] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5"
               >
-                + {type.label}
+                <IconPlus size={11} /> {type.label}
               </button>
             ))}
           </div>
@@ -822,8 +829,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
 
       {/* Showdeck branding footer */}
       <div className="px-5 py-3 border-t border-[#e2e4e8] flex items-center justify-between">
-        <a href={`/guests/${showId}`} className="text-[10px] text-[#c8cad0] hover:text-[#6b6b7a] transition-colors">
-          🎤 Guest address book →
+        <a href={`/guests/${showId}`} className="text-[10px] text-[#c8cad0] hover:text-[#6b6b7a] transition-colors inline-flex items-center gap-1">
+          <IconUsers size={11} /> Guest address book →
         </a>
         <span className="text-[10px] font-bold tracking-widest text-[#c8cad0] uppercase">Powered by Showdeck</span>
       </div>
@@ -842,7 +849,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
             <div className="px-4 py-3.5 border-b border-[#e2e4e8]">
               <div className="text-xs font-bold uppercase tracking-widest text-[#00a870] mb-2.5">Select a Guest</div>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#c8cad0] text-xs">🔍</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#c8cad0]"><IconSearch size={13} /></span>
                 <input
                   autoFocus
                   type="text"
@@ -891,7 +898,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
               })()}
             </div>
             <div className="px-4 py-3 border-t border-[#e2e4e8] flex items-center justify-between">
-              <a href={`/guests/${showId}`} className="text-xs text-[#6b6b7a] hover:text-[#00a870] transition-colors">+ Manage address book</a>
+              <a href={`/guests/${showId}`} className="text-xs text-[#6b6b7a] hover:text-[#00a870] transition-colors inline-flex items-center gap-1"><IconPlus size={11} /> Manage address book</a>
               <button onClick={() => setGuestPicker(null)} className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:border-[#c8cad0] transition-colors">Cancel</button>
             </div>
           </div>

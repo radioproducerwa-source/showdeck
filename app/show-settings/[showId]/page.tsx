@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import Toast, { useToast } from '../../../components/Toast'
+import { IconMic, IconX, IconCopy, IconPlus, IconCheck, PageLoader } from '../../../components/icons'
 
 type AvatarSlot = 'host1' | 'host2' | 'producer' | 'logo'
 
@@ -26,7 +27,7 @@ function AvatarUpload({ slot, name, avatar, color, uploading, uploadAvatar }: {
       >
         {avatar
           ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
-          : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-sm font-bold`}>{slot === 'logo' ? '🎙️' : name?.[0]}</div>
+          : <div className={`w-full h-full ${color} flex items-center justify-center text-black text-sm font-bold`}>{slot === 'logo' ? <span className="text-[#9a9aaa]"><IconMic size={16} /></span> : name?.[0]}</div>
         }
         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <span className="text-white text-xs font-bold">{uploading === slot ? '…' : '↑'}</span>
@@ -224,7 +225,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     showToast('Photo updated!')
   }
 
-  if (!show) return <div className="min-h-screen bg-white" />
+  if (!show) return <PageLoader />
 
   const avatarUploadProps = { uploading, uploadAvatar }
 
@@ -369,8 +370,8 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                     <div className="w-8 h-8 rounded-full border border-black/10 shadow-sm" style={{ backgroundColor: value }} />
                     <span className="text-[9px] font-semibold text-[#6b6b7a]">{label}</span>
                     {isSelected && (
-                      <div className="w-3 h-3 rounded-full bg-[#00e5a0] flex items-center justify-center">
-                        <span className="text-black text-[7px] font-black">✓</span>
+                      <div className="w-3 h-3 rounded-full bg-[#00e5a0] flex items-center justify-center text-black">
+                        <IconCheck size={8} strokeWidth={3} />
                       </div>
                     )}
                   </button>
@@ -395,8 +396,8 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
           </div>
 
           <button onClick={handleSave} disabled={saving}
-            className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-50">
-            {saving ? 'Saving…' : 'SAVE CHANGES'}
+            className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-3 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
         {/* Regular Segments */}
@@ -414,9 +415,9 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                 <span className="flex-1 text-sm text-[#0d0d0f]">{seg.name}</span>
                 <button
                   onClick={() => deleteSegment(seg.id)}
-                  className="text-[#c8cad0] hover:text-[#e53935] transition-colors text-sm leading-none"
+                  className="text-[#c8cad0] hover:text-[#e53935] transition-colors"
                   title="Delete"
-                >✕</button>
+                ><IconX size={13} /></button>
               </div>
             ))}
           </div>
@@ -432,8 +433,8 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
             <button
               onClick={addSegment}
               disabled={!newSegmentName.trim()}
-              className="bg-[#0d0d0f] text-white font-bold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-30"
-            >+ Add</button>
+              className="bg-[#0d0d0f] text-white font-semibold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-30 flex items-center gap-1.5"
+            ><IconPlus size={13} /> Add</button>
           </div>
         </div>
 
@@ -467,7 +468,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
               disabled={sendingInvite || !inviteEmail.trim()}
               className="bg-[#0d0d0f] text-white font-bold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-40"
             >
-              {sendingInvite ? 'Sending…' : 'Send Invite'}
+              {sendingInvite ? 'Sending…' : 'Send invite'}
             </button>
           </div>
 
@@ -478,9 +479,9 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                 <code className="flex-1 text-xs text-[#0d0d0f] bg-white rounded-lg px-3 py-2 border border-[#e2e4e8] truncate font-mono">{lastInviteLink}</code>
                 <button
                   onClick={() => copyInviteLink(lastInviteLink)}
-                  className="text-xs font-bold text-[#00a870] border border-[#00e5a0]/40 rounded-lg px-3 py-2 hover:bg-[#00e5a0]/10 transition-colors flex-shrink-0"
+                  className="text-xs font-semibold text-[#00a870] border border-[#00e5a0]/40 rounded-lg px-3 py-2 hover:bg-[#00e5a0]/10 transition-colors flex-shrink-0 flex items-center gap-1.5"
                 >
-                  {copiedInvite ? '✓ Copied' : 'Copy'}
+                  {copiedInvite ? <><IconCheck size={12} /> Copied</> : <><IconCopy size={12} /> Copy</>}
                 </button>
               </div>
             </div>
@@ -527,9 +528,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                           title="Copy invite link"
                           className="text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors p-1 rounded"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
+                          <IconCopy size={13} />
                         </button>
                       )}
                       <button
@@ -537,9 +536,7 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
                         title={inv.accepted ? 'Revoke access' : 'Cancel invite'}
                         className="text-[#c8cad0] hover:text-[#ff5c3a] transition-colors p-1 rounded"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <IconX size={13} />
                       </button>
                     </div>
                   </div>

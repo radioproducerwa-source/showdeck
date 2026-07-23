@@ -5,6 +5,7 @@ import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import Toast, { useToast } from '../../../components/Toast'
 import { useShowAccess } from '../../../lib/useShowAccess'
+import { IconUsers, IconMail, IconPencil, IconTrash, IconX, IconPlus, IconSearch, PageLoader } from '../../../components/icons'
 
 type Guest = {
   id: string
@@ -138,7 +139,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
     </div>
   )
 
-  if (access.status === 'loading' || loading) return <div className="min-h-screen bg-[#f7f8fa]" />
+  if (access.status === 'loading' || loading) return <PageLoader />
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
@@ -165,9 +166,9 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
           {!adding && (
             <button
               onClick={openAdd}
-              className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors"
+              className="bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex items-center gap-1.5"
             >
-              + Add Guest
+              <IconPlus size={13} /> Add guest
             </button>
           )}
         </div>
@@ -190,7 +191,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
         {/* Search */}
         {guests.length > 3 && (
           <div className="relative mb-4">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] text-sm">🔍</span>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0]"><IconSearch size={14} /></span>
             <input
               type="text"
               value={search}
@@ -199,7 +200,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
               className="w-full bg-white border border-[#e2e4e8] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a] text-lg leading-none">×</button>
+              <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a]" aria-label="Clear search"><IconX size={13} /></button>
             )}
           </div>
         )}
@@ -207,7 +208,9 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
         {/* Guest list */}
         {filtered.length === 0 && !adding ? (
           <div className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-16 text-center">
-            <div className="text-4xl mb-3">🎤</div>
+            <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center mx-auto mb-3 text-[#c8cad0]">
+              <IconUsers size={26} />
+            </div>
             <p className="font-semibold text-[#0d0d0f] mb-1">{search ? `No guests match "${search}"` : 'No guests yet'}</p>
             {!search && <p className="text-sm text-[#6b6b7a]">Add guests to your address book to quickly drop them into interview slots.</p>}
           </div>
@@ -242,12 +245,12 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
                           <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5">
                             {guest.phone && (
                               <a href={`tel:${guest.phone}`} className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors flex items-center gap-1">
-                                <span className="text-[10px]">📞</span>{guest.phone}
+                                {guest.phone}
                               </a>
                             )}
                             {guest.email && (
                               <a href={`mailto:${guest.email}`} className="text-xs text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors flex items-center gap-1">
-                                <span className="text-[10px]">✉️</span>{guest.email}
+                                <IconMail size={11} />{guest.email}
                               </a>
                             )}
                           </div>
@@ -261,8 +264,8 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
                       <div className="flex items-center gap-2 flex-shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <button
                           onClick={() => startEdit(guest)}
-                          className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors"
-                        >Edit</button>
+                          className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors flex items-center gap-1.5"
+                        ><IconPencil size={12} /> Edit</button>
                         {deleteConfirm === guest.id ? (
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs text-[#ff5c3a]">Delete?</span>
@@ -272,9 +275,9 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
                         ) : (
                           <button
                             onClick={() => setDeleteConfirm(guest.id)}
-                            className="text-[#c8cad0] hover:text-[#ff5c3a] text-xl leading-none transition-colors"
+                            className="text-[#c8cad0] hover:text-[#ff5c3a] transition-colors"
                             title="Delete guest"
-                          >×</button>
+                          ><IconTrash size={13} /></button>
                         )}
                       </div>
                     </div>
@@ -339,8 +342,8 @@ function GuestForm({ form, setForm, nameRef, onSave, onCancel, saving }: {
           Cancel
         </button>
         <button onClick={onSave} disabled={saving || !form.name.trim()}
-          className="text-sm bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2 hover:bg-[#00ffc0] transition-colors disabled:opacity-40">
-          {saving ? 'Saving…' : 'Save Guest'}
+          className="text-sm bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2 hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-40">
+          {saving ? 'Saving…' : 'Save guest'}
         </button>
       </div>
     </div>
