@@ -2,79 +2,60 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { fetchAccessibleShows } from '../../lib/shows'
+import { useAuthGuard } from '../../lib/useShowAccess'
 import Logo from '../../components/Logo'
 import GlobalSearch from '../../components/GlobalSearch'
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
+  const { user, profile } = useAuthGuard({ requireProfile: true })
   const [shows, setShows] = useState<any[]>([])
   const [epCounts, setEpCounts] = useState<Record<string, number>>({})
   const [epLastDate, setEpLastDate] = useState<Record<string, string>>({})
   const [epTitles, setEpTitles] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [search, setSearch] = useState('')
   const [showWelcome, setShowWelcome] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/'); return }
-      setUser(data.user)
-      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
-      if (!profileData) { router.push('/profile/setup'); return }
-      setProfile(profileData)
-      if (typeof window !== 'undefined' && !localStorage.getItem('showdeck_welcomed')) {
-        setShowWelcome(true)
+    if (!user) return
+    ;(async () => {
+      try {
+        const { all: s } = await fetchAccessibleShows(user.id)
+        if (!localStorage.getItem('showdeck_welcomed')) {
+          setShowWelcome(true)
+        }
+        setShows(s)
+
+        if (s.length > 0) {
+          const ids = s.map((x: any) => x.id)
+          const { data: allEps } = await supabase
+            .from('episodes').select('id, show_id, episode_date, title')
+            .in('show_id', ids).order('episode_date', { ascending: false })
+          const counts: Record<string, number> = {}
+          const lastDates: Record<string, string> = {}
+          const titles: Record<string, string[]> = {}
+          ;(allEps || []).forEach((ep: any) => {
+            counts[ep.show_id] = (counts[ep.show_id] || 0) + 1
+            if (!lastDates[ep.show_id]) lastDates[ep.show_id] = ep.episode_date
+            if (ep.title) {
+              if (!titles[ep.show_id]) titles[ep.show_id] = []
+              titles[ep.show_id].push(ep.title.toLowerCase())
+            }
+          })
+          setEpCounts(counts)
+          setEpLastDate(lastDates)
+          setEpTitles(titles)
+        }
+      } catch {
+        setLoadError(true)
+      } finally {
+        setLoading(false)
       }
-
-      // Owned shows
-      const { data: ownedShows } = await supabase.from('shows').select('*').eq('owner_id', data.user.id)
-
-      // Shows the user is a member of (via invite)
-      const { data: memberRows } = await supabase
-        .from('show_members')
-        .select('show_id')
-        .eq('user_id', data.user.id)
-
-      const memberIds = (memberRows || []).map((r: any) => r.show_id).filter(Boolean)
-      let memberShows: any[] = []
-      if (memberIds.length > 0) {
-        const { data: ms } = await supabase.from('shows').select('*').in('id', memberIds)
-        memberShows = ms || []
-      }
-
-      // Merge, deduplicate by id
-      const ownedIds = new Set((ownedShows || []).map((s: any) => s.id))
-      const s = [
-        ...(ownedShows || []),
-        ...memberShows.filter((s: any) => !ownedIds.has(s.id)),
-      ]
-      setShows(s)
-
-      if (s.length > 0) {
-        const ids = s.map((x: any) => x.id)
-        const { data: allEps } = await supabase
-          .from('episodes').select('id, show_id, episode_date, title')
-          .in('show_id', ids).order('episode_date', { ascending: false })
-        const counts: Record<string, number> = {}
-        const lastDates: Record<string, string> = {}
-        const titles: Record<string, string[]> = {}
-        ;(allEps || []).forEach((ep: any) => {
-          counts[ep.show_id] = (counts[ep.show_id] || 0) + 1
-          if (!lastDates[ep.show_id]) lastDates[ep.show_id] = ep.episode_date
-          if (ep.title) {
-            if (!titles[ep.show_id]) titles[ep.show_id] = []
-            titles[ep.show_id].push(ep.title.toLowerCase())
-          }
-        })
-        setEpCounts(counts)
-        setEpLastDate(lastDates)
-        setEpTitles(titles)
-      }
-      setLoading(false)
-    })
-  }, [])
+    })()
+  }, [user])
 
   const dismissWelcome = () => {
     localStorage.setItem('showdeck_welcomed', '1')
@@ -154,6 +135,17 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+        </div>
+      ) : loadError ? (
+        <div className="max-w-md mx-auto mt-24 px-6 text-center">
+          <p className="text-[#0d0d0f] font-semibold mb-2">Couldn&apos;t load your shows</p>
+          <p className="text-[#6b6b7a] text-sm mb-6">Something went wrong while loading your dashboard. Please try again.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors"
+          >
+            Retry
+          </button>
         </div>
       ) : shows.length === 0 ? (
         <div className="max-w-md mx-auto mt-16 px-6">

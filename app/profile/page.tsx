@@ -58,9 +58,17 @@ export default function ProfilePage() {
   const handleDeleteAccount = async () => {
     if (!user) return
     setDeletingAccount(true)
-    // Delete all user data, then sign out. Supabase admin delete requires service role;
-    // we instead delete user-owned rows and rely on RLS cascade, then sign out.
-    await supabase.from('profiles').delete().eq('id', user.id)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+    }).catch(() => null)
+    if (!res?.ok) {
+      setDeletingAccount(false)
+      setDeleteConfirm(false)
+      alert('Account deletion failed — please try again or contact support.')
+      return
+    }
     await supabase.auth.signOut()
     router.push('/?deleted=1')
   }

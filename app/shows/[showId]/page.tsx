@@ -49,7 +49,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const [sections, setSections] = useState<any[]>([])
   const [contentMap, setContentMap] = useState<Record<string, string>>({})
   const [episodes, setEpisodes] = useState<any[]>([])
-  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<string | null>(null)
   const [radioWeeks, setRadioWeeks] = useState<string[]>([])
@@ -77,42 +76,42 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const handleWhiteboardDndEnd = (event: DragEndEvent) => {
+  const handleWhiteboardDndEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    setSections(prev => {
-      const oldIdx = prev.findIndex((s: any) => s.id === active.id)
-      const newIdx = prev.findIndex((s: any) => s.id === over.id)
-      const next = arrayMove(prev, oldIdx, newIdx)
-      Promise.all(next.map((s: any, i: number) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id))).catch(() => {})
-      return next
-    })
+    const oldIdx = sections.findIndex((s: any) => s.id === active.id)
+    const newIdx = sections.findIndex((s: any) => s.id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const next = arrayMove(sections, oldIdx, newIdx)
+    setSections(next)
+    const results = await Promise.all(next.map((s: any, i: number) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id)))
+    if (results.some(r => r.error)) showToast('Reorder failed to save — check connection', true)
   }
 
-  const handleIdeaDndEnd = (event: DragEndEvent) => {
+  const handleIdeaDndEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    setIdeas(prev => {
-      const oldIdx = prev.findIndex(i => i.id === active.id)
-      const newIdx = prev.findIndex(i => i.id === over.id)
-      const next = arrayMove(prev, oldIdx, newIdx)
-      const colId = prev[oldIdx].column_id
-      const colItems = next.filter(i => i.column_id === colId && !i.done)
-      Promise.all(colItems.map((i, idx) => supabase.from('show_ideas').update({ order_index: idx }).eq('id', i.id))).catch(() => {})
-      return next
-    })
+    const oldIdx = ideas.findIndex(i => i.id === active.id)
+    const newIdx = ideas.findIndex(i => i.id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const next = arrayMove(ideas, oldIdx, newIdx)
+    const colId = ideas[oldIdx].column_id
+    setIdeas(next)
+    const colItems = next.filter(i => i.column_id === colId && !i.done)
+    const results = await Promise.all(colItems.map((i, idx) => supabase.from('show_ideas').update({ order_index: idx }).eq('id', i.id)))
+    if (results.some(r => r.error)) showToast('Reorder failed to save — check connection', true)
   }
 
-  const handleColumnDndEnd = (event: DragEndEvent) => {
+  const handleColumnDndEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    setColumns(prev => {
-      const oldIdx = prev.findIndex(c => c.id === active.id)
-      const newIdx = prev.findIndex(c => c.id === over.id)
-      const next = arrayMove(prev, oldIdx, newIdx)
-      Promise.all(next.map((c, i) => supabase.from('show_idea_columns').update({ order_index: i }).eq('id', c.id))).catch(() => {})
-      return next
-    })
+    const oldIdx = columns.findIndex(c => c.id === active.id)
+    const newIdx = columns.findIndex(c => c.id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const next = arrayMove(columns, oldIdx, newIdx)
+    setColumns(next)
+    const results = await Promise.all(next.map((c, i) => supabase.from('show_idea_columns').update({ order_index: i }).eq('id', c.id)))
+    if (results.some(r => r.error)) showToast('Reorder failed to save — check connection', true)
   }
 
   useEffect(() => {
@@ -149,7 +148,10 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             const day = d.getDay()
             const diff = d.getDate() - day + (day === 0 ? -6 : 1)
             const m = new Date(d); m.setDate(diff)
-            return m.toISOString().split('T')[0]
+            // Local-timezone date string — toISOString() is UTC and produced
+            // Sunday's date early on Monday mornings in UTC+ timezones,
+            // causing double-clears that deleted ideas.
+            return m.toLocaleDateString('en-CA')
           })()
           const weeklyDue = colList.filter((c: any) => c.mode === 'weekly' && c.last_cleared_week !== monday)
           let totalCleared = 0
@@ -211,22 +213,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           Promise.all([
             supabase.from('sections').select('*').eq('episode_id', latest.id).order('sort_order', { ascending: true }).order('id', { ascending: true }),
             supabase.from('section_content').select('*').eq('episode_id', latest.id)
-          ]).then(async ([{ data: secs }, { data: contentRows }]) => {
-            let loadedSections = secs || []
-            // Punt Pals: ensure Last Week's Betting always exists
-            if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
-              const missing = (["Last Week's Betting", 'Launching Towards the GF Challenge'] as string[]).filter(
-                name => !loadedSections.some((s: any) => s.name === name)
-              )
-              if (missing.length > 0) {
-                const maxOrder = Math.max(...loadedSections.map((s: any) => s.sort_order ?? 0), -1)
-                const { data: added } = await supabase.from('sections').insert(
-                  missing.map((name, i) => ({ episode_id: latest.id, name, icon: '📊', sort_order: maxOrder + 1 + i }))
-                ).select()
-                if (added) loadedSections = [...loadedSections, ...added]
-              }
-            }
-            setSections(loadedSections)
+          ]).then(([{ data: secs }, { data: contentRows }]) => {
+            setSections(secs || [])
             const map: Record<string, string> = {}
             contentRows?.forEach((r: any) => { map[`${r.section_name}-${r.role}`] = r.content })
             setContentMap(map)
@@ -244,11 +232,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   }
 
-  const formatDateShort = (dateStr: string) => {
-    if (!dateStr) return ''
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-  }
-
   const currentWeekRange = () => {
     const today = new Date()
     const day = today.getDay()
@@ -257,22 +240,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     const fri = new Date(mon)
     fri.setDate(mon.getDate() + 4)
     return `${mon.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} – ${fri.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}`
-  }
-
-  const unarchiveEpisode = async (episodeId: string) => {
-    const { error } = await supabase.from('episodes').update({ archived: false }).eq('id', episodeId)
-    if (error) { showToast('Failed to unarchive — check your connection', true); return }
-    setEpisodes(prev => prev.map(e => e.id === episodeId ? { ...e, archived: false } : e))
-  }
-
-  const deleteEpisode = async (episodeId: string, title: string) => {
-    if (!confirm(`Delete "${title || 'Untitled Episode'}"? This can't be undone.`)) return
-    await supabase.from('section_content').delete().eq('episode_id', episodeId)
-    await supabase.from('sections').delete().eq('episode_id', episodeId)
-    const { error } = await supabase.from('episodes').delete().eq('id', episodeId)
-    if (error) { showToast('Delete failed — check your connection', true); return }
-    setEpisodes(prev => prev.filter(e => e.id !== episodeId))
-    if (currentEp?.id === episodeId) setCurrentEp(null)
   }
 
   const uploadAvatar = async (slot: 'host1' | 'host2' | 'producer', file: File) => {
@@ -307,33 +274,53 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const addIdea = async (columnId: string) => {
     const text = (newIdeaTextByCol[columnId] || '').trim()
     if (!text) return
-    setNewIdeaTextByCol(prev => ({ ...prev, [columnId]: '' }))
     const order_index = ideas.filter(i => i.column_id === columnId && !i.done).length
     const { data, error } = await supabase.from('show_ideas').insert({ show_id: showId, column_id: columnId, text, done: false, order_index }).select().single()
     if (error) { showToast('Failed to add idea — check your connection', true); return }
+    // Only clear the input once the insert has succeeded, so failed adds keep the text
+    setNewIdeaTextByCol(prev => ({ ...prev, [columnId]: '' }))
     setIdeas(prev => [...prev, data])
   }
 
   const toggleIdea = async (id: string, done: boolean) => {
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, done } : i))
-    await supabase.from('show_ideas').update({ done }).eq('id', id)
+    const { error } = await supabase.from('show_ideas').update({ done }).eq('id', id)
+    if (error) {
+      setIdeas(prev => prev.map(i => i.id === id ? { ...i, done: !done } : i))
+      showToast("Couldn't save — try again", true)
+    }
   }
 
   const deleteIdea = async (id: string) => {
+    const removed = ideas.find(i => i.id === id)
     setIdeas(prev => prev.filter(i => i.id !== id))
-    await supabase.from('show_ideas').delete().eq('id', id)
+    const { error } = await supabase.from('show_ideas').delete().eq('id', id)
+    if (error) {
+      if (removed) setIdeas(prev => [...prev, removed])
+      showToast("Couldn't save — try again", true)
+    }
   }
 
   const saveIdeaUrl = async (id: string, raw: string) => {
     const url = raw.trim() ? (raw.trim().startsWith('http') ? raw.trim() : `https://${raw.trim()}`) : ''
+    const prevUrl = ideas.find(i => i.id === id)?.url
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, url } : i))
     setIdeaLinkOpen(prev => ({ ...prev, [id]: false }))
-    await supabase.from('show_ideas').update({ url: url || null }).eq('id', id)
+    const { error } = await supabase.from('show_ideas').update({ url: url || null }).eq('id', id)
+    if (error) {
+      setIdeas(prev => prev.map(i => i.id === id ? { ...i, url: prevUrl } : i))
+      showToast("Couldn't save — try again", true)
+    }
   }
 
   const saveIdeaNotes = async (id: string, notes: string) => {
+    const prevNotes = ideas.find(i => i.id === id)?.notes
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes } : i))
-    await supabase.from('show_ideas').update({ notes: notes || null }).eq('id', id)
+    const { error } = await supabase.from('show_ideas').update({ notes: notes || null }).eq('id', id)
+    if (error) {
+      setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes: prevNotes } : i))
+      showToast("Couldn't save — try again", true)
+    }
   }
 
   const getDomain = (url: string) => {
@@ -347,15 +334,33 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   }
 
   const deleteColumn = async (id: string) => {
+    const removedCol = columns.find(c => c.id === id)
+    const removedIdeas = ideas.filter(i => i.column_id === id)
     setColumns(prev => prev.filter(c => c.id !== id))
     setIdeas(prev => prev.filter(i => i.column_id !== id))
-    await supabase.from('show_idea_columns').delete().eq('id', id)
+    // Delete the column's ideas first so no orphan rows are left behind
+    const { error: ideasError } = await supabase.from('show_ideas').delete().eq('column_id', id)
+    if (ideasError) {
+      if (removedCol) setColumns(prev => [...prev, removedCol])
+      if (removedIdeas.length > 0) setIdeas(prev => [...prev, ...removedIdeas])
+      showToast("Couldn't save — try again", true)
+      return
+    }
+    const { error } = await supabase.from('show_idea_columns').delete().eq('id', id)
+    if (error) {
+      if (removedCol) setColumns(prev => [...prev, removedCol])
+      showToast("Couldn't save — try again", true)
+    }
   }
 
   const toggleColumnMode = async (id: string, current: string) => {
     const next = current === 'weekly' ? 'permanent' : 'weekly'
     setColumns(prev => prev.map(c => c.id === id ? { ...c, mode: next } : c))
-    await supabase.from('show_idea_columns').update({ mode: next }).eq('id', id)
+    const { error } = await supabase.from('show_idea_columns').update({ mode: next }).eq('id', id)
+    if (error) {
+      setColumns(prev => prev.map(c => c.id === id ? { ...c, mode: current } : c))
+      showToast("Couldn't save — try again", true)
+    }
   }
 
   const updateColumnTitle = (id: string, title: string) => {
@@ -363,7 +368,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   }
 
   const saveColumnTitle = async (id: string, title: string) => {
-    await supabase.from('show_idea_columns').update({ title }).eq('id', id)
+    const { error } = await supabase.from('show_idea_columns').update({ title }).eq('id', id)
+    if (error) showToast("Couldn't save — try again", true)
   }
 
   const today = new Date().toLocaleDateString('en-CA')
@@ -371,11 +377,6 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
 
   const completedSections = sections.filter(s => getSectionStatus(s.name) === 'ready').length
   const completionPct = sections.length > 0 ? Math.round((completedSections / sections.length) * 100) : 0
-
-  const filtered = episodes.filter(ep => {
-    const q = search.toLowerCase()
-    return !q || (ep.title || '').toLowerCase().includes(q) || formatDateShort(ep.episode_date).toLowerCase().includes(q)
-  })
 
   if (loading) return (
     <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center">

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 import Logo from '../../components/Logo'
 
@@ -10,15 +11,41 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
-  const [ready, setReady] = useState(false)
+  const [status, setStatus] = useState<'checking' | 'ready' | 'invalid'>('checking')
   const router = useRouter()
 
   useEffect(() => {
-    // Supabase puts the session in the URL hash after clicking the reset link
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true)
-      else setMessage('This reset link is invalid or has expired. Please request a new one.')
+    // Supabase puts the session in the URL hash after clicking the reset link,
+    // but exchanging it is async — a single getSession() on mount races it.
+    // Listen for the auth event, with getSession() as a fast path and a
+    // timeout that gives up if nothing arrives.
+    let done = false
+    const markReady = () => {
+      if (done) return
+      done = true
+      setStatus('ready')
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) markReady()
     })
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) markReady()
+    })
+
+    const timeout = setTimeout(() => {
+      if (!done) {
+        done = true
+        setStatus('invalid')
+        setMessage('This reset link is invalid or has expired. Please request a new one.')
+      }
+    }, 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   const handleReset = async () => {
@@ -26,13 +53,19 @@ export default function ResetPassword() {
     if (password !== confirm) { setMessage('Passwords don\'t match.'); setIsError(true); return }
     setLoading(true)
     setMessage('')
-    const { error } = await supabase.auth.updateUser({ password })
-    setLoading(false)
-    if (error) { setMessage(error.message); setIsError(true) }
-    else {
-      setMessage('Password updated! Redirecting…')
-      setIsError(false)
-      setTimeout(() => router.push('/dashboard'), 1500)
+    try {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) { setMessage(error.message); setIsError(true) }
+      else {
+        setMessage('Password updated! Redirecting…')
+        setIsError(false)
+        setTimeout(() => router.push('/dashboard'), 1500)
+      }
+    } catch (e: any) {
+      setMessage(e?.message || 'Something went wrong. Please try again.')
+      setIsError(true)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -43,7 +76,7 @@ export default function ResetPassword() {
         <h2 className="text-xl font-bold mb-1">Set a new password</h2>
         <p className="text-[#6b6b7a] text-sm mb-8">Choose a new password for your Showdeck account.</p>
 
-        {ready ? (
+        {status === 'ready' ? (
           <>
             <div className="mb-4">
               <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">New password</label>
@@ -80,15 +113,19 @@ export default function ResetPassword() {
               {loading ? 'Updating…' : 'UPDATE PASSWORD'}
             </button>
           </>
+        ) : status === 'invalid' ? (
+          <div className="rounded-xl px-4 py-3 text-sm bg-[#fef2f2] border border-red-200 text-red-700">
+            {message || 'This reset link is invalid or has expired. Please request a new one.'}
+          </div>
         ) : (
-          <div className={`rounded-xl px-4 py-3 text-sm ${isError || message ? 'bg-[#fef2f2] border border-red-200 text-red-700' : 'text-[#6b6b7a]'}`}>
-            {message || 'Verifying reset link…'}
+          <div className="rounded-xl px-4 py-3 text-sm text-[#6b6b7a]">
+            Verifying reset link…
           </div>
         )}
 
-        <a href="/" className="block text-center text-sm text-[#6b6b7a] hover:text-[#0d0d0f] mt-6 transition-colors">
+        <Link href="/" className="block text-center text-sm text-[#6b6b7a] hover:text-[#0d0d0f] mt-6 transition-colors">
           ← Back to sign in
-        </a>
+        </Link>
       </div>
     </main>
   )

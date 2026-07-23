@@ -24,6 +24,7 @@ export default function ProfileSetup() {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [avatarError, setAvatarError] = useState('')
   const fileInput = useRef<HTMLInputElement | null>(null)
   const router = useRouter()
 
@@ -35,15 +36,20 @@ export default function ProfileSetup() {
       const emailName = data.user.email?.split('@')[0].replace(/[._-]/g, ' ')
       if (emailName) setDisplayName(emailName.replace(/\b\w/g, c => c.toUpperCase()))
     })
-  }, [])
+  }, [router])
 
   const uploadAvatar = async (file: File) => {
     if (!user) return
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Image is too large — please choose a file under 5MB.')
+      return
+    }
+    setAvatarError('')
     setUploading(true)
     const ext = file.name.split('.').pop()
     const path = `profile-${user.id}.${ext}`
     const { error: uploadError } = await supabase.storage.from('show-logos').upload(path, file, { upsert: true })
-    if (uploadError) { alert('Upload failed: ' + uploadError.message); setUploading(false); return }
+    if (uploadError) { setAvatarError('Upload failed: ' + uploadError.message); setUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('show-logos').getPublicUrl(path)
     setAvatarUrl(publicUrl)
     setUploading(false)
@@ -90,8 +96,13 @@ export default function ProfileSetup() {
       avatar_url: avatarUrl,
     })
     if (saveError) { setError(saveError.message); setSaving(false); return }
-    await createSampleShow(user.id, displayName.trim())
-    window.location.href = '/dashboard'
+    // Only create the sample show for brand-new users with no shows at all —
+    // re-visiting this page must not create duplicate "Sample Podcast" rows.
+    const { data: existingShows } = await supabase.from('shows').select('id').eq('owner_id', user.id).limit(1)
+    if (!existingShows || existingShows.length === 0) {
+      await createSampleShow(user.id, displayName.trim())
+    }
+    router.push('/dashboard')
   }
 
   if (!user) return <div className="min-h-screen bg-[#f7f8fa]" />
@@ -137,8 +148,12 @@ export default function ProfileSetup() {
           {/* Avatar upload */}
           <div className="flex items-center gap-5 mb-8">
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload profile photo"
               className="relative w-20 h-20 rounded-full overflow-hidden flex-shrink-0 border-2 border-[#e2e4e8] bg-[#f7f8fa] flex items-center justify-center cursor-pointer hover:border-[#00e5a0] transition-colors group"
               onClick={() => fileInput.current?.click()}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.current?.click() } }}
             >
               {avatarUrl
                 ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -152,6 +167,7 @@ export default function ProfileSetup() {
             <div>
               <p className="text-sm font-semibold mb-0.5">Profile photo</p>
               <p className="text-xs text-[#6b6b7a]">Click to upload — optional but recommended</p>
+              {avatarError && <p className="text-[#ff5c3a] text-xs mt-1">{avatarError}</p>}
             </div>
           </div>
 

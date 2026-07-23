@@ -115,21 +115,12 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
   const [recurringSegments, setRecurringSegments] = useState<RecurringSegment[]>([])
   const [guestPicker, setGuestPicker]           = useState<{ hour: number; slotKey: string } | null>(null)
   const [guestSearch, setGuestSearch]           = useState('')
-  const saveTimers   = useRef<Record<string, any>>({})
+  const [loadError, setLoadError]               = useState<string | null>(null)
+  const saveTimers   = useRef<Record<string, { id: any; run: () => void }>>({})
   const toastTimer   = useRef<any>(null)
   const linkFocusRef = useRef<string | null>(null)
   const plansRef     = useRef<Record<string, PlanMap>>({})
   const loadedDatesRef = useRef<Set<string>>(new Set())
-
-  useEffect(() => { plansRef.current = plans }, [plans])
-
-  useEffect(() => {
-    loadDay(toISODate(addDays(getMondayOf(new Date()), selectedDay)))
-  }, [])
-
-  useEffect(() => {
-    loadDay(currentDate())
-  }, [monday, selectedDay])
 
   const currentDate = () => toISODate(addDays(monday, selectedDay))
 
@@ -146,11 +137,18 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
     if (loadedDatesRef.current.has(date)) return
     loadedDatesRef.current.add(date)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('radio_plans')
         .select('*')
         .eq('show_id', showId)
         .eq('plan_date', date)
+
+      if (error) {
+        // Allow retry, and never treat a failed load as an empty day
+        loadedDatesRef.current.delete(date)
+        setLoadError(date)
+        return
+      }
 
       if (data && data.length > 0) {
         const map: PlanMap = {}
@@ -161,11 +159,16 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       } else {
         // No saved plan — try template for this day of week
         const dayName = DOW_NAMES[new Date(date + 'T12:00:00').getDay()]
-        const { data: tmpl } = await supabase
+        const { data: tmpl, error: tmplError } = await supabase
           .from('radio_templates')
           .select('hour, slot_time, title, notes')
           .eq('show_id', showId)
           .eq('day_of_week', dayName)
+        if (tmplError) {
+          loadedDatesRef.current.delete(date)
+          setLoadError(date)
+          return
+        }
         const map: PlanMap = {}
         ;(tmpl || []).forEach((r: any) => {
           map[`${r.hour}-${r.slot_time}`] = { title: r.title || '', notes: r.notes || '', link: '' }
@@ -185,10 +188,41 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
           await supabase.from('radio_plans').upsert(rows, { onConflict: 'show_id,plan_date,hour,slot_key' })
         }
       }
+      setLoadError(prev => (prev === date ? null : prev))
     } catch {
-      setPlans(prev => ({ ...prev, [date]: {} }))
+      loadedDatesRef.current.delete(date)
+      setLoadError(date)
     }
   }
+
+  useEffect(() => { plansRef.current = plans }, [plans])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async data load; setState only runs after awaits resolve
+    loadDay(currentDate())
+  }, [monday, selectedDay])
+
+  // Flush pending debounced saves on unload/unmount so typed content isn't lost
+  useEffect(() => {
+    const flush = () => {
+      Object.values(saveTimers.current).forEach(entry => {
+        if (entry) { clearTimeout(entry.id); entry.run() }
+      })
+      saveTimers.current = {}
+    }
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (Object.keys(saveTimers.current).length > 0) {
+        flush()
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      flush()
+    }
+  }, [])
 
   const getSlot = (date: string, hour: number, slotKey: string): SlotData =>
     plans[date]?.[`${hour}-${slotKey}`] || { title: '', notes: '', link: '' }
@@ -201,8 +235,9 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       return { ...prev, [date]: dayMap }
     })
     const timerKey = `${date}-${hour}-${slotKey}-${field}`
-    clearTimeout(saveTimers.current[timerKey])
-    saveTimers.current[timerKey] = setTimeout(async () => {
+    if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey].id)
+    const run = async () => {
+      delete saveTimers.current[timerKey]
       setSaving(true)
       const slot = plansRef.current[date]?.[`${hour}-${slotKey}`] || { title: '', notes: '', link: '' }
       const updated = { ...slot, [field]: value }
@@ -218,7 +253,8 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       setSaving(false)
       if (error) { setSaveError(true); showToast('Save failed — check your connection', true) }
       else { setSaveError(false); showToast('Saved') }
-    }, 700)
+    }
+    saveTimers.current[timerKey] = { id: setTimeout(run, 700), run }
   }
 
   const handleSlotDragStart = (e: React.DragEvent, hour: number, slotKey: string) => {
@@ -238,6 +274,16 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       setDragSrc(null); setDragOver(null); return
     }
     const date = currentDate()
+    // Clear any pending debounced saves for the two affected slots so a stale
+    // pre-swap save can't overwrite the swap
+    const srcPrefix = `${date}-${dragSrc.hour}-${dragSrc.slotKey}-`
+    const dstPrefix = `${date}-${hour}-${slotKey}-`
+    Object.keys(saveTimers.current).forEach(k => {
+      if (k.startsWith(srcPrefix) || k.startsWith(dstPrefix)) {
+        clearTimeout(saveTimers.current[k].id)
+        delete saveTimers.current[k]
+      }
+    })
     const srcData = getSlot(date, dragSrc.hour, dragSrc.slotKey)
     const dstData = getSlot(date, hour, slotKey)
     setPlans(prev => {
@@ -327,7 +373,7 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
   const addSlotToLayout = async (type: SlotTemplate) => {
     const newSlot: SlotTemplate = {
       ...type,
-      slotKey: `custom-${Date.now()}`,
+      slotKey: `custom-${crypto.randomUUID()}`,
     }
     const updated = [...slotLayout, newSlot]
     setSlotLayout(updated)
@@ -390,11 +436,11 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
       doc.text(`${hour}AM`, colX(i) + colW / 2, mt + 1, { align: 'center' })
     })
 
-    let ys = [mt + 8, mt + 8, mt + 8]
+    const ys = [mt + 8, mt + 8, mt + 8]
     slotLayout.forEach(slot => {
       HOURS.forEach((hour, i) => {
         const x = colX(i)
-        let y = ys[i]
+        const y = ys[i]
         if (slot.isFixed) {
           doc.setFillColor(240, 240, 244)
           doc.rect(x, y, colW, 6, 'F')
@@ -449,6 +495,17 @@ export default function RadioPlannerPanel({ showId, show, initialDay }: Props) {
             : <span className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center text-black text-[9px] font-black">✓</span>
           }
           {toast.msg}
+        </div>
+      )}
+
+      {/* Load error banner */}
+      {loadError && (
+        <div className="px-4 sm:px-5 py-2.5 bg-red-600 text-white text-xs font-medium flex items-center justify-between gap-3">
+          <span>Couldn&apos;t load this day — check your connection</span>
+          <button
+            onClick={() => { const d = loadError; setLoadError(null); loadDay(d) }}
+            className="border border-white/50 rounded-md px-2.5 py-1 font-semibold hover:bg-white/15 transition-colors flex-shrink-0"
+          >Retry</button>
         </div>
       )}
 

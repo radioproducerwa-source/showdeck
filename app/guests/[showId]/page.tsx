@@ -1,27 +1,28 @@
 'use client'
 import { useEffect, useState, use, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import Toast, { useToast } from '../../../components/Toast'
+import { useShowAccess } from '../../../lib/useShowAccess'
 
 type Guest = {
   id: string
   name: string
-  title: string
-  phone: string
-  email: string
-  notes: string
+  title: string | null
+  phone: string | null
+  email: string | null
+  notes: string | null
 }
 
 const EMPTY_FORM = { name: '', title: '', phone: '', email: '', notes: '' }
 
 export default function GuestsPage({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
-  const [show, setShow] = useState<any>(null)
+  const access = useShowAccess(showId)
   const [guests, setGuests] = useState<Guest[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -31,26 +32,28 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
+
+  const show = access.status === 'ready' ? access.show : null
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/'); return }
-      Promise.all([
-        supabase.from('shows').select('id, name, show_type, owner_id').eq('id', showId).single(),
-        supabase.from('guests').select('*').eq('show_id', showId).order('name', { ascending: true }),
-      ]).then(async ([{ data: showData }, { data: guestData }]) => {
-        if (!showData) { router.push('/dashboard'); return }
-        if (showData.owner_id !== data.user!.id) {
-          const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', data.user!.id).maybeSingle()
-          if (!membership) { router.push('/dashboard'); return }
-        }
-        setShow(showData)
-        setGuests(guestData || [])
-        setLoading(false)
-      })
-    })
-  }, [])
+    if (access.status !== 'ready') return
+    let ignore = false
+    ;(async () => {
+      try {
+        const { data, error } = await supabase.from('guests').select('*')
+          .eq('show_id', showId)
+          .order('name', { ascending: true })
+        if (ignore) return
+        if (error) { setLoadError(error.message); return }
+        setGuests(data || [])
+      } catch (e: any) {
+        if (!ignore) setLoadError(e?.message || 'Failed to load guests')
+      } finally {
+        if (!ignore) setLoading(false)
+      }
+    })()
+    return () => { ignore = true }
+  }, [access.status, showId])
 
   const openAdd = () => {
     setAdding(true)
@@ -72,7 +75,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
       notes: form.notes.trim() || null,
     }).select().single()
     setSaving(false)
-    if (error) { showToast('Save failed'); return }
+    if (error) { showToast('Save failed', true); return }
     setGuests(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
     setAdding(false)
     setForm({ ...EMPTY_FORM })
@@ -89,24 +92,26 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
   const saveEdit = async (id: string) => {
     if (!editForm.name.trim()) return
     setSaving(true)
-    const { error } = await supabase.from('guests').update({
+    const updates = {
       name: editForm.name.trim(),
       title: editForm.title.trim() || null,
       phone: editForm.phone.trim() || null,
       email: editForm.email.trim() || null,
       notes: editForm.notes.trim() || null,
-    }).eq('id', id)
+    }
+    const { error } = await supabase.from('guests').update(updates).eq('id', id)
     setSaving(false)
-    if (error) { showToast('Save failed'); return }
+    if (error) { showToast('Save failed', true); return }
     setGuests(prev =>
-      prev.map(g => g.id === id ? { ...g, ...editForm } : g).sort((a, b) => a.name.localeCompare(b.name))
+      prev.map(g => g.id === id ? { ...g, ...updates } : g).sort((a, b) => a.name.localeCompare(b.name))
     )
     setEditingId(null)
     showToast('Guest updated')
   }
 
   const deleteGuest = async (id: string) => {
-    await supabase.from('guests').delete().eq('id', id)
+    const { error } = await supabase.from('guests').delete().eq('id', id)
+    if (error) { showToast('Delete failed — try again', true); return }
     setGuests(prev => prev.filter(g => g.id !== id))
     setDeleteConfirm(null)
     showToast('Guest removed')
@@ -120,7 +125,20 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
       (g.email || '').toLowerCase().includes(q)
   })
 
-  if (loading) return <div className="min-h-screen bg-[#f7f8fa]" />
+  if (access.status === 'error' || loadError) return (
+    <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center px-6">
+      <div className="bg-white border border-[#e2e4e8] rounded-2xl px-8 py-10 text-center max-w-sm w-full">
+        <p className="font-semibold text-[#0d0d0f] mb-1">Something went wrong</p>
+        <p className="text-sm text-[#6b6b7a] mb-5">{access.status === 'error' ? access.message : loadError}</p>
+        <button onClick={() => window.location.reload()}
+          className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
+          Retry
+        </button>
+      </div>
+    </div>
+  )
+
+  if (access.status === 'loading' || loading) return <div className="min-h-screen bg-[#f7f8fa]" />
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
@@ -240,7 +258,7 @@ export default function GuestsPage({ params }: { params: Promise<{ showId: strin
                         )}
                       </div>
                       {/* Actions */}
-                      <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 flex-shrink-0 opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                         <button
                           onClick={() => startEdit(guest)}
                           className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors"

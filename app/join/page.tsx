@@ -1,21 +1,23 @@
 'use client'
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 import Logo, { LogoIcon } from '../../components/Logo'
 
 type Status =
   | 'loading'
   | 'invalid'
+  | 'error'
   | 'already_accepted'
   | 'auth_required'
   | 'accepting'
   | 'done'
 
-function BrandPanel({ showName, role }: { showName?: string; role?: string }) {
-  const roleLabel = (r: string) =>
-    r === 'host1' ? 'Host 1' : r === 'host2' ? 'Host 2' : 'Producer'
+const roleLabel = (r: string) =>
+  r === 'host1' ? 'Host 1' : r === 'host2' ? 'Host 2' : 'Producer'
 
+function BrandPanel({ showName, role }: { showName?: string; role?: string }) {
   return (
     <div className="hidden lg:flex flex-col w-[460px] flex-shrink-0 bg-[#0d0d0f] relative overflow-hidden">
       <div
@@ -79,7 +81,7 @@ function JoinContent() {
   const token = searchParams.get('token')
   const router = useRouter()
 
-  const [status, setStatus] = useState<Status>('loading')
+  const [status, setStatus] = useState<Status>(token ? 'loading' : 'invalid')
   const [invite, setInvite] = useState<any>(null)
   const [showName, setShowName] = useState('')
   const [email, setEmail] = useState('')
@@ -91,15 +93,104 @@ function JoinContent() {
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendDone, setResendDone] = useState(false)
+  const [resendFailed, setResendFailed] = useState(false)
 
   // Prevent double-acceptance if onAuthStateChange fires while acceptance is in progress
   const acceptingRef = useRef(false)
+  // Redirect timer, cleared on unmount
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const roleLabel = (r: string) =>
-    r === 'host1' ? 'Host 1' : r === 'host2' ? 'Host 2' : 'Producer'
+  useEffect(() => () => {
+    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current)
+  }, [])
+
+  // Loads invite data for display purposes only (unauthenticated path).
+  // Uses the get_invite_by_token function — the invites table itself is not
+  // readable by clients.
+  const loadInviteForDisplay = async () => {
+    const { data, error } = await supabase.rpc('get_invite_by_token', { p_token: token })
+
+    if (error) { setStatus('error'); return }
+    const inv = data?.[0]
+    if (!inv || inv.expired) { setStatus('invalid'); return }
+    if (inv.accepted) { setStatus('already_accepted'); return }
+
+    setInvite(inv)
+    setShowName(inv.show_name || '')
+    setEmail(inv.email || '')
+    setStatus('auth_required')
+  }
+
+  // Called any time we know the user is authenticated — always fetches fresh invite state
+  const handleAuthenticatedUser = async (userId: string) => {
+    if (acceptingRef.current) return
+    acceptingRef.current = true
+
+    const { data, error } = await supabase.rpc('get_invite_by_token', { p_token: token })
+
+    if (error) { setStatus('error'); acceptingRef.current = false; return }
+    const inv = data?.[0]
+    if (!inv) { setStatus('invalid'); acceptingRef.current = false; return }
+
+    setInvite(inv)
+    setShowName(inv.show_name || '')
+
+    if (inv.accepted) {
+      // Previously accepted. If by this user, just go to the app (membership
+      // was created in the same transaction as acceptance).
+      if (inv.accepted_by_me) {
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle()
+        router.push(profile ? '/dashboard' : '/profile/setup')
+      } else {
+        setStatus('already_accepted')
+      }
+      acceptingRef.current = false
+      return
+    }
+    if (inv.expired) {
+      setStatus('invalid')
+      acceptingRef.current = false
+      return
+    }
+
+    await acceptInvite(userId)
+  }
+
+  const acceptInvite = async (userId: string) => {
+    setStatus('accepting')
+
+    // Membership creation + invite acceptance happen atomically inside the
+    // accept_invite database function.
+    const { error } = await supabase.rpc('accept_invite', { p_token: token })
+    if (error) {
+      const msg = error.message || ''
+      if (msg.includes('invite_expired') || msg.includes('invite_not_found')) {
+        setStatus('invalid')
+      } else if (msg.includes('invite_already_used')) {
+        setStatus('already_accepted')
+      } else {
+        setStatus('auth_required')
+        setAuthMessage('Something went wrong saving your access. Please try again.')
+      }
+      acceptingRef.current = false
+      return
+    }
+
+    setStatus('done')
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    redirectTimerRef.current = setTimeout(() => {
+      router.push(profile ? '/dashboard' : '/profile/setup')
+    }, 2200)
+  }
 
   useEffect(() => {
-    if (!token) { setStatus('invalid'); return }
+    if (!token) return
 
     // onAuthStateChange is the reliable entry point for both cases:
     //   INITIAL_SESSION — user was already logged in (or no session yet)
@@ -117,118 +208,8 @@ function JoinContent() {
     )
 
     return () => subscription.unsubscribe()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
-
-  // Loads invite data for display purposes only (unauthenticated path)
-  const loadInviteForDisplay = async () => {
-    const { data: inv } = await supabase
-      .from('show_invites')
-      .select('id, show_id, email, role, accepted, token, shows(name)')
-      .eq('token', token as string)
-      .single()
-
-    if (!inv) { setStatus('invalid'); return }
-    if (inv.accepted) { setStatus('already_accepted'); return }
-
-    setInvite(inv)
-    setShowName((inv.shows as any)?.name || '')
-    setEmail(inv.email || '')
-    setStatus('auth_required')
-  }
-
-  // Called any time we know the user is authenticated — always fetches fresh invite state
-  const handleAuthenticatedUser = async (userId: string) => {
-    if (acceptingRef.current) return
-    acceptingRef.current = true
-
-    const { data: inv } = await supabase
-      .from('show_invites')
-      .select('id, show_id, email, role, accepted, user_id, token, shows(name)')
-      .eq('token', token as string)
-      .single()
-
-    if (!inv) { setStatus('invalid'); acceptingRef.current = false; return }
-
-    setInvite(inv)
-    setShowName((inv.shows as any)?.name || '')
-
-    if (inv.accepted) {
-      // Invite was previously accepted. If it was by this user, ensure their membership
-      // exists (guards against a prior silent insert failure) then redirect.
-      if (inv.user_id === userId) {
-        await ensureMembership(inv, userId)
-        const { data: profile } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle()
-        router.push(profile ? '/dashboard' : '/profile/setup')
-      } else {
-        setStatus('already_accepted')
-      }
-      acceptingRef.current = false
-      return
-    }
-
-    await acceptInvite(inv, userId)
-  }
-
-  // Upserts the show_members row — safe to call multiple times
-  const ensureMembership = async (inv: any, userId: string) => {
-    const { data: existing } = await supabase
-      .from('show_members')
-      .select('id')
-      .eq('show_id', inv.show_id)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (!existing) {
-      await supabase.from('show_members').insert({
-        show_id: inv.show_id,
-        user_id: userId,
-        role: inv.role,
-      })
-    }
-  }
-
-  const acceptInvite = async (inv: any, userId: string) => {
-    setStatus('accepting')
-
-    // Insert membership first — only mark invite accepted if this succeeds
-    const { data: existing } = await supabase
-      .from('show_members')
-      .select('id')
-      .eq('show_id', inv.show_id)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (!existing) {
-      const { error: insertError } = await supabase.from('show_members').insert({
-        show_id: inv.show_id,
-        user_id: userId,
-        role: inv.role,
-      })
-      if (insertError) {
-        setStatus('auth_required')
-        setAuthMessage('Something went wrong saving your access. Please try again.')
-        acceptingRef.current = false
-        return
-      }
-    }
-
-    await supabase
-      .from('show_invites')
-      .update({ accepted: true, user_id: userId })
-      .eq('id', inv.id)
-
-    setStatus('done')
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', userId)
-      .maybeSingle()
-
-    setTimeout(() => {
-      router.push(profile ? '/dashboard' : '/profile/setup')
-    }, 2200)
-  }
 
   const handleAuth = async () => {
     setAuthLoading(true)
@@ -239,7 +220,7 @@ function JoinContent() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `https://showdeck.live/join?token=${token}` },
+        options: { emailRedirectTo: `${window.location.origin}/join?token=${token}` },
       })
       if (error) {
         // "User already registered" means they signed up before but didn't confirm —
@@ -282,12 +263,18 @@ function JoinContent() {
 
   const resendConfirmation = async () => {
     setResendLoading(true)
-    await supabase.auth.resend({
+    setResendFailed(false)
+    const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
-      options: { emailRedirectTo: `https://showdeck.live/join?token=${token}` },
+      options: { emailRedirectTo: `${window.location.origin}/join?token=${token}` },
     })
     setResendLoading(false)
+    if (error) {
+      setResendFailed(true)
+      setTimeout(() => setResendFailed(false), 4000)
+      return
+    }
     setResendDone(true)
     setTimeout(() => setResendDone(false), 4000)
   }
@@ -312,6 +299,34 @@ function JoinContent() {
     </main>
   )
 
+  // ── Unexpected error (network / query failure) ───────────────────
+
+  if (status === 'error') return (
+    <main className="min-h-screen flex">
+      <BrandPanel />
+      <StatusCard>
+        <div className="flex justify-center mb-6">
+          <Logo size={0.9} />
+        </div>
+        <div className="w-12 h-12 rounded-full bg-[#fef2f2] border border-red-100 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-bold text-[#0d0d0f] mb-2">Something went wrong</h2>
+        <p className="text-[#6b6b7a] text-sm mb-6">
+          We couldn&apos;t check your invite just now — please try again.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-block bg-[#0d0d0f] text-white font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#2a2a2e] transition-colors"
+        >
+          Try again
+        </button>
+      </StatusCard>
+    </main>
+  )
+
   // ── Invalid or already accepted ──────────────────────────────────
 
   if (status === 'invalid' || status === 'already_accepted') return (
@@ -330,12 +345,12 @@ function JoinContent() {
         <p className="text-[#6b6b7a] text-sm mb-6">
           This invite link has already been used or has expired.
         </p>
-        <a
+        <Link
           href="/"
           className="inline-block bg-[#0d0d0f] text-white font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#2a2a2e] transition-colors"
         >
           Go to Showdeck
-        </a>
+        </Link>
       </StatusCard>
     </main>
   )
@@ -458,7 +473,7 @@ function JoinContent() {
                     disabled={resendLoading || resendDone}
                     className="text-xs font-semibold text-[#00a870] hover:text-[#007a50] transition-colors disabled:opacity-60"
                   >
-                    {resendDone ? '✓ Sent again!' : resendLoading ? 'Sending…' : "Didn't receive it? Resend confirmation email"}
+                    {resendDone ? '✓ Sent again!' : resendFailed ? "Couldn't send — try again" : resendLoading ? 'Sending…' : "Didn't receive it? Resend confirmation email"}
                   </button>
                 )}
               </div>

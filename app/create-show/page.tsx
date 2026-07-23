@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { useAuthGuard } from '../../lib/useShowAccess'
 import Logo, { LogoIcon } from '../../components/Logo'
 
 const SHOW_TYPES = [
@@ -56,9 +57,9 @@ const SHOW_TYPES = [
 ]
 
 export default function CreateShow() {
-  const [user, setUser] = useState<any>(null)
+  const { user } = useAuthGuard()
   const [step, setStep] = useState<'type' | 'details'>('type')
-  const [showType, setShowType] = useState<'podcast' | 'radio' | null>(null)
+  const [showType, setShowType] = useState<string | null>(null)
   const [showName, setShowName] = useState('')
   const [host1, setHost1] = useState('')
   const [host2, setHost2] = useState('')
@@ -69,31 +70,30 @@ export default function CreateShow() {
   const [message, setMessage] = useState('')
   const router = useRouter()
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.push('/')
-      else setUser(data.user)
-    })
-  }, [])
-
   const handleCreate = async () => {
     if (!showName || !host1 || !host2) {
       setMessage('Please fill in show name and both names')
       return
     }
     setLoading(true)
-    const { error } = await supabase.from('shows').insert({
-      name: showName,
-      owner_id: user.id,
-      show_type: showType,
-      host1_name: host1,
-      host2_name: host2,
-      additional_hosts: JSON.stringify(extraHosts.filter(h => h.trim())),
-      has_producer: hasProducer,
-      producer_name: hasProducer ? producer : null,
-    })
-    if (error) { setMessage(error.message); setLoading(false) }
-    else window.location.href = '/dashboard'
+    try {
+      const { error } = await supabase.from('shows').insert({
+        name: showName,
+        owner_id: user.id,
+        show_type: showType,
+        host1_name: host1,
+        host2_name: host2,
+        additional_hosts: JSON.stringify(extraHosts.filter(h => h.trim())),
+        has_producer: hasProducer,
+        producer_name: hasProducer ? producer : null,
+      })
+      if (error) { setMessage(error.message); return }
+      router.push('/dashboard')
+    } catch (e: any) {
+      setMessage(e?.message || 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const isRadio = ['radio', 'breakfast_radio', 'drive', 'evening'].includes(showType || '')
@@ -157,7 +157,7 @@ export default function CreateShow() {
                 {SHOW_TYPES.map(type => (
                   <button
                     key={type.value}
-                    onClick={() => setShowType(type.value as 'podcast' | 'radio')}
+                    onClick={() => setShowType(type.value)}
                     className={`flex items-start gap-5 p-5 rounded-2xl border-2 text-left transition-all ${
                       showType === type.value
                         ? 'border-[#00e5a0] bg-[#f0fff8]'
@@ -244,12 +244,18 @@ export default function CreateShow() {
               )}
 
               <div className="mb-6">
-                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setHasProducer(!hasProducer)}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={hasProducer}
+                  className="flex items-center gap-3 cursor-pointer"
+                  onClick={() => setHasProducer(!hasProducer)}
+                >
                   <div className={`w-9 h-5 rounded-full relative transition-colors ${hasProducer ? 'bg-[#a78bfa]' : 'bg-[#e2e4e8]'}`}>
                     <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${hasProducer ? 'translate-x-4' : 'translate-x-0.5'}`} />
                   </div>
                   <span className="text-[#6b6b7a] text-sm">Include a Producer role</span>
-                </div>
+                </button>
                 {hasProducer && (
                   <input type="text" value={producer} onChange={e => setProducer(e.target.value)}
                     className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-4 py-3 mt-3 text-sm outline-none focus:border-[#a78bfa]"

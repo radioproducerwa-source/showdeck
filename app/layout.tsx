@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://showdeck.live"),
   title: "Showdeck — Plan every episode, together",
   description: "The collaborative show planning workspace for podcast and radio teams. Plan segments, manage runsheets, and keep your whole team in sync.",
   openGraph: {

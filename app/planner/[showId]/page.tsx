@@ -79,7 +79,6 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [episodeDate, setEpisodeDate] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const { toast, showToast } = useToast()
-  const [importing, setImporting] = useState<string | null>(null)
   const [importingBets, setImportingBets] = useState(false)
   const [importingGF, setImportingGF] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
@@ -93,16 +92,58 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [expandedRoles, setExpandedRoles] = useState<Set<string>>(new Set())
   const [savingTemplate, setSavingTemplate] = useState(false)
-  const saveTimers = useRef<any>({})
-  const titleTimer = useRef<any>(null)
+  const saveTimers = useRef<Record<string, { id: any; run: () => void }>>({})
+  const titleTimer = useRef<{ id: any; run: () => void } | null>(null)
+  const dirtyKeys = useRef<Set<string>>(new Set())
+  const inFlight = useRef(0)
+  const errorRef = useRef(false)
+  const saveStatusRef = useRef<SaveStatus>('saved')
   const router = useRouter()
+
+  const setStatus = (s: SaveStatus) => { saveStatusRef.current = s; setSaveStatus(s) }
+
+  const recomputeStatus = () => {
+    setStatus(
+      errorRef.current ? 'error'
+        : dirtyKeys.current.size > 0 ? 'unsaved'
+        : inFlight.current > 0 ? 'saving'
+        : 'saved'
+    )
+  }
+
+  const flushPendingSaves = () => {
+    Object.values(saveTimers.current).forEach(entry => {
+      if (entry) { clearTimeout(entry.id); entry.run() }
+    })
+    saveTimers.current = {}
+    if (titleTimer.current) {
+      const entry = titleTimer.current
+      titleTimer.current = null
+      clearTimeout(entry.id)
+      entry.run()
+    }
+  }
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  useEffect(() => { init() }, [])
+  // Flush pending debounced saves on unload/unmount so typed content isn't lost
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatusRef.current !== 'saved') {
+        flushPendingSaves()
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      flushPendingSaves()
+    }
+  }, [])
 
   useEffect(() => {
     if (sections.length > 0 && window.location.hash) {
@@ -111,13 +152,15 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     }
   }, [sections])
 
-  // Resize all visible textareas whenever content loads or a role panel is expanded
+  // Resize all visible textareas when content first loads or a role panel is expanded.
+  // The active textarea already self-resizes via onInput, so `content` is deliberately
+  // not a dependency (avoids re-measuring every textarea on every keystroke).
   useLayoutEffect(() => {
     document.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(el => {
       el.style.height = 'auto'
       el.style.height = el.scrollHeight + 'px'
     })
-  }, [content, expandedRoles])
+  }, [expandedRoles, sections.length])
 
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -159,7 +202,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       window.history.replaceState({}, '', `/planner/${showId}?episodeId=${newEp?.id}`)
     } else {
       const today = new Date().toLocaleDateString('en-CA')
-      let { data: episodes } = await supabase.from('episodes').select('*').eq('show_id', showId).eq('episode_date', today)
+      const { data: episodes } = await supabase.from('episodes').select('*').eq('show_id', showId).eq('episode_date', today)
       episode = episodes?.[0]
       if (!episode) {
         const { data: newEp } = await supabase.from('episodes').insert({ show_id: showId, title: '', episode_date: today }).select().single()
@@ -253,6 +296,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async data load; setState only runs after awaits resolve
+  useEffect(() => { init() }, [])
+
   const toggleCollapse = (name: string) => {
     setCollapsed(prev => {
       const next = new Set(prev)
@@ -318,7 +364,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const addSection = async () => {
     if (!newName.trim() || !episodeId) return
     setAddingSection('saving')
-    const { data } = await supabase.from('sections').insert({ episode_id: episodeId, name: newName.trim(), icon: newIcon }).select().single()
+    const { data } = await supabase.from('sections').insert({ episode_id: episodeId, name: newName.trim(), icon: newIcon, sort_order: sections.length }).select().single()
     if (data) {
       setSections(prev => [...prev, data])
       // auto-expand new section's roles
@@ -352,7 +398,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
     const newContent: any = {}
     prevContent.forEach((r: any) => { newContent[`${r.section_name}-${r.role}`] = r.content })
-    setContent(newContent)
+    setContent((prev: any) => ({ ...prev, ...newContent }))
     setDuplicating(false)
     showToast('Duplicated from last week!')
   }
@@ -383,6 +429,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (!parts.length) continue
       updateContent("Last Week's Betting", role, parts.join('\n\n'))
     }
+    flushPendingSaves()
     setImportingBets(false)
     showToast("Last week's bets imported!")
   }
@@ -408,54 +455,76 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       if (!row?.content) continue
       updateContent('Launching Towards the GF Challenge', role, row.content)
     }
+    flushPendingSaves()
     setImportingGF(false)
     showToast('GF progress imported!')
   }
 
   const archiveEpisode = async () => {
     if (!episodeId) return
+    flushPendingSaves()
     setArchiving(true)
     const { error } = await supabase.from('episodes').update({ archived: true }).eq('id', episodeId)
     setArchiving(false)
     if (error) {
-      showToast('Archive failed — make sure the DB migration has been run')
+      showToast('Archive failed — make sure the DB migration has been run', true)
       return
     }
     showToast('Episode archived')
     setTimeout(() => router.push(`/shows/${showId}`), 800)
   }
 
+  const TITLE_KEY = '__title__'
+
   const updateTitle = (value: string) => {
-    setEpTitle(value); setSaveStatus('unsaved')
-    clearTimeout(titleTimer.current)
-    titleTimer.current = setTimeout(async () => {
-      if (!episodeId) return
-      setSaveStatus('saving')
-      const { error } = await supabase.from('episodes').update({ title: value }).eq('id', episodeId)
-      setSaveStatus(error ? 'error' : 'saved')
-      if (error) showToast('Save failed — check your connection', true)
-      else showToast('Saved')
-    }, 800)
+    setEpTitle(value)
+    dirtyKeys.current.add(TITLE_KEY)
+    setStatus('unsaved')
+    if (titleTimer.current) clearTimeout(titleTimer.current.id)
+    const run = () => { titleTimer.current = null; saveTitle(value) }
+    titleTimer.current = { id: setTimeout(run, 800), run }
+  }
+
+  const saveTitle = async (value: string) => {
+    if (!episodeId) return
+    dirtyKeys.current.delete(TITLE_KEY)
+    inFlight.current++
+    setStatus('saving')
+    const { error } = await supabase.from('episodes').update({ title: value }).eq('id', episodeId)
+    inFlight.current--
+    const wasError = errorRef.current
+    errorRef.current = !!error
+    recomputeStatus()
+    if (error) showToast('Save failed — check your connection', true)
+    else if (wasError) showToast('Saved')
   }
 
   const updateContent = (sectionName: string, role: string, value: string) => {
     setContent((prev: any) => ({ ...prev, [`${sectionName}-${role}`]: value }))
-    setSaveStatus('unsaved')
     const key = `${sectionName}-${role}`
-    clearTimeout(saveTimers.current[key])
-    saveTimers.current[key] = setTimeout(() => saveContent(sectionName, role, value), 800)
+    dirtyKeys.current.add(key)
+    setStatus('unsaved')
+    if (saveTimers.current[key]) clearTimeout(saveTimers.current[key].id)
+    const run = () => { delete saveTimers.current[key]; saveContent(sectionName, role, value) }
+    saveTimers.current[key] = { id: setTimeout(run, 800), run }
   }
 
   const saveContent = async (sectionName: string, role: string, value: string) => {
     if (!episodeId) return
-    setSaveStatus('saving')
+    const key = `${sectionName}-${role}`
+    dirtyKeys.current.delete(key)
+    inFlight.current++
+    setStatus('saving')
     const { error } = await supabase.from('section_content').upsert(
       { episode_id: episodeId, section_name: sectionName, role, content: value },
       { onConflict: 'episode_id,section_name,role' }
     )
-    setSaveStatus(error ? 'error' : 'saved')
+    inFlight.current--
+    const wasError = errorRef.current
+    errorRef.current = !!error
+    recomputeStatus()
     if (error) showToast('Save failed — check your connection', true)
-    else showToast('Saved')
+    else if (wasError) showToast('Saved')
   }
 
   const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
@@ -492,16 +561,16 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   }
 
   // ── dnd-kit drag end ──
-  const handleDndEnd = (event: DragEndEvent) => {
+  const handleDndEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    setSections(prev => {
-      const oldIdx = prev.findIndex(s => s.id === active.id)
-      const newIdx = prev.findIndex(s => s.id === over.id)
-      const next = arrayMove(prev, oldIdx, newIdx)
-      Promise.all(next.map((s, i) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id))).catch(() => {})
-      return next
-    })
+    const oldIdx = sections.findIndex(s => s.id === active.id)
+    const newIdx = sections.findIndex(s => s.id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const next = arrayMove(sections, oldIdx, newIdx)
+    setSections(next)
+    const results = await Promise.all(next.map((s, i) => supabase.from('sections').update({ sort_order: i }).eq('id', s.id)))
+    if (results.some(r => r.error)) showToast('Reorder failed to save — check connection', true)
   }
 
   // ── Save as Template ──

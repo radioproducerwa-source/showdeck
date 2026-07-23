@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { LogoIcon } from '../components/Logo'
 
 export default function NotFound() {
@@ -13,16 +14,16 @@ export default function NotFound() {
         <p className="text-white/50 text-sm leading-relaxed mb-10">
           This page doesn't exist or you don't have access to it.
         </p>
-        <a
+        <Link
           href="/dashboard"
           className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-8 py-3 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors"
         >
           GO TO DASHBOARD
-        </a>
+        </Link>
         <div className="mt-4">
-          <a href="/" className="text-white/30 hover:text-white/60 text-sm transition-colors">
+          <Link href="/" className="text-white/30 hover:text-white/60 text-sm transition-colors">
             or sign in
-          </a>
+          </Link>
         </div>
       </div>
     </main>

@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 
 export default function Terms() {
   return (
@@ -72,8 +73,8 @@ export default function Terms() {
         </section>
 
         <div className="mt-10 pt-6 border-t border-[#e2e4e8] flex gap-4 text-xs text-[#9a9aaa]">
-          <a href="/privacy" className="hover:text-[#00a870] transition-colors">Privacy Policy</a>
-          <a href="/" className="hover:text-[#00a870] transition-colors">Back to Showdeck</a>
+          <Link href="/privacy" className="hover:text-[#00a870] transition-colors">Privacy Policy</Link>
+          <Link href="/" className="hover:text-[#00a870] transition-colors">Back to Showdeck</Link>
         </div>
       </div>
     </main>

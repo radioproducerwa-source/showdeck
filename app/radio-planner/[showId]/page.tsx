@@ -1,10 +1,9 @@
 'use client'
-import { useEffect, useState, use } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
+import { useState, use } from 'react'
 import Logo from '../../../components/Logo'
 import RadioPlannerPanel from '../../../components/RadioPlannerPanel'
 import GlobalSearch from '../../../components/GlobalSearch'
+import { useShowAccess } from '../../../lib/useShowAccess'
 
 function getInitialDayFromUrl(): number | undefined {
   if (typeof window === 'undefined') return undefined
@@ -16,27 +15,27 @@ function getInitialDayFromUrl(): number | undefined {
 
 export default function RadioPlannerPage({ params }: { params: Promise<{ showId: string }> }) {
   const { showId } = use(params)
-  const [show, setShow] = useState<any>(null)
+  const access = useShowAccess(showId)
   const [initialDay] = useState<number | undefined>(getInitialDayFromUrl)
-  const router = useRouter()
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/'); return }
-      supabase.from('shows').select('*').eq('id', showId).single().then(async ({ data: showData }) => {
-        if (!showData) { router.push('/dashboard'); return }
-        if (showData.owner_id !== data.user!.id) {
-          const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', data.user!.id).maybeSingle()
-          if (!membership) { router.push('/dashboard'); return }
-        }
-        setShow(showData)
-      })
-    })
-  }, [])
-
-  if (!show) return (
+  if (access.status === 'loading') return (
     <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center text-[#6b6b7a]">Loading…</div>
   )
+
+  if (access.status === 'error') return (
+    <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center px-6">
+      <div className="bg-white border border-[#e2e4e8] rounded-2xl px-8 py-10 text-center max-w-sm w-full">
+        <p className="font-semibold text-[#0d0d0f] mb-1">Something went wrong</p>
+        <p className="text-sm text-[#6b6b7a] mb-5">{access.message}</p>
+        <button onClick={() => window.location.reload()}
+          className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
+          Retry
+        </button>
+      </div>
+    </div>
+  )
+
+  const { show } = access
 
   return (
     <main className="min-h-screen bg-[#f7f8fa]">

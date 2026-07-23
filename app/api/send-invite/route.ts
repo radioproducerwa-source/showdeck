@@ -1,7 +1,31 @@
 import { Resend } from 'resend'
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Best-effort per-instance rate limit (serverless instances are ephemeral,
+// but this still blunts abuse from a single warm instance).
+const sendLog = new Map<string, number[]>()
+const RATE_LIMIT = 10 // sends per hour per user
+function rateLimited(userId: string): boolean {
+  const now = Date.now()
+  const windowStart = now - 60 * 60 * 1000
+  const recent = (sendLog.get(userId) || []).filter(t => t > windowStart)
+  if (recent.length >= RATE_LIMIT) return true
+  recent.push(now)
+  sendLog.set(userId, recent)
+  return false
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function roleLabel(role: string) {
   return role === 'host1' ? 'Host 1' : role === 'host2' ? 'Host 2' : 'Producer'
@@ -129,25 +153,77 @@ export async function POST(req: NextRequest) {
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: 'Email not configured' }, { status: 503 })
   }
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
-  const { to, showName, role, inviteLink, inviterName } = await req.json()
-
-  if (!to || !showName || !role || !inviteLink) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
   }
 
+  // Caller must be signed in — their access token comes in the Authorization header.
+  const authHeader = req.headers.get('authorization') || ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
+  if (!token) {
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+  }
+
+  // A user-scoped client: every query below runs under the caller's RLS.
+  const supabase = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const { data: { user }, error: userErr } = await supabase.auth.getUser(token)
+  if (userErr || !user) {
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 })
+  }
+
+  if (rateLimited(user.id)) {
+    return NextResponse.json({ error: 'Too many invites — try again later' }, { status: 429 })
+  }
+
+  const body = await req.json().catch(() => null)
+  const inviteId = body?.inviteId
+  if (!inviteId || typeof inviteId !== 'string') {
+    return NextResponse.json({ error: 'Missing inviteId' }, { status: 400 })
+  }
+
+  // Load the invite under the caller's RLS, then verify they own the show.
+  const { data: invite, error: inviteErr } = await supabase
+    .from('show_invites').select('*').eq('id', inviteId).maybeSingle()
+  if (inviteErr || !invite) {
+    return NextResponse.json({ error: 'Invite not found' }, { status: 404 })
+  }
+  const { data: show, error: showErr } = await supabase
+    .from('shows').select('id, name, owner_id').eq('id', invite.show_id).maybeSingle()
+  if (showErr || !show || show.owner_id !== user.id) {
+    return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+  }
+  if (!EMAIL_RE.test(invite.email || '')) {
+    return NextResponse.json({ error: 'Invite has an invalid email address' }, { status: 400 })
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles').select('display_name').eq('id', user.id).maybeSingle()
+  const inviterName = profile?.display_name || user.email || undefined
+
+  // Link is built server-side from the invite record — never trusted from the client.
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://showdeck.live'
+  const inviteLink = `${origin}/join?token=${encodeURIComponent(invite.token)}`
+
   const from = process.env.RESEND_FROM || 'Showdeck <onboarding@resend.dev>'
+  const safeShowName = escapeHtml(show.name || 'a show')
+  const safeInviter = inviterName ? escapeHtml(inviterName) : undefined
 
   const { error } = await resend.emails.send({
     from,
-    to,
-    subject: `You've been invited to ${showName} on Showdeck`,
-    html: buildEmail(showName, role, inviteLink, inviterName),
+    to: invite.email,
+    subject: `You've been invited to ${show.name} on Showdeck`,
+    html: buildEmail(safeShowName, invite.role, inviteLink, safeInviter),
   })
 
   if (error) {
     console.error('Resend error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to send email' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
