@@ -6,6 +6,7 @@ import { fetchAccessibleShows } from '../../lib/shows'
 import { useAuthGuard } from '../../lib/useShowAccess'
 import Logo from '../../components/Logo'
 import GlobalSearch from '../../components/GlobalSearch'
+import { IconMic, IconRadio, IconClipboard, IconLightbulb, IconArrowRight, IconPlus, IconSearch, IconX, IconLogOut } from '../../components/icons'
 
 export default function Dashboard() {
   const { user, profile } = useAuthGuard({ requireProfile: true })
@@ -112,7 +113,7 @@ export default function Dashboard() {
           <div className="hidden sm:block w-px h-5 bg-[#e2e4e8]" />
           <button onClick={signOut} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 sm:px-4 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors">
             <span className="hidden sm:inline">Sign out</span>
-            <span className="sm:hidden">↩</span>
+            <span className="sm:hidden flex items-center"><IconLogOut size={14} /></span>
           </button>
         </div>
       </header>
@@ -150,8 +151,8 @@ export default function Dashboard() {
       ) : shows.length === 0 ? (
         <div className="max-w-md mx-auto mt-16 px-6">
           <div className="text-center mb-10">
-            <div className="w-16 h-16 rounded-2xl bg-[#00e5a0]/10 border border-[#00e5a0]/20 flex items-center justify-center mx-auto mb-5">
-              <span className="text-2xl">🎙️</span>
+            <div className="w-16 h-16 rounded-2xl bg-[#00e5a0]/10 border border-[#00e5a0]/20 flex items-center justify-center mx-auto mb-5 text-[#00a870]">
+              <IconMic size={28} />
             </div>
             <h2 className="text-2xl font-bold mb-2">Welcome to Showdeck{profile?.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''}</h2>
             <p className="text-[#6b6b7a] text-sm leading-relaxed">Your show planning workspace. Create a show, plan your segments, and go to air with everything sorted.</p>
@@ -173,20 +174,20 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <a href="/create-show" className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3.5 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors flex items-center justify-center gap-2">
-            Create Your First Show →
+          <a href="/create-show" className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-3.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex items-center justify-center gap-2">
+            Create your first show <IconArrowRight size={14} />
           </a>
         </div>
       ) : (
         <div className="max-w-5xl mx-auto px-6 py-10">
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-xs font-semibold text-[#6b6b7a] uppercase tracking-widest">Your Shows</h1>
-            <a href="/create-show" className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">+ New Show</a>
+            <a href="/create-show" className="bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex items-center gap-1.5"><IconPlus size={14} /> New show</a>
           </div>
 
           {/* Search */}
           <div className="mb-6 relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] text-sm">🔍</span>
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] flex items-center"><IconSearch size={14} /></span>
             <input
               type="text"
               value={search}
@@ -195,7 +196,7 @@ export default function Dashboard() {
               className="w-full bg-white border border-[#e2e4e8] rounded-xl pl-9 pr-4 py-2.5 text-sm text-[#0d0d0f] outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a] text-lg leading-none">×</button>
+              <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a] flex items-center"><IconX size={14} /></button>
             )}
           </div>
 
@@ -207,8 +208,8 @@ export default function Dashboard() {
                 <a
                   key={show.id}
                   href={`/shows/${show.id}`}
-                  className="group block rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white
-                    hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(0,0,0,0.10)] hover:border-[#00e5a0]
+                  className="group block rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white shadow-[0_1px_2px_rgba(13,13,15,0.04)]
+                    hover:-translate-y-1 hover:shadow-[0_4px_16px_rgba(13,13,15,0.08)] hover:border-[#00e5a0]
                     transition-all duration-200 ease-out"
                 >
                   {/* Artwork */}
@@ -225,11 +226,11 @@ export default function Dashboard() {
                     {/* Type badge */}
                     <div className="absolute top-3 right-3">
                       <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-sm text-white">
-                        {show.show_type === 'radio' ? '📻 Radio'
-                          : show.show_type === 'breakfast_radio' ? '🌅 Breakfast'
-                          : show.show_type === 'drive' ? '🚗 Drive'
-                          : show.show_type === 'evening' ? '🌙 Evening'
-                          : '🎙️ Podcast'}
+                        {show.show_type === 'radio' ? 'Radio'
+                          : show.show_type === 'breakfast_radio' ? 'Breakfast'
+                          : show.show_type === 'drive' ? 'Drive'
+                          : show.show_type === 'evening' ? 'Evening'
+                          : 'Podcast'}
                       </span>
                     </div>
                     {/* Episode count badge */}
@@ -264,20 +265,20 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
             <div className="bg-[#0d0d0f] px-8 pt-8 pb-6 text-center relative">
-              <div className="w-14 h-14 rounded-2xl bg-[#00e5a0]/10 border border-[#00e5a0]/20 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🎙️</span>
+              <div className="w-14 h-14 rounded-2xl bg-[#00e5a0]/10 border border-[#00e5a0]/20 flex items-center justify-center mx-auto mb-4 text-[#00e5a0]">
+                <IconMic size={24} />
               </div>
               <h2 className="text-white text-2xl font-bold mb-2">Welcome to Showdeck</h2>
               <p className="text-white/50 text-sm leading-relaxed">Your all-in-one workspace for planning radio and podcast shows — from episode ideas to live runsheets.</p>
             </div>
             <div className="px-8 py-6 space-y-4">
               {[
-                { icon: '📋', title: 'Plan every episode', desc: 'Write your segments section by section, for each host and producer.' },
-                { icon: '📻', title: 'Radio runsheets', desc: 'Timed slots for your broadcast week, ready to go on air.' },
-                { icon: '💡', title: 'Ideas Board', desc: 'Capture show ideas and topics in columns — like a whiteboard for your team.' },
-              ].map(({ icon, title, desc }) => (
+                { Icon: IconClipboard, title: 'Plan every episode', desc: 'Write your segments section by section, for each host and producer.' },
+                { Icon: IconRadio, title: 'Radio runsheets', desc: 'Timed slots for your broadcast week, ready to go on air.' },
+                { Icon: IconLightbulb, title: 'Ideas Board', desc: 'Capture show ideas and topics in columns — like a whiteboard for your team.' },
+              ].map(({ Icon, title, desc }) => (
                 <div key={title} className="flex items-start gap-4">
-                  <div className="w-9 h-9 rounded-xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-lg flex-shrink-0">{icon}</div>
+                  <div className="w-8 h-8 rounded-lg bg-[#00e5a0]/10 text-[#00a870] flex items-center justify-center flex-shrink-0"><Icon size={16} /></div>
                   <div>
                     <p className="font-semibold text-sm text-[#0d0d0f]">{title}</p>
                     <p className="text-xs text-[#6b6b7a] mt-0.5">{desc}</p>
@@ -288,9 +289,9 @@ export default function Dashboard() {
             <div className="px-8 pb-8">
               <button
                 onClick={dismissWelcome}
-                className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-3.5 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors"
+                className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-3.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
               >
-                Let's Go →
+                Let's go <IconArrowRight size={14} />
               </button>
             </div>
           </div>

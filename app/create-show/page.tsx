@@ -4,12 +4,13 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useAuthGuard } from '../../lib/useShowAccess'
 import Logo, { LogoIcon } from '../../components/Logo'
+import { IconMic, IconRadio, IconSparkles, IconArrowLeft, IconArrowRight, IconPlus, IconX, Spinner } from '../../components/icons'
 
 const SHOW_TYPES = [
   {
     value: 'podcast',
     label: 'Podcast',
-    icon: '🎙️',
+    Icon: IconMic,
     description: 'Flexible episode planning for podcast teams',
     color: '#00e5a0',
     features: ['Host-led segments', 'Episode archive', 'Export runsheets'],
@@ -17,7 +18,7 @@ const SHOW_TYPES = [
   {
     value: 'breakfast_radio',
     label: 'Breakfast Radio',
-    icon: '🌅',
+    Icon: IconRadio,
     description: 'Timed runsheet for breakfast drive shows',
     color: '#fbbf24',
     features: ['Timed radio runsheet', '6AM / 7AM / 8AM columns', 'Week-by-week planning'],
@@ -25,7 +26,7 @@ const SHOW_TYPES = [
   {
     value: 'drive',
     label: 'Drive Show',
-    icon: '🚗',
+    Icon: IconRadio,
     description: 'Afternoon drive show planning',
     color: '#f97316',
     features: ['Timed broadcast segments', 'News, traffic, competitions', 'Live runsheet format'],
@@ -33,7 +34,7 @@ const SHOW_TYPES = [
   {
     value: 'evening',
     label: 'Evening Show',
-    icon: '🌙',
+    Icon: IconRadio,
     description: 'Evening and overnight broadcast planning',
     color: '#818cf8',
     features: ['Timed segment planner', 'Interview & music slots', 'Export runsheets'],
@@ -41,7 +42,7 @@ const SHOW_TYPES = [
   {
     value: 'radio',
     label: 'Radio (Other)',
-    icon: '📻',
+    Icon: IconRadio,
     description: 'General on-air broadcast planning',
     color: '#a78bfa',
     features: ['Broadcast segments', 'News, sport, weather & more', 'Live runsheet format'],
@@ -49,7 +50,7 @@ const SHOW_TYPES = [
   {
     value: 'other',
     label: 'Other',
-    icon: '🎚️',
+    Icon: IconSparkles,
     description: 'Something different — we\'ll keep it flexible',
     color: '#94a3b8',
     features: ['Custom segments', 'Episode archive', 'Export runsheets'],
@@ -118,7 +119,7 @@ export default function CreateShow() {
         <div className="mt-auto">
           {leftPanelContent ? (
             <>
-              <div className="text-5xl mb-5">{leftPanelContent.icon}</div>
+              <div className="mb-5"><leftPanelContent.Icon size={40} style={{ color: leftPanelContent.color }} /></div>
               <h2 className="text-white text-4xl font-bold leading-tight mb-4">{leftPanelContent.label}</h2>
               <p className="text-white/50 text-sm leading-relaxed mb-10">{leftPanelContent.description}</p>
               <div className="flex flex-col gap-4">
@@ -164,7 +165,13 @@ export default function CreateShow() {
                         : 'border-[#e2e4e8] bg-white hover:border-[#c8cad0]'
                     }`}
                   >
-                    <span className="text-4xl leading-none flex-shrink-0 mt-0.5">{type.icon}</span>
+                    <div className={`w-11 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
+                      showType === type.value
+                        ? 'bg-[#00e5a0]/10 border-[#00e5a0]/30 text-[#00a870]'
+                        : 'bg-[#f7f8fa] border-[#e2e4e8] text-[#6b6b7a]'
+                    }`}>
+                      <type.Icon size={22} />
+                    </div>
                     <div>
                       <div className="font-bold text-base mb-1">{type.label}</div>
                       <div className="text-[#6b6b7a] text-sm leading-snug">{type.description}</div>
@@ -180,16 +187,19 @@ export default function CreateShow() {
               <button
                 onClick={() => setStep('details')}
                 disabled={!showType}
-                className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-sm tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-40"
+                className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-4 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               >
-                CONTINUE →
+                Continue <IconArrowRight size={14} />
               </button>
             </>
           ) : (
             <>
               <div className="flex items-center gap-3 mb-6">
-                <button onClick={() => setStep('type')} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">← Back</button>
-                <span className="text-2xl">{SHOW_TYPES.find(t => t.value === showType)?.icon}</span>
+                <button onClick={() => setStep('type')} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors flex items-center gap-1"><IconArrowLeft size={14} /> Back</button>
+                {(() => {
+                  const t = SHOW_TYPES.find(t => t.value === showType)
+                  return t ? <t.Icon size={20} className="text-[#6b6b7a]" /> : null
+                })()}
                 <h2 className="text-xl font-bold">{SHOW_TYPES.find(t => t.value === showType)?.label}</h2>
               </div>
 
@@ -229,16 +239,16 @@ export default function CreateShow() {
                       </div>
                       <button
                         onClick={() => setExtraHosts(prev => prev.filter((_, j) => j !== i))}
-                        className="text-[#c8cad0] hover:text-[#ff5c3a] text-xl leading-none mt-6 flex-shrink-0 transition-colors"
-                        title="Remove">×</button>
+                        className="text-[#c8cad0] hover:text-[#ff5c3a] mt-6 flex-shrink-0 transition-colors"
+                        title="Remove"><IconX size={16} /></button>
                     </div>
                   ))}
                   <button
                     type="button"
                     onClick={() => setExtraHosts(prev => [...prev, ''])}
-                    className="text-[#6b6b7a] text-sm hover:text-[#00a870] transition-colors mt-1"
+                    className="text-[#6b6b7a] text-sm hover:text-[#00a870] transition-colors mt-1 flex items-center gap-1.5"
                   >
-                    + Add another presenter
+                    <IconPlus size={13} /> Add another presenter
                   </button>
                 </div>
               )}
@@ -264,8 +274,8 @@ export default function CreateShow() {
               </div>
               {message && <p className="text-[#ff5c3a] text-sm mb-4">{message}</p>}
               <button onClick={handleCreate} disabled={loading}
-                className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-lg tracking-widest hover:bg-[#00ffc0] transition-colors disabled:opacity-60">
-                {loading ? 'Creating...' : 'CREATE SHOW'}
+                className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-4 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading ? <><Spinner size={16} /> Creating…</> : 'Create show'}
               </button>
             </>
           )}

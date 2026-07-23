@@ -6,6 +6,11 @@ import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import Toast, { useToast } from '../../../components/Toast'
 import {
+  IconMic, IconClipboard, IconLightbulb, IconArchive, IconRadio, IconUsers,
+  IconArrowLeft, IconArrowRight, IconGrip, IconX, IconCheck, IconPlus,
+  IconRefresh, IconLink, IconSearch, IconPencil, Spinner, PageLoader,
+} from '../../../components/icons'
+import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
@@ -378,11 +383,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
   const completedSections = sections.filter(s => getSectionStatus(s.name) === 'ready').length
   const completionPct = sections.length > 0 ? Math.round((completedSections / sections.length) * 100) : 0
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#f7f8fa] flex items-center justify-center">
-      <div className="text-[#6b6b7a]">Loading...</div>
-    </div>
-  )
+  if (loading) return <PageLoader />
 
   const isRadio = ['radio', 'breakfast_radio', 'drive', 'evening'].includes(show?.show_type)
   const epLabel = isRadio ? 'Broadcast' : 'Episode'
@@ -402,7 +403,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       {/* Nav */}
       <header className="bg-white border-b border-[#e2e4e8] px-4 sm:px-8 h-14 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <a href="/dashboard" className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors whitespace-nowrap">← <span className="hidden sm:inline">Dashboard</span></a>
+          <a href="/dashboard" className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors whitespace-nowrap flex items-center gap-1"><IconArrowLeft size={14} /> <span className="hidden sm:inline">Dashboard</span></a>
           <span className="text-[#e2e4e8]">|</span>
           <Logo size={0.65} />
         </div>
@@ -411,8 +412,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             <GlobalSearch />
             {isOwner && <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
             {!isRadio && (
-              <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-lg px-3 sm:px-4 py-1.5 text-sm hover:bg-[#00ffc0] transition-colors whitespace-nowrap">
-                + <span className="hidden sm:inline">New {epLabel}</span><span className="sm:hidden">New</span>
+              <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-semibold rounded-lg px-3 sm:px-4 py-1.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all whitespace-nowrap flex items-center gap-1.5">
+                <IconPlus size={14} /> <span className="hidden sm:inline">New {epLabel.toLowerCase()}</span><span className="sm:hidden">New</span>
               </a>
             )}
           </div>
@@ -443,11 +444,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex-shrink-0 ${
                     isRadio ? 'bg-[#a78bfa]/15 text-[#7c3aed]' : 'bg-[#00e5a0]/15 text-[#00a870]'
                   }`}>
-                    {show?.show_type === 'breakfast_radio' ? '🌅 Breakfast'
-                      : show?.show_type === 'drive' ? '🚗 Drive'
-                      : show?.show_type === 'evening' ? '🌙 Evening'
-                      : isRadio ? '📻 Radio'
-                      : '🎙️ Podcast'}
+                    {show?.show_type === 'breakfast_radio' ? 'Breakfast'
+                      : show?.show_type === 'drive' ? 'Drive'
+                      : show?.show_type === 'evening' ? 'Evening'
+                      : isRadio ? 'Radio'
+                      : 'Podcast'}
                   </span>
                 </div>
                 {/* Host row with upload */}
@@ -462,8 +463,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           {h.avatar
                             ? <img src={h.avatar} alt={h.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: h.color }}>{h.name?.[0]}</div>}
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-white text-[9px] font-bold">{uploading === inputKey ? '…' : '↑'}</span>
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            {uploading === inputKey ? <Spinner size={10} /> : <IconPencil size={10} />}
                           </div>
                         </div>
                         <div>
@@ -487,14 +488,14 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             onClick={() => setActiveTab('runsheet')}
             className={`flex-1 flex flex-col items-center gap-1 py-4 rounded-xl font-bold transition-all ${activeTab === 'runsheet' ? 'bg-[#00e5a0] text-black shadow-sm' : 'text-[#6b6b7a] hover:text-[#0d0d0f] hover:bg-[#f7f8fa]'}`}
           >
-            <span className="text-2xl leading-none">{isRadio ? '📋' : '🎙️'}</span>
+            {isRadio ? <IconClipboard size={20} /> : <IconMic size={20} />}
             <span className="text-sm tracking-wide">{isRadio ? 'Runsheet' : 'Episodes'}</span>
           </button>
           <button
             onClick={() => setActiveTab('ideas')}
             className={`flex-1 flex flex-col items-center gap-1 py-4 rounded-xl font-bold transition-all ${activeTab === 'ideas' ? 'bg-[#00e5a0] text-black shadow-sm' : 'text-[#6b6b7a] hover:text-[#0d0d0f] hover:bg-[#f7f8fa]'}`}
           >
-            <span className="text-2xl leading-none">💡</span>
+            <IconLightbulb size={20} />
             <span className="text-sm tracking-wide">Ideas Board</span>
           </button>
         </div>
@@ -557,12 +558,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   </div>
                   <div className="flex flex-col gap-2 flex-shrink-0 mt-1">
                     <a href={`/radio-planner/${showId}`}
-                      className="bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors shadow-sm text-center">
-                      Open Runsheet →
+                      className="bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-1.5">
+                      Open runsheet <IconArrowRight size={13} />
                     </a>
                     <a href={`/guests/${showId}`}
-                      className="text-center text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-xl px-4 py-2 hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors">
-                      🎤 Guest Book
+                      className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-xl px-4 py-2 hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors flex items-center justify-center gap-1.5">
+                      <IconUsers size={13} /> Guest book
                     </a>
                   </div>
                 </div>
@@ -594,8 +595,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         filledCount > 0 ? 'bg-[#f7f8fa] text-[#6b6b7a] border border-[#e2e4e8]' :
                         'bg-[#f7f8fa] text-[#c8cad0] border border-[#e2e4e8]'
                       }`}>{filledCount}/{totalSlots} planned</span>
-                      <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 group-hover:text-[#0d0d0f] group-hover:border-[#c8cad0] transition-colors">
-                        Open Planner →
+                      <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 group-hover:text-[#0d0d0f] group-hover:border-[#c8cad0] transition-colors flex items-center gap-1">
+                        Open planner <IconArrowRight size={13} />
                       </span>
                     </div>
                   </div>
@@ -644,7 +645,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                                     ? 'bg-[#00e5a0] text-black shadow-[0_0_0_2px_rgba(0,229,160,0.2)]'
                                     : 'border-2 border-[#e2e4e8]'
                                 }`}>
-                                  {filled ? '✓' : ''}
+                                  {filled ? <IconCheck size={10} strokeWidth={3} /> : null}
                                 </span>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-baseline gap-1.5">
@@ -683,7 +684,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 {/* Search */}
                 {radioWeeks.length > 0 && (
                   <div className="px-6 py-3 border-b border-[#e2e4e8] relative">
-                    <span className="absolute left-9.5 top-1/2 -translate-y-1/2 text-[#c8cad0] text-sm pointer-events-none">🔍</span>
+                    <span className="absolute left-9.5 top-1/2 -translate-y-1/2 text-[#c8cad0] pointer-events-none flex items-center"><IconSearch size={14} /></span>
                     <input
                       type="text"
                       value={archiveSearch}
@@ -693,17 +694,19 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     />
                     {archiveSearch && (
                       <button onClick={() => setArchiveSearch('')}
-                        className="absolute right-9 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a] text-lg leading-none">×</button>
+                        className="absolute right-9 top-1/2 -translate-y-1/2 text-[#c8cad0] hover:text-[#6b6b7a] flex items-center"><IconX size={14} /></button>
                     )}
                   </div>
                 )}
                 {radioWeeks.length === 0 ? (
                   <div className="px-6 py-12 text-center">
-                    <div className="text-3xl mb-3">📻</div>
+                    <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center mx-auto mb-3 text-[#c8cad0]">
+                      <IconRadio size={28} />
+                    </div>
                     <p className="text-[#6b6b7a] text-sm font-medium mb-1">No runsheets yet</p>
                     <p className="text-[#c8cad0] text-xs mb-4">Fill in your first week of segments to see it here.</p>
-                    <a href={`/planner/${showId}?new=true`} className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2 text-xs hover:bg-[#00ffc0] transition-colors">
-                      Open Planner →
+                    <a href={`/planner/${showId}?new=true`} className="inline-flex items-center gap-1 bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2 text-xs hover:bg-[#00d494] active:scale-[0.99] transition-all">
+                      Open planner <IconArrowRight size={13} />
                     </a>
                   </div>
                 ) : filteredWeeks.length === 0 ? (
@@ -719,8 +722,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         <a key={mondayStr} href={`/radio-planner/${showId}`}
                           className="flex items-center justify-between px-6 py-3.5 hover:bg-[#f7f8fa] transition-colors group">
                           <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-lg bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-sm flex-shrink-0 group-hover:border-[#00e5a0]/40 transition-colors">
-                              📻
+                            <div className="w-8 h-8 rounded-lg bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-[#6b6b7a] flex-shrink-0 group-hover:border-[#00e5a0]/40 transition-colors">
+                              <IconRadio size={14} />
                             </div>
                             <div>
                               <div className="font-medium text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors">
@@ -731,8 +734,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                               )}
                             </div>
                           </div>
-                          <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                            Open →
+                          <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1">
+                            Open <IconArrowRight size={13} />
                           </span>
                         </a>
                       )
@@ -760,7 +763,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
                     {/* Column header — drag handle + editable title + delete */}
                     <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
-                      <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none text-xs">⠿⠿</span>
+                      <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
                       <input
                         type="text"
                         value={col.title}
@@ -772,16 +775,16 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       <button
                         onClick={() => toggleColumnMode(col.id, col.mode || 'permanent')}
                         title={col.mode === 'weekly' ? 'Weekly: completed items auto-clear each Monday — click to switch to Permanent' : 'Permanent: items stay forever — click to switch to Weekly'}
-                        className={`flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover/col:opacity-100 ${
+                        className={`flex-shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover/col:opacity-100 ${
                           col.mode === 'weekly'
                             ? 'bg-[#a78bfa]/20 text-[#7c3aed] hover:bg-[#a78bfa]/35'
                             : 'bg-[#e2e4e8] text-[#9a9aaa] hover:bg-[#d8dae0] hover:text-[#6b6b7a]'
                         }`}
                       >
-                        {col.mode === 'weekly' ? '↻ Weekly' : '· Perm'}
+                        {col.mode === 'weekly' ? <><IconRefresh size={11} /> Weekly</> : 'Permanent'}
                       </button>
                       {col.mode === 'weekly' && (
-                        <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#a78bfa]/20 text-[#7c3aed] group-hover/col:hidden">↻ Weekly</span>
+                        <span className="flex-shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#a78bfa]/20 text-[#7c3aed] group-hover/col:hidden"><IconRefresh size={11} /> Weekly</span>
                       )}
                       {colDeleteConfirm === col.id ? (
                         <span className="flex items-center gap-1.5 flex-shrink-0">
@@ -793,7 +796,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         </span>
                       ) : (
                         <button onClick={() => setColDeleteConfirm(col.id)}
-                          className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                          className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
                       )}
                     </div>
                     {/* Add idea input */}
@@ -822,13 +825,13 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       {(dragListeners) => (
                       <div className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
                         <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-                          <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 text-xs select-none touch-none">⠿</span>
+                          <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
                           <button onClick={() => toggleIdea(idea.id, true)}
                             className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
                           <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
                           <button onClick={() => setIdeaNotesOpen(prev => ({ ...prev, [idea.id]: !prev[idea.id] }))}
-                            className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
-                            {ideaNotesOpen[idea.id] ? 'hide' : '+ note'}
+                            className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 flex items-center gap-1 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
+                            {ideaNotesOpen[idea.id] ? 'Hide' : <><IconPlus size={10} /> Note</>}
                           </button>
                           {ideaDeleteConfirm === idea.id ? (
                             <span className="flex items-center gap-1.5 flex-shrink-0">
@@ -840,7 +843,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                             </span>
                           ) : (
                             <button onClick={() => setIdeaDeleteConfirm(idea.id)}
-                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
                           )}
                         </div>
                         {(ideaNotesOpen[idea.id] || idea.notes) && (
@@ -860,11 +863,11 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           {idea.url ? (
                             <span className="flex items-center gap-1">
                               <a href={idea.url} target="_blank" rel="noopener noreferrer"
-                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[200px] truncate block">
-                                🔗 {getDomain(idea.url)}
+                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[200px] flex items-center gap-1">
+                                <IconLink size={12} className="flex-shrink-0" /> <span className="truncate">{getDomain(idea.url)}</span>
                               </a>
                               <button onClick={() => saveIdeaUrl(idea.id, '')}
-                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] text-xs transition-all">×</button>
+                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex items-center"><IconX size={12} /></button>
                             </span>
                           ) : ideaLinkOpen[idea.id] ? (
                             <div className="flex items-center gap-2">
@@ -887,8 +890,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                             </div>
                           ) : (
                             <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
-                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] transition-all">
-                              + add link
+                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] transition-all flex items-center gap-1">
+                              <IconPlus size={10} /> Add link
                             </button>
                           )}
                         </div>
@@ -907,12 +910,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                         {colDone.map(idea => (
                           <div key={idea.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors opacity-50">
                             <button onClick={() => toggleIdea(idea.id, false)}
-                              className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0">
-                              <span className="text-black text-[8px] font-black">✓</span>
+                              className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0 text-black">
+                              <IconCheck size={10} strokeWidth={3} />
                             </button>
                             <span className="flex-1 text-sm text-[#6b6b7a] line-through">{idea.text}</span>
                             <button onClick={() => deleteIdea(idea.id)}
-                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all text-lg leading-none flex-shrink-0">×</button>
+                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
                           </div>
                         ))}
                       </>
@@ -926,18 +929,20 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             </SortableContext>
             {columns.length === 0 && (
               <div className="text-center py-14 bg-white border border-[#e2e4e8] rounded-2xl">
-                <div className="text-4xl mb-3">💡</div>
+                <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center mx-auto mb-3 text-[#c8cad0]">
+                  <IconLightbulb size={28} />
+                </div>
                 <p className="text-[#6b6b7a] text-sm font-medium mb-1">No columns yet</p>
                 <p className="text-[#c8cad0] text-xs mb-5">Add a column to start collecting and organising show ideas</p>
-                <button onClick={addColumn} className="inline-block bg-[#00e5a0] text-black font-bold rounded-xl px-5 py-2 text-xs hover:bg-[#00ffc0] transition-colors">+ Add First Column</button>
+                <button onClick={addColumn} className="inline-flex items-center gap-1.5 bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2 text-xs hover:bg-[#00d494] active:scale-[0.99] transition-all"><IconPlus size={13} /> Add first column</button>
               </div>
             )}
             {/* Add column */}
             {columns.length > 0 && (
               <button
                 onClick={addColumn}
-                className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors"
-              >+ Add Column</button>
+                className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors flex items-center justify-center gap-1.5"
+              ><IconPlus size={13} /> Add column</button>
             )}
           </div>
           </DndContext>
@@ -979,13 +984,15 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   )}
                 </div>
                 <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
-                  className="ml-6 bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-3 text-sm hover:bg-[#00ffc0] transition-colors flex-shrink-0 shadow-sm">
-                  Open Planner →
+                  className="ml-6 bg-[#00e5a0] text-black font-semibold rounded-xl px-6 py-3 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex-shrink-0 shadow-sm flex items-center gap-1.5">
+                  Open planner <IconArrowRight size={13} />
                 </a>
               </div>
             ) : (
               <div className="bg-white border-2 border-dashed border-[#e2e4e8] rounded-2xl px-6 py-8 flex flex-col items-center text-center gap-3">
-                <div className="text-3xl">🎙️</div>
+                <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-[#c8cad0]">
+                  <IconMic size={28} />
+                </div>
                 <div>
                   <p className="font-semibold text-[#0d0d0f]">No active episode</p>
                   <p className="text-sm text-[#6b6b7a] mt-0.5">
@@ -993,8 +1000,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                     {' '}Start a new one to begin planning.
                   </p>
                 </div>
-                <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-bold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00ffc0] transition-colors">
-                  + New {epLabel}
+                <a href={`/planner/${showId}?new=true`} className="bg-[#00e5a0] text-black font-semibold rounded-xl px-6 py-2.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex items-center gap-1.5">
+                  <IconPlus size={14} /> New {epLabel.toLowerCase()}
                 </a>
               </div>
             )}
@@ -1015,9 +1022,9 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       {show?.name} — Episode Board
                     </p>
                     <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
-                      className="text-[10px] border rounded-lg px-3 py-1 transition-colors hover:text-[#1a1a1a]"
+                      className="text-[10px] border rounded-lg px-3 py-1 transition-colors hover:text-[#1a1a1a] flex items-center gap-1"
                       style={{ color: '#9a9080', borderColor: '#d8d0c4' }}>
-                      Edit in planner →
+                      Edit in planner <IconArrowRight size={11} />
                     </a>
                   </div>
                   <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleWhiteboardDndEnd}>
@@ -1027,29 +1034,22 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           const status = getSectionStatus(section.name)
                           const preview = getSectionPreview(section.name)
                           const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
-                          const noteRotation = idx % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)'
                           const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
                           const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
                           const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
                           return (
                             <SortableNote key={section.id} id={section.id}>
                               {(dragListeners: any) => (
-                                <div className="relative" style={{ transform: noteRotation }}>
-                                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
-                                    <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                                      style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18', boxShadow: '0 2px 6px rgba(0,0,0,0.35)' }}>
-                                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.4)' }} />
-                                    </div>
-                                  </div>
+                                <div className="relative">
                                   <span
                                     {...dragListeners}
-                                    className="absolute top-1.5 right-2 z-20 text-[rgba(0,0,0,0.15)] hover:text-[rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing text-[10px] select-none touch-none"
+                                    className="absolute top-2 right-2 z-20 text-[rgba(0,0,0,0.2)] hover:text-[rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing select-none touch-none flex items-center"
                                     title="Drag to reorder"
-                                  >⠿⠿</span>
+                                  ><IconGrip size={13} /></span>
                                   <a href={href}
-                                    className="sticky-note block"
-                                    style={{ backgroundColor: noteColor, borderRadius: '2px', boxShadow: '2px 4px 16px rgba(0,0,0,0.14), 0 1px 3px rgba(0,0,0,0.08)' }}>
-                                    <div className="pt-5 px-4 pb-4">
+                                    className="sticky-note block rounded-xl"
+                                    style={{ backgroundColor: noteColor, boxShadow: '0 1px 2px rgba(13,13,15,0.04), 0 2px 8px rgba(13,13,15,0.06)' }}>
+                                    <div className="pt-4 px-4 pb-4">
                                       <div className="flex items-start justify-between gap-2 mb-2">
                                         <div>
                                           <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: 'rgba(0,0,0,0.25)' }}>
@@ -1089,15 +1089,15 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               className="bg-white border border-[#e2e4e8] rounded-2xl px-6 py-5 flex items-center justify-between hover:border-[#00e5a0] hover:shadow-sm transition-all group"
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-lg flex-shrink-0 group-hover:border-[#00e5a0]/40 transition-colors">
-                  📦
+                <div className="w-10 h-10 rounded-xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-[#6b6b7a] flex-shrink-0 group-hover:border-[#00e5a0]/40 transition-colors">
+                  <IconArchive size={18} />
                 </div>
                 <div>
                   <div className="font-semibold text-sm text-[#0d0d0f] group-hover:text-[#00a870] transition-colors">Episode Archive</div>
                   <div className="text-xs text-[#6b6b7a] mt-0.5">{episodes.length} {epLabelPlural} total</div>
                 </div>
               </div>
-              <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 group-hover:border-[#00e5a0]/40 transition-colors">View all →</span>
+              <span className="text-xs text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 group-hover:border-[#00e5a0]/40 transition-colors flex items-center gap-1">View all <IconArrowRight size={13} /></span>
             </a>
           </>
         )}
