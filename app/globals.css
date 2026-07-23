@@ -16,6 +16,52 @@ body {
   background: white;
   color: #0d0d0f;
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Global polish ─────────────────────────────────────────── */
+
+/* Brand-colored text selection */
+::selection {
+  background: rgba(0, 229, 160, 0.25);
+}
+
+/* Visible-but-tasteful keyboard focus everywhere; none on mouse click */
+:focus-visible {
+  outline: 2px solid rgba(0, 229, 160, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none; /* inputs use their border-color focus treatment */
+}
+
+/* Slim neutral scrollbars (WebKit + Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c8cad0 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #c8cad0;
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #a8aab2;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Numbers align in tables/times everywhere */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes page-in {

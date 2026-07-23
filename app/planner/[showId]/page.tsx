@@ -6,6 +6,10 @@ import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import Toast, { useToast } from '../../../components/Toast'
 import {
+  IconGrip, IconLink, IconArchive, IconDownload, IconChevronDown,
+  IconPlus, IconX, IconCopy, PageLoader,
+} from '../../../components/icons'
+import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor,
   useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
@@ -52,7 +56,7 @@ const getDefaultSections = (showType: string) => {
 
 type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
 
-const NOTE_COLORS = ['#cdf0e3', '#f0e2cc']
+const ACCENT_COLORS = ['#00e5a0', '#f5c842']
 
 // ── Sortable wrapper ──
 function SortableItem({ id, children }: { id: string; children: (listeners: any) => React.ReactNode }) {
@@ -541,9 +545,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const getStatus = (sectionName: string) => {
     const total = getContent(sectionName, 'communal').length + getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
-    if (total === 0) return { label: 'EMPTY', cls: 'text-[#6b6b7a] border-[#e2e4e8] bg-black/10', border: 'transparent' }
-    if (total < 20) return { label: 'DRAFT', cls: 'text-[#d49c00] border-[#f5c842]/40 bg-[#f5c842]/20', border: '#f5c842' }
-    return { label: 'READY', cls: 'text-[#00a870] border-[#00e5a0]/40 bg-[#00e5a0]/20', border: '#00e5a0' }
+    if (total === 0) return { label: 'EMPTY', color: '#9a9aaa' }
+    if (total < 20) return { label: 'DRAFT', color: '#d49c00' }
+    return { label: 'READY', color: '#00a870' }
   }
 
   const readySections = sections.filter(s => getStatus(s.name).label === 'READY').length
@@ -777,14 +781,10 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     doc.save(`${slug}.pdf`)
   }
 
-  if (!show) return (
-    <div className="min-h-screen bg-[#fafaf7] flex items-center justify-center">
-      <div className="text-[#6b6b7a]">Loading…</div>
-    </div>
-  )
+  if (!show) return <PageLoader />
 
   return (
-    <main className="min-h-screen text-[#0d0d0f] animate-page-in bg-white">
+    <main className="min-h-screen text-[#0d0d0f] animate-page-in bg-[#f7f8fa]">
       <Toast toast={toast} />
 
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-[#e2e4e8] px-3 sm:px-6 py-2 sm:h-14">
@@ -812,22 +812,22 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
               </span>
             )}
             <button onClick={saveAsTemplate} disabled={savingTemplate || sections.length === 0}
-              className="hidden sm:inline-flex text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40"
+              className="hidden sm:inline-flex items-center gap-1.5 text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] hover:bg-[#f7f8fa] transition-colors disabled:opacity-40"
               title="Save current sections as the default template for new episodes">
-              {savingTemplate ? 'Saving…' : '⬡ Save as Template'}
+              <IconCopy size={13} />{savingTemplate ? 'Saving…' : 'Save as template'}
             </button>
             <button onClick={duplicateFromLastWeek} disabled={duplicating}
-              className="hidden sm:inline-flex text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] transition-colors disabled:opacity-40">
-              {duplicating ? 'Duplicating…' : '↓ Duplicate last week'}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs hover:text-[#0d0d0f] hover:border-[#c8cad0] hover:bg-[#f7f8fa] transition-colors disabled:opacity-40">
+              <IconDownload size={13} />{duplicating ? 'Duplicating…' : 'Duplicate last week'}
             </button>
             <button onClick={archiveEpisode} disabled={archiving || !episodeId}
-              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-2.5 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
+              className="inline-flex items-center text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-2.5 py-1.5 text-xs hover:text-[#ff5c3a] hover:border-[#ff5c3a]/40 transition-colors disabled:opacity-40"
               title="Archive this episode">
-              {archiving ? '…' : '📦'}<span className="hidden sm:inline ml-1">{archiving ? 'Archiving…' : 'Archive'}</span>
+              <IconArchive size={14} /><span className="hidden sm:inline ml-1.5">{archiving ? 'Archiving…' : 'Archive'}</span>
             </button>
             <button onClick={exportPdf}
-              className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs sm:text-sm hover:text-[#0d0d0f] hover:border-[#00e5a0] transition-colors">
-              <span className="hidden sm:inline">Export </span>PDF
+              className="inline-flex items-center gap-1.5 text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs sm:text-sm hover:text-[#0d0d0f] hover:border-[#c8cad0] hover:bg-[#f7f8fa] transition-colors">
+              <IconDownload size={13} /><span><span className="hidden sm:inline">Export </span>PDF</span>
             </button>
             {isOwner && <a href={`/show-settings/${showId}`} className="text-[#6b6b7a] border border-[#e2e4e8] rounded-lg px-3 py-1.5 text-xs sm:text-sm hover:text-[#0d0d0f] transition-colors whitespace-nowrap">Settings</a>}
             <GlobalSearch />
@@ -838,7 +838,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       {/* Progress bar */}
       {sections.length > 0 && (
         <div className="sticky top-14 z-10 bg-white/80 backdrop-blur border-b border-[#e2e4e8] px-6 py-2.5 flex items-center gap-4">
-          <div className="flex-1 h-1.5 bg-[#e8e4db] rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-[#e2e4e8] rounded-full overflow-hidden">
             <div className="h-full bg-[#00e5a0] rounded-full transition-all duration-500"
               style={{ width: `${progressPct}%` }} />
           </div>
@@ -852,10 +852,10 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         <input
           type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
           placeholder={show.show_type === 'radio' ? 'BROADCAST TITLE…' : 'EPISODE TITLE…'}
-          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-1 placeholder-[#c8b89a]"
+          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-1 placeholder-[#c0c2cc]"
         />
         {episodeDate && (
-          <p className="text-[#8a7a64] text-sm mb-6">{formatDate(episodeDate)}</p>
+          <p className="text-[#6b6b7a] text-sm mb-6">{formatDate(episodeDate)}</p>
         )}
 
         {/* Social handles */}
@@ -889,7 +889,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                 const status = getStatus(section.name)
                 const isCollapsed = collapsed.has(section.name)
                 const wc = getWordCount(section.name)
-                const noteColor = NOTE_COLORS[idx % NOTE_COLORS.length]
+                const accentColor = ACCENT_COLORS[idx % ACCENT_COLORS.length]
 
                 return (
                   <SortableItem key={section.id} id={section.id}>
@@ -898,51 +898,47 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                         className="relative transition-all duration-150"
                         id={section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
                       >
-                        {/* Push pin */}
-                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center"
-                            style={{ background: 'radial-gradient(circle at 35% 35%, #ff8c6a, #cc3a20)', border: '1.5px solid #aa2e18', boxShadow: '0 2px 6px rgba(0,0,0,0.35)' }}>
-                            <div className="w-2 h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.4)' }} />
-                          </div>
-                        </div>
-
-                        {/* Sticky note card */}
-                        <div className="rounded-sm overflow-hidden"
-                          style={{ backgroundColor: noteColor, boxShadow: '2px 6px 24px rgba(0,0,0,0.13), 0 1px 3px rgba(0,0,0,0.07)' }}>
+                        {/* Section card */}
+                        <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden shadow-[0_1px_2px_rgba(13,13,15,0.04)]">
+                          {/* Accent strip */}
+                          <div className="h-[3px] w-full" style={{ backgroundColor: accentColor }} />
 
                           {/* Card header */}
-                          <div className="w-full flex items-center gap-3 px-3 sm:px-5 py-3 sm:py-4" style={{ backgroundColor: noteColor }}>
+                          <div className="w-full flex items-center gap-3 px-3 sm:px-5 py-3 sm:py-4 bg-[#fafbfc]">
                             {/* Drag handle */}
                             <span
                               {...dragListeners}
-                              className="text-[#0d0d0f]/20 hover:text-[#0d0d0f]/50 cursor-grab active:cursor-grabbing flex-shrink-0 text-xs leading-none select-none touch-none"
+                              className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 leading-none select-none touch-none transition-colors"
                               title="Drag to reorder"
-                            >⠿⠿</span>
+                            ><IconGrip size={14} /></span>
                             <button
                               type="button"
                               onClick={() => toggleCollapse(section.name)}
-                              className="flex items-center gap-3 flex-1 min-w-0 hover:brightness-95 transition-all text-left"
+                              className="flex items-center gap-3 flex-1 min-w-0 text-left"
                             >
                               <span className="text-lg leading-none flex-shrink-0">{section.icon}</span>
                               <div>
-                                <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-0.5" style={{ color: 'rgba(0,0,0,0.3)' }}>
+                                <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-0.5 text-[#9a9aaa]">
                                   Segment {idx + 1}
                                 </p>
                                 <span className="font-bold text-[15px] text-[#1a1a1a]">{section.name}</span>
                               </div>
                               {wc > 0 && (
-                                <span className="text-[10px] text-[#0d0d0f]/40 tabular-nums ml-1">{wc}w</span>
+                                <span className="text-[10px] text-[#9a9aaa] tabular-nums ml-1">{wc}w</span>
                               )}
-                              <span className={`ml-auto text-xs font-mono px-2 py-0.5 rounded-full border ${status.cls}`}>{status.label}</span>
+                              <span className="ml-auto inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: status.color }}>
+                                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: status.color }} />
+                                {status.label}
+                              </span>
                             </button>
                             {showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === "Last Week's Betting" && (
                               <button
                                 type="button"
                                 onClick={e => { e.stopPropagation(); importLastWeeksBets() }}
                                 disabled={importingBets}
-                                className="text-[10px] font-semibold text-[#0d0d0f]/50 hover:text-[#0d0d0f]/80 border border-[#0d0d0f]/15 hover:border-[#0d0d0f]/30 rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#6b6b7a] hover:text-[#0d0d0f] bg-white border border-[#e2e4e8] hover:border-[#c8cad0] hover:bg-[#f7f8fa] rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
                               >
-                                {importingBets ? '…' : '↓ Import Last Week'}
+                                <IconDownload size={12} />{importingBets ? '…' : 'Import last week'}
                               </button>
                             )}
                             {showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === 'Launching Towards the GF Challenge' && (
@@ -950,31 +946,31 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                 type="button"
                                 onClick={e => { e.stopPropagation(); importGFProgress() }}
                                 disabled={importingGF}
-                                className="text-[10px] font-semibold text-[#0d0d0f]/50 hover:text-[#0d0d0f]/80 border border-[#0d0d0f]/15 hover:border-[#0d0d0f]/30 rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#6b6b7a] hover:text-[#0d0d0f] bg-white border border-[#e2e4e8] hover:border-[#c8cad0] hover:bg-[#f7f8fa] rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
                               >
-                                {importingGF ? '…' : '↓ Import Last Week'}
+                                <IconDownload size={12} />{importingGF ? '…' : 'Import last week'}
                               </button>
                             )}
                             {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && (["Last Week's Betting", 'AFL Multis', 'Racing Bets', 'Launching Towards the GF Challenge'] as string[]).includes(section.name)) && (
                               <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
-                                className="text-[#0d0d0f]/20 hover:text-[#ff5c3a] text-xl transition-colors leading-none flex-shrink-0" title="Remove section">
-                                ×
+                                className="text-[#c8cad0] hover:text-[#ff5c3a] transition-colors leading-none flex-shrink-0" title="Remove section">
+                                <IconX size={15} />
                               </button>
                             )}
                             <button type="button" onClick={() => toggleCollapse(section.name)}
-                              className="text-[#0d0d0f]/30 text-xs flex-shrink-0 transition-transform duration-200"
+                              className="text-[#9a9aaa] flex-shrink-0 transition-transform duration-200"
                               style={{ transform: isCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>
-                              ▾
+                              <IconChevronDown size={14} />
                             </button>
                           </div>
 
                           {/* Collapsible body */}
                           {!isCollapsed && (
-                            <div className="bg-white/70 backdrop-blur-sm border-t border-black/10">
+                            <div className="bg-white border-t border-[#e2e4e8]">
 
                               {/* Communal / shared topics area */}
-                              <div className="px-3 sm:px-5 pt-3 pb-2.5 border-b border-black/10">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-[#0d0d0f]/35 mb-1.5">Topics &amp; Talking Points</p>
+                              <div className="px-3 sm:px-5 pt-3 pb-2.5 border-b border-[#e2e4e8]">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9aaa] mb-1.5">Topics &amp; Talking Points</p>
                                 <textarea
                                   value={getContent(section.name, 'communal')}
                                   onChange={e => updateContent(section.name, 'communal', e.target.value)}
@@ -984,12 +980,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                     el.style.height = el.scrollHeight + 'px'
                                   }}
                                   placeholder="Add the topics and key points for this segment — visible to everyone…"
-                                  className="w-full bg-transparent text-sm text-[#1a1a1a] outline-none resize-none placeholder-[#c8b89a] block leading-relaxed"
+                                  className="w-full bg-white text-sm text-[#1a1a1a] outline-none resize-none placeholder-[#b8bac2] block leading-relaxed"
                                   style={{ minHeight: '52px', overflowY: 'hidden' }}
                                 />
                               </div>
 
-                              <div className="divide-y divide-black/10">
+                              <div className="divide-y divide-[#e2e4e8]">
                                 {(['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[]).map((role) => {
                                   const isHost1 = role === 'host1'
                                   const isProducer = role === 'producer'
@@ -1011,7 +1007,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                       <button
                                         type="button"
                                         onClick={() => toggleRole(section.id, role)}
-                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-black/5 transition-colors text-left"
+                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#f7f8fa] transition-colors text-left"
                                       >
                                         <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
                                           {avatar
@@ -1029,12 +1025,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                           </p>
                                         )}
                                         {!isExpanded && !previewLine && (
-                                          <p className="flex-1 text-xs text-[#c8b89a] italic ml-2">No notes yet…</p>
+                                          <p className="flex-1 text-xs text-[#b8bac2] italic ml-2">No notes yet…</p>
                                         )}
                                         <span
-                                          className="text-[#0d0d0f]/30 text-xs flex-shrink-0 transition-transform duration-200 ml-auto"
+                                          className="text-[#9a9aaa] flex-shrink-0 transition-transform duration-200 ml-auto"
                                           style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                                        >▾</span>
+                                        ><IconChevronDown size={14} /></span>
                                       </button>
 
                                       {/* Expandable textarea — smooth height animation */}
@@ -1053,7 +1049,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                               el.style.height = el.scrollHeight + 'px';
                                             }}
                                             placeholder="Your notes…"
-                                            className="w-full bg-white/60 text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none placeholder-[#c8b89a] block border-t border-black/5"
+                                            className="w-full bg-white text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none placeholder-[#b8bac2] block border-t border-[#eef0f3]"
                                             style={{ minHeight: '120px', overflowY: 'hidden' }}
                                           />
                                         </div>
@@ -1064,12 +1060,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                               </div>
 
                               {/* Links row */}
-                              <div className="border-t border-black/10 bg-white/40 px-4 py-2.5 flex items-center gap-2 flex-wrap">
+                              <div className="border-t border-[#e2e4e8] bg-[#fafbfc] px-4 py-2.5 flex items-center gap-2 flex-wrap">
                                 <span className="text-[#6b6b7a] text-xs flex items-center gap-1.5 flex-shrink-0 mr-1">
-                                  🔗 <span className="font-semibold">Links</span>
+                                  <IconLink size={13} /> <span className="font-semibold">Links</span>
                                 </span>
                                 {(links[section.name] || []).map(link => (
-                                  <span key={link.id} className="flex items-center gap-1 bg-white/80 border border-black/15 rounded-full px-2.5 py-0.5 text-xs">
+                                  <span key={link.id} className="flex items-center gap-1 bg-[#f7f8fa] border border-[#e2e4e8] rounded-full px-2.5 py-0.5 text-xs">
                                     <a href={link.url} target="_blank" rel="noopener noreferrer"
                                       className="text-[#0d0d0f] hover:text-[#00a870] transition-colors max-w-[180px] truncate">
                                       {getDomain(link.url)}
@@ -1087,9 +1083,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                         if (e.key === 'Escape') setAddingLink(prev => ({ ...prev, [section.name]: false }))
                                       }}
                                       placeholder="Paste a URL…" autoFocus
-                                      className="bg-white/80 border border-black/20 rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] w-52 placeholder-[#c8b89a]" />
+                                      className="bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] w-52 placeholder-[#b8bac2]" />
                                     <button onClick={() => addLink(section.name)}
-                                      className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Add</button>
+                                      className="bg-[#00e5a0] text-black text-xs font-semibold rounded-lg px-2.5 py-1 hover:bg-[#00d494] active:scale-[0.99] transition-all">Add</button>
                                     <button onClick={() => setAddingLink(prev => ({ ...prev, [section.name]: false }))}
                                       className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
                                   </div>
@@ -1109,24 +1105,23 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
               {/* Add section */}
               {addingSection ? (
-                <div className="rounded-sm p-4 flex items-center gap-3"
-                  style={{ backgroundColor: '#f0f0e8', boxShadow: '2px 4px 16px rgba(0,0,0,0.08)' }}>
+                <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-4 flex items-center gap-3 shadow-[0_1px_2px_rgba(13,13,15,0.04)]">
                   <input type="text" value={newIcon} onChange={e => setNewIcon(e.target.value)}
-                    className="w-12 bg-white/70 border border-black/15 rounded-lg text-center text-lg outline-none" maxLength={2} />
+                    className="w-12 bg-white border border-[#e2e4e8] rounded-lg text-center text-lg outline-none" maxLength={2} />
                   <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') addSection(); if (e.key === 'Escape') setAddingSection(false) }}
                     placeholder="Segment name…" autoFocus
-                    className="flex-1 bg-white/70 border border-black/15 rounded-lg px-3 py-2 text-sm text-[#0d0d0f] outline-none placeholder-[#c8b89a]" />
+                    className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-sm text-[#0d0d0f] outline-none placeholder-[#b8bac2]" />
                   <button onClick={addSection} disabled={addingSection === 'saving'}
-                    className="bg-[#00e5a0] text-black font-bold rounded-lg px-4 py-2 text-sm hover:bg-[#00ffc0] transition-colors disabled:opacity-50">
+                    className="bg-[#00e5a0] text-black font-semibold rounded-xl px-4 py-2 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all disabled:opacity-50">
                     {addingSection === 'saving' ? 'Adding…' : 'Add'}
                   </button>
                   <button onClick={() => setAddingSection(false)} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors">Cancel</button>
                 </div>
               ) : (
                 <button onClick={() => setAddingSection(true)}
-                  className="border-2 border-dashed border-[#d4c8b0] rounded-sm py-4 text-[#8a7a64] text-sm hover:border-[#00e5a0] hover:text-[#00a870] transition-colors bg-white/30">
-                  + Add Section
+                  className="inline-flex items-center justify-center gap-1.5 border-2 border-dashed border-[#e2e4e8] rounded-2xl py-4 text-[#9a9aaa] text-sm hover:border-[#00e5a0] hover:text-[#00a870] transition-colors bg-white">
+                  <IconPlus size={14} /> Add section
                 </button>
               )}
             </div>

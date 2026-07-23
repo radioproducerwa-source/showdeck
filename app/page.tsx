@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import Logo, { LogoIcon } from '../components/Logo'
+import { IconMic, IconClipboard, IconLink } from '../components/icons'
 
 export default function Home() {
   const [email, setEmail] = useState('')
@@ -87,21 +88,24 @@ export default function Home() {
 
       {/* Left: branding panel */}
       <div className="hidden lg:flex flex-col w-[460px] flex-shrink-0 bg-[#0d0d0f] p-12 relative overflow-hidden">
-        <div className="flex items-center gap-3 mb-auto">
-          <LogoIcon size={28} />
-          <span className="text-white font-bold text-xl tracking-[0.2em]" style={{ fontFamily: 'monospace' }}>SHOWDECK</span>
+        {/* Ambient brand glow */}
+        <div className="absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 65%)' }} />
+        <div className="flex items-center gap-3 mb-auto relative">
+          <LogoIcon size={26} />
+          <span className="text-white font-bold text-lg tracking-[0.22em]" style={{ fontFamily: 'monospace' }}>SHOWDECK</span>
         </div>
-        <div className="mt-auto">
-          <h2 className="text-white text-4xl font-bold leading-tight mb-4">Plan every episode.<br />Together.</h2>
-          <p className="text-white/50 text-sm leading-relaxed mb-10">The collaborative show planning workspace for podcast teams.</p>
-          <div className="flex flex-col gap-4">
+        <div className="mt-auto relative">
+          <h2 className="text-white text-[2.15rem] font-bold leading-[1.12] tracking-[-0.02em] mb-4">Plan every episode.<br />Together.</h2>
+          <p className="text-white/45 text-[15px] leading-relaxed mb-12">The collaborative show planning workspace for podcast and radio teams.</p>
+          <div className="flex flex-col gap-5">
             {[
-              { icon: '🎙️', text: 'Plan every segment, together' },
-              { icon: '📋', text: 'Runsheets that write themselves' },
-              { icon: '🔗', text: 'Everything in one place, show to show' },
+              { icon: <IconMic size={16} />, text: 'Plan every segment, together' },
+              { icon: <IconClipboard size={16} />, text: 'Runsheets that write themselves' },
+              { icon: <IconLink size={16} />, text: 'Everything in one place, show to show' },
             ].map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#00e5a0]/10 flex items-center justify-center flex-shrink-0 text-base">{icon}</div>
+              <div key={text} className="flex items-center gap-3.5">
+                <div className="w-8 h-8 rounded-lg bg-[#00e5a0]/10 border border-[#00e5a0]/15 flex items-center justify-center flex-shrink-0 text-[#00e5a0]">{icon}</div>
                 <span className="text-white/60 text-sm">{text}</span>
               </div>
             ))}
@@ -115,7 +119,7 @@ export default function Home() {
 
       {/* Right: form panel */}
       <div className="flex-1 flex items-center justify-center p-8 bg-[#f7f8fa]">
-        <div className="bg-white border border-[#e2e4e8] rounded-2xl p-10 w-full max-w-md shadow-sm">
+        <div className="bg-white border border-[#e2e4e8] rounded-2xl p-10 w-full max-w-md shadow-[0_8px_30px_rgba(13,13,15,0.06)]">
           <div className="mb-1 lg:hidden"><Logo size={1.1} /></div>
           <h2 className="text-xl font-bold mb-1">{isSignUp ? 'Create your account' : 'Welcome back'}</h2>
           <p className="text-[#6b6b7a] text-sm mb-8">{isSignUp ? 'Set up your Showdeck account' : 'Sign in to your workspace'}</p>
@@ -138,9 +142,9 @@ export default function Home() {
             <button
               onClick={handleFacebook}
               disabled={facebookLoading}
-              className="w-full flex items-center justify-center gap-3 bg-[#1877F2] border border-[#1877F2] rounded-xl py-3 text-sm font-semibold text-white hover:bg-[#166fe5] hover:border-[#166fe5] transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 bg-white border border-[#e2e4e8] rounded-xl py-3 text-sm font-semibold text-[#0d0d0f] hover:border-[#c8cad0] hover:bg-[#f7f8fa] transition-colors disabled:opacity-60"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
                 <path d="M24 12.073C24 5.404 18.627 0 12 0S0 5.404 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.268h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
               </svg>
               {facebookLoading ? 'Redirecting…' : 'Continue with Facebook'}
@@ -229,9 +233,9 @@ export default function Home() {
           <button
             onClick={handleAuth}
             disabled={loading}
-            className="w-full bg-[#00e5a0] text-black font-bold rounded-xl py-4 text-lg tracking-widest mb-3 hover:bg-[#00ffc0] transition-colors disabled:opacity-60"
+            className="w-full bg-[#00e5a0] text-black font-semibold rounded-xl py-3.5 text-[15px] mb-3 hover:bg-[#00d494] active:scale-[0.99] transition-all shadow-[0_1px_2px_rgba(13,13,15,0.1)] disabled:opacity-60"
           >
-            {loading ? 'Loading...' : isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN'}
+            {loading ? 'Signing in…' : isSignUp ? 'Create account' : 'Sign in'}
           </button>
           <button
             onClick={() => setIsSignUp(!isSignUp)}
