@@ -20,9 +20,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const PIN_COLORS = ['#ff6b52', '#4a90e2']
-const PIN_SHADOWS = ['#cc3a20', '#2c5aa0']
-
 // Pick black or white text for legibility on a given background colour
 function contrastText(hex: string) {
   const h = (hex || '').replace('#', '')
@@ -635,13 +632,10 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           </div>
           <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleWhiteboardDndEnd}>
             <SortableContext items={sections.map((s: any) => s.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-9">
+              <div className="wb-grid grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-9">
                 {sections.map((section: any, idx: number) => {
                   const status = getSectionStatus(section.name)
                   const preview = getSectionPreview(section.name)
-                  // Checkerboard across the 2-column grid so no column is a single colour
-                  const checker = (Math.floor(idx / 2) + (idx % 2)) % 2
-                  const noteColor = checker === 0 ? '#cdf0e3' : '#f0e2cc'
                   const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
                   const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
                   const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
@@ -650,7 +644,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       {(dragListeners: any) => (
                         <div className="relative">
                           <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                            <div className="w-4 h-4 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${PIN_COLORS[checker]}, ${PIN_SHADOWS[checker]})`, border: '1px solid rgba(0,0,0,0.25)', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                            <div className="wb-pin w-4 h-4 rounded-full" style={{ border: '1px solid rgba(0,0,0,0.25)', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                               <div className="w-1 h-1 rounded-full ml-[3px] mt-[3px]" style={{ background: 'rgba(255,255,255,0.5)' }} />
                             </div>
                           </div>
@@ -660,8 +654,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                             title="Drag to reorder"
                           ><IconGrip size={13} /></span>
                           <a href={href}
-                            className="sticky-note block rounded-xl"
-                            style={{ backgroundColor: noteColor, boxShadow: '0 1px 2px rgba(13,13,15,0.04), 0 2px 8px rgba(13,13,15,0.06)' }}>
+                            className="sticky-note wb-note block rounded-xl"
+                            style={{ boxShadow: '0 1px 2px rgba(13,13,15,0.04), 0 2px 8px rgba(13,13,15,0.06)' }}>
                             <div className="pt-4 px-4 pb-4">
                               <div className="flex items-start justify-between gap-2 mb-2">
                                 <div>

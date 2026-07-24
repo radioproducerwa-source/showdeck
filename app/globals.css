@@ -64,6 +64,28 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Whiteboard sticky notes + pins ──────────────────────────
+   Colours are assigned by CSS so they can respond to the grid's
+   column count: simple green/beige alternation in a single column
+   (mobile), and a checkerboard in the 2-column layout (desktop) so
+   no column is a single colour. */
+.wb-grid > * .wb-note { background-color: #cdf0e3; }
+.wb-grid > *:nth-child(even) .wb-note { background-color: #f0e2cc; }
+.wb-grid > * .wb-pin { background: radial-gradient(circle at 35% 30%, #ff6b52, #cc3a20); }
+.wb-grid > *:nth-child(even) .wb-pin { background: radial-gradient(circle at 35% 30%, #4a90e2, #2c5aa0); }
+
+@media (min-width: 640px) {
+  /* 2-column grid → checkerboard (period of 4) */
+  .wb-grid > *:nth-child(4n+1) .wb-note,
+  .wb-grid > *:nth-child(4n)   .wb-note { background-color: #cdf0e3; }
+  .wb-grid > *:nth-child(4n+2) .wb-note,
+  .wb-grid > *:nth-child(4n+3) .wb-note { background-color: #f0e2cc; }
+  .wb-grid > *:nth-child(4n+1) .wb-pin,
+  .wb-grid > *:nth-child(4n)   .wb-pin { background: radial-gradient(circle at 35% 30%, #ff6b52, #cc3a20); }
+  .wb-grid > *:nth-child(4n+2) .wb-pin,
+  .wb-grid > *:nth-child(4n+3) .wb-pin { background: radial-gradient(circle at 35% 30%, #4a90e2, #2c5aa0); }
+}
+
 @keyframes page-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
