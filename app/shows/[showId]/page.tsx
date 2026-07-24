@@ -23,6 +23,17 @@ import { CSS } from '@dnd-kit/utilities'
 const PIN_COLORS = ['#ff6b52', '#4a90e2']
 const PIN_SHADOWS = ['#cc3a20', '#2c5aa0']
 
+// Pick black or white text for legibility on a given background colour
+function contrastText(hex: string) {
+  const h = (hex || '').replace('#', '')
+  if (h.length < 6) return '#ffffff'
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.55 ? '#0d0d0f' : '#ffffff'
+}
+
 function SortableNote({ id, children }: { id: string; children: (dragListeners: any) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
@@ -711,33 +722,34 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         </div>
       </header>
 
-      <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-8 space-y-4">
-
-        {/* ── Show Header ── */}
-        <div className="relative bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
-          {/* Accent stripe using show colour */}
-          <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: show?.header_color || '#00e5a0' }} />
-          <div className="px-7 py-4 pl-9">
-            <div className="flex items-center gap-4">
+      {/* ── Full-bleed show banner ── */}
+      {show && (() => {
+        const bannerColor = show.header_color || '#00e5a0'
+        const onBanner = contrastText(bannerColor)
+        const dark = onBanner === '#0d0d0f'
+        const chipBg = dark ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.20)'
+        const subtle = dark ? 'rgba(13,13,15,0.55)' : 'rgba(255,255,255,0.78)'
+        const ring = dark ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.35)'
+        return (
+          <div style={{ backgroundColor: bannerColor }} className="border-b border-black/10">
+            <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-5 flex items-center gap-4">
               {/* Logo */}
-              <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-[#e2e4e8]">
-                {show?.logo_url ? (
+              <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-white/25 bg-white/10">
+                {show.logo_url ? (
                   <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: (show?.header_color || '#00e5a0') + '20' }}>
-                    <span className="text-xl font-black" style={{ color: show?.header_color || '#00e5a0' }}>{getInitials(show?.name || '')}</span>
+                  <div className="w-full h-full flex items-center justify-center bg-white/90">
+                    <span className="text-xl font-black" style={{ color: bannerColor }}>{getInitials(show.name || '')}</span>
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <h1 className="text-xl sm:text-2xl font-bold text-[#0d0d0f] leading-tight truncate">{show?.name}</h1>
-                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex-shrink-0 ${
-                    isRadio ? 'bg-[#a78bfa]/15 text-[#7c3aed]' : 'bg-[#00e5a0]/15 text-[#00a870]'
-                  }`}>
-                    {show?.show_type === 'breakfast_radio' ? 'Breakfast'
-                      : show?.show_type === 'drive' ? 'Drive'
-                      : show?.show_type === 'evening' ? 'Evening'
+                <div className="flex items-center gap-2.5 mb-2">
+                  <h1 className="text-xl sm:text-2xl font-bold leading-tight truncate" style={{ color: onBanner }}>{show.name}</h1>
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: chipBg, color: onBanner }}>
+                    {show.show_type === 'breakfast_radio' ? 'Breakfast'
+                      : show.show_type === 'drive' ? 'Drive'
+                      : show.show_type === 'evening' ? 'Evening'
                       : isRadio ? 'Radio'
                       : 'Podcast'}
                   </span>
@@ -750,7 +762,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       <div key={h.slot} className="flex items-center gap-2 group/av cursor-pointer"
                         onClick={() => fileInputs.current[inputKey]?.click()}
                         title={`Upload ${h.name}'s photo`}>
-                        <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-[#f0f1f3]">
+                        <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-2" style={{ '--tw-ring-color': ring } as React.CSSProperties}>
                           {h.avatar
                             ? <img src={h.avatar} alt={h.name} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: h.color }}>{h.name?.[0]}</div>}
@@ -759,8 +771,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-[#0d0d0f] leading-tight">{h.name}</div>
-                          <div className="text-[10px] text-[#9a9aaa]">{h.label}</div>
+                          <div className="text-sm font-semibold leading-tight" style={{ color: onBanner }}>{h.name}</div>
+                          <div className="text-[10px]" style={{ color: subtle }}>{h.label}</div>
                         </div>
                         <input ref={el => { fileInputs.current[inputKey] = el }} type="file" accept="image/*" className="hidden"
                           onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(h.slot, f) }} />
@@ -771,7 +783,10 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               </div>
             </div>
           </div>
-        </div>
+        )
+      })()}
+
+      <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-8 space-y-4">
 
         {/* ── Tab switcher (radio only) ── */}
         {isRadio && (
