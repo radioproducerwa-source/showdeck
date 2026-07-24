@@ -628,7 +628,9 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 {sections.map((section: any, idx: number) => {
                   const status = getSectionStatus(section.name)
                   const preview = getSectionPreview(section.name)
-                  const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
+                  // Checkerboard across the 2-column grid so no column is a single colour
+                  const checker = (Math.floor(idx / 2) + (idx % 2)) % 2
+                  const noteColor = checker === 0 ? '#cdf0e3' : '#f0e2cc'
                   const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
                   const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
                   const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
@@ -637,7 +639,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       {(dragListeners: any) => (
                         <div className="relative">
                           <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-                            <div className="w-4 h-4 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${PIN_COLORS[idx % PIN_COLORS.length]}, ${PIN_SHADOWS[idx % PIN_SHADOWS.length]})`, border: '1px solid rgba(0,0,0,0.25)', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                            <div className="w-4 h-4 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${PIN_COLORS[checker]}, ${PIN_SHADOWS[checker]})`, border: '1px solid rgba(0,0,0,0.25)', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                               <div className="w-1 h-1 rounded-full ml-[3px] mt-[3px]" style={{ background: 'rgba(255,255,255,0.5)' }} />
                             </div>
                           </div>
