@@ -20,6 +20,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+const PIN_COLORS = ['#ff6b52', '#4a90e2', '#f5b942', '#2ea86a']
+const PIN_SHADOWS = ['#cc3a20', '#2c5aa0', '#c8930f', '#1c7a4a']
+
 function SortableNote({ id, children }: { id: string; children: (dragListeners: any) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
@@ -397,6 +400,290 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
       : [])
   ] as Array<{ slot: 'host1' | 'host2' | 'producer'; name: string; avatar: string | null; color: string; label: string }>).filter(h => h.name)
 
+  const renderIdeasBoard = (columnsGridClass: string) => (
+    <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDndEnd}>
+    <div className="space-y-3">
+      <SortableContext items={columns.map(c => c.id)} strategy={rectSortingStrategy}>
+      <div className={columnsGridClass}>
+        {columns.map(col => {
+          const colActive = ideas.filter(i => i.column_id === col.id && !i.done)
+          const colDone = ideas.filter(i => i.column_id === col.id && i.done)
+          const colText = newIdeaTextByCol[col.id] || ''
+          return (
+            <SortableIdeaItem key={col.id} id={col.id}>
+            {(colDragListeners) => (
+            <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
+              {/* Column header — drag handle + editable title + delete */}
+              <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
+                <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
+                <input
+                  type="text"
+                  value={col.title}
+                  onChange={e => updateColumnTitle(col.id, e.target.value)}
+                  onBlur={e => saveColumnTitle(col.id, e.target.value)}
+                  onMouseDown={e => e.stopPropagation()}
+                  className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
+                />
+                <button
+                  onClick={() => toggleColumnMode(col.id, col.mode || 'permanent')}
+                  title={col.mode === 'weekly' ? 'Weekly: completed items auto-clear each Monday — click to switch to Permanent' : 'Permanent: items stay forever — click to switch to Weekly'}
+                  className={`flex-shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover/col:opacity-100 ${
+                    col.mode === 'weekly'
+                      ? 'bg-[#a78bfa]/20 text-[#7c3aed] hover:bg-[#a78bfa]/35'
+                      : 'bg-[#e2e4e8] text-[#9a9aaa] hover:bg-[#d8dae0] hover:text-[#6b6b7a]'
+                  }`}
+                >
+                  {col.mode === 'weekly' ? <><IconRefresh size={11} /> Weekly</> : 'Permanent'}
+                </button>
+                {col.mode === 'weekly' && (
+                  <span className="flex-shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#a78bfa]/20 text-[#7c3aed] group-hover/col:hidden"><IconRefresh size={11} /> Weekly</span>
+                )}
+                {colDeleteConfirm === col.id ? (
+                  <span className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
+                    <button onClick={() => { deleteColumn(col.id); setColDeleteConfirm(null) }}
+                      className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
+                    <button onClick={() => setColDeleteConfirm(null)}
+                      className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
+                  </span>
+                ) : (
+                  <button onClick={() => setColDeleteConfirm(col.id)}
+                    className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
+                )}
+              </div>
+              {/* Add idea input */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3]">
+                <div className="w-4 h-4 rounded-full border-2 border-[#e2e4e8] flex-shrink-0" />
+                <input
+                  type="text"
+                  value={colText}
+                  onChange={e => setNewIdeaTextByCol(prev => ({ ...prev, [col.id]: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') addIdea(col.id) }}
+                  placeholder="Add an idea…"
+                  className="flex-1 bg-transparent text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]"
+                />
+                {colText.trim() && (
+                  <button onClick={() => addIdea(col.id)} className="text-[#00a870] text-xs font-semibold flex-shrink-0">Add</button>
+                )}
+              </div>
+              {/* Active ideas */}
+              {colActive.length === 0 && colDone.length === 0 && (
+                <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
+              )}
+              <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleIdeaDndEnd}>
+              <SortableContext items={colActive.map(i => i.id)} strategy={rectSortingStrategy}>
+              {colActive.map(idea => (
+                <SortableIdeaItem key={idea.id} id={idea.id}>
+                {(dragListeners) => (
+                <div className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
+                  <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                    <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
+                    <button onClick={() => toggleIdea(idea.id, true)}
+                      className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
+                    <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
+                    <button onClick={() => setIdeaNotesOpen(prev => ({ ...prev, [idea.id]: !prev[idea.id] }))}
+                      className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 flex items-center gap-1 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
+                      {ideaNotesOpen[idea.id] ? 'Hide' : <><IconPlus size={10} /> Note</>}
+                    </button>
+                    {ideaDeleteConfirm === idea.id ? (
+                      <span className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
+                        <button onClick={() => { deleteIdea(idea.id); setIdeaDeleteConfirm(null) }}
+                          className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
+                        <button onClick={() => setIdeaDeleteConfirm(null)}
+                          className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setIdeaDeleteConfirm(idea.id)}
+                        className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
+                    )}
+                  </div>
+                  {(ideaNotesOpen[idea.id] || idea.notes) && (
+                    <div className="px-11 pb-2">
+                      <textarea
+                        value={idea.notes || ''}
+                        onChange={e => setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, notes: e.target.value } : i))}
+                        onBlur={e => saveIdeaNotes(idea.id, e.target.value)}
+                        placeholder="Add notes…"
+                        rows={2}
+                        className="w-full bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-xs text-[#4a4a5a] outline-none focus:border-[#00e5a0] resize-none placeholder-[#c8cad0]"
+                      />
+                    </div>
+                  )}
+                  {/* Link — always below notes */}
+                  <div className="px-11 pb-2.5">
+                    {idea.url ? (
+                      <span className="flex items-center gap-1">
+                        <a href={idea.url} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[200px] flex items-center gap-1">
+                          <IconLink size={12} className="flex-shrink-0" /> <span className="truncate">{getDomain(idea.url)}</span>
+                        </a>
+                        <button onClick={() => saveIdeaUrl(idea.id, '')}
+                          className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex items-center"><IconX size={12} /></button>
+                      </span>
+                    ) : ideaLinkOpen[idea.id] ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          value={ideaLinkInput[idea.id] || ''}
+                          onChange={e => setIdeaLinkInput(prev => ({ ...prev, [idea.id]: e.target.value }))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')
+                            if (e.key === 'Escape') setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))
+                          }}
+                          placeholder="Paste a URL…"
+                          autoFocus
+                          className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
+                        />
+                        <button onClick={() => saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')}
+                          className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Save</button>
+                        <button onClick={() => setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))}
+                          className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
+                        className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] transition-all flex items-center gap-1">
+                        <IconPlus size={10} /> Add link
+                      </button>
+                    )}
+                  </div>
+                </div>
+                )}
+                </SortableIdeaItem>
+              ))}
+              </SortableContext>
+              </DndContext>
+              {/* Done section */}
+              {colDone.length > 0 && (
+                <>
+                  <div className="px-4 py-1.5 bg-[#f7f8fa] border-t border-b border-[#e2e4e8]">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[#c8cad0]">Done — {colDone.length}</span>
+                  </div>
+                  {colDone.map(idea => (
+                    <div key={idea.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors opacity-50">
+                      <button onClick={() => toggleIdea(idea.id, false)}
+                        className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0 text-black">
+                        <IconCheck size={10} strokeWidth={3} />
+                      </button>
+                      <span className="flex-1 text-sm text-[#6b6b7a] line-through">{idea.text}</span>
+                      <button onClick={() => deleteIdea(idea.id)}
+                        className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            )}
+            </SortableIdeaItem>
+          )
+        })}
+      </div>
+      </SortableContext>
+      {columns.length === 0 && (
+        <div className="text-center py-14 bg-white border border-[#e2e4e8] rounded-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center mx-auto mb-3 text-[#c8cad0]">
+            <IconLightbulb size={28} />
+          </div>
+          <p className="text-[#6b6b7a] text-sm font-medium mb-1">No columns yet</p>
+          <p className="text-[#c8cad0] text-xs mb-5">Add a column to start collecting and organising show ideas</p>
+          <button onClick={addColumn} className="inline-flex items-center gap-1.5 bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2 text-xs hover:bg-[#00d494] active:scale-[0.99] transition-all"><IconPlus size={13} /> Add first column</button>
+        </div>
+      )}
+      {/* Add column */}
+      {columns.length > 0 && (
+        <button
+          onClick={addColumn}
+          className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors flex items-center justify-center gap-1.5"
+        ><IconPlus size={13} /> Add column</button>
+      )}
+    </div>
+    </DndContext>
+  )
+
+  const renderWhiteboard = () => {
+    if (!(currentEp && sections.length > 0)) return null
+    return (
+      <div className="rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+        style={{ border: '10px solid #2e2e2e', outline: '2px solid #3a3a3a' }}>
+        <div className="h-3 flex items-center px-4 gap-1.5" style={{ background: '#252525' }}>
+          {['#555','#444','#333'].map((c, i) => (
+            <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
+          ))}
+        </div>
+        <div className="px-6 pt-5 pb-8"
+          style={{ background: '#fafaf7', backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #ece8e0 39px, #ece8e0 40px)' }}>
+          <div className="flex items-center justify-between mb-8">
+            <p className="text-[10px] uppercase tracking-[0.18em] font-semibold" style={{ color: '#b0a898' }}>
+              {show?.name} — Episode Board
+            </p>
+            <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
+              className="text-[10px] border rounded-lg px-3 py-1 transition-colors hover:text-[#1a1a1a] flex items-center gap-1"
+              style={{ color: '#9a9080', borderColor: '#d8d0c4' }}>
+              Edit in planner <IconArrowRight size={11} />
+            </a>
+          </div>
+          <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleWhiteboardDndEnd}>
+            <SortableContext items={sections.map((s: any) => s.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-9">
+                {sections.map((section: any, idx: number) => {
+                  const status = getSectionStatus(section.name)
+                  const preview = getSectionPreview(section.name)
+                  const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
+                  const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+                  const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
+                  const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
+                  return (
+                    <SortableNote key={section.id} id={section.id}>
+                      {(dragListeners: any) => (
+                        <div className="relative">
+                          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+                            <div className="w-4 h-4 rounded-full" style={{ background: `radial-gradient(circle at 35% 30%, ${PIN_COLORS[idx % PIN_COLORS.length]}, ${PIN_SHADOWS[idx % PIN_SHADOWS.length]})`, border: '1px solid rgba(0,0,0,0.25)', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                              <div className="w-1 h-1 rounded-full ml-[3px] mt-[3px]" style={{ background: 'rgba(255,255,255,0.5)' }} />
+                            </div>
+                          </div>
+                          <span
+                            {...dragListeners}
+                            className="absolute top-2 right-2 z-20 text-[rgba(0,0,0,0.2)] hover:text-[rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing select-none touch-none flex items-center"
+                            title="Drag to reorder"
+                          ><IconGrip size={13} /></span>
+                          <a href={href}
+                            className="sticky-note block rounded-xl"
+                            style={{ backgroundColor: noteColor, boxShadow: '0 1px 2px rgba(13,13,15,0.04), 0 2px 8px rgba(13,13,15,0.06)' }}>
+                            <div className="pt-4 px-4 pb-4">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div>
+                                  <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: 'rgba(0,0,0,0.25)' }}>
+                                    Segment {idx + 1}
+                                  </p>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-base leading-none">{section.icon}</span>
+                                    <span className="font-bold text-[13px] leading-snug" style={{ color: '#1a1a1a' }}>{section.name}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
+                                  style={{ backgroundColor: badgeBg, color: badgeColor }}>
+                                  {status}
+                                </span>
+                              </div>
+                              <p className="text-[11px] leading-relaxed line-clamp-4 mt-3" style={{ color: '#3a3028' }}>
+                                {preview || <span className="italic" style={{ color: 'rgba(0,0,0,0.25)' }}>No notes yet</span>}
+                              </p>
+                            </div>
+                          </a>
+                        </div>
+                      )}
+                    </SortableNote>
+                  )
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+        <div className="h-5" style={{ background: '#252525' }} />
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
       <Toast toast={toast} />
@@ -484,7 +771,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
           </div>
         </div>
 
-        {/* ── Tab switcher (all show types) ── */}
+        {/* ── Tab switcher (radio only) ── */}
+        {isRadio && (
         <div className="flex gap-2 bg-white border border-[#e2e4e8] rounded-2xl p-1.5">
           <button
             onClick={() => setActiveTab('runsheet')}
@@ -501,6 +789,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             <span className="text-sm tracking-wide">Ideas Board</span>
           </button>
         </div>
+        )}
 
         {/* ── Radio: Current Runsheet card + Today's Show + Archive ── */}
         {isRadio && activeTab === 'runsheet' && (() => {
@@ -750,208 +1039,12 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         })()}
 
         {/* ── Radio: Ideas Board ── */}
-        {activeTab === 'ideas' && (
-          <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDndEnd}>
-          <div className="space-y-3">
-            <SortableContext items={columns.map(c => c.id)} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {columns.map(col => {
-                const colActive = ideas.filter(i => i.column_id === col.id && !i.done)
-                const colDone = ideas.filter(i => i.column_id === col.id && i.done)
-                const colText = newIdeaTextByCol[col.id] || ''
-                return (
-                  <SortableIdeaItem key={col.id} id={col.id}>
-                  {(colDragListeners) => (
-                  <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
-                    {/* Column header — drag handle + editable title + delete */}
-                    <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
-                      <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
-                      <input
-                        type="text"
-                        value={col.title}
-                        onChange={e => updateColumnTitle(col.id, e.target.value)}
-                        onBlur={e => saveColumnTitle(col.id, e.target.value)}
-                        onMouseDown={e => e.stopPropagation()}
-                        className="flex-1 bg-transparent text-xs font-bold uppercase tracking-widest text-[#6b6b7a] outline-none"
-                      />
-                      <button
-                        onClick={() => toggleColumnMode(col.id, col.mode || 'permanent')}
-                        title={col.mode === 'weekly' ? 'Weekly: completed items auto-clear each Monday — click to switch to Permanent' : 'Permanent: items stay forever — click to switch to Weekly'}
-                        className={`flex-shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover/col:opacity-100 ${
-                          col.mode === 'weekly'
-                            ? 'bg-[#a78bfa]/20 text-[#7c3aed] hover:bg-[#a78bfa]/35'
-                            : 'bg-[#e2e4e8] text-[#9a9aaa] hover:bg-[#d8dae0] hover:text-[#6b6b7a]'
-                        }`}
-                      >
-                        {col.mode === 'weekly' ? <><IconRefresh size={11} /> Weekly</> : 'Permanent'}
-                      </button>
-                      {col.mode === 'weekly' && (
-                        <span className="flex-shrink-0 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#a78bfa]/20 text-[#7c3aed] group-hover/col:hidden"><IconRefresh size={11} /> Weekly</span>
-                      )}
-                      {colDeleteConfirm === col.id ? (
-                        <span className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
-                          <button onClick={() => { deleteColumn(col.id); setColDeleteConfirm(null) }}
-                            className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
-                          <button onClick={() => setColDeleteConfirm(null)}
-                            className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
-                        </span>
-                      ) : (
-                        <button onClick={() => setColDeleteConfirm(col.id)}
-                          className="opacity-0 group-hover/col:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
-                      )}
-                    </div>
-                    {/* Add idea input */}
-                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f0f1f3]">
-                      <div className="w-4 h-4 rounded-full border-2 border-[#e2e4e8] flex-shrink-0" />
-                      <input
-                        type="text"
-                        value={colText}
-                        onChange={e => setNewIdeaTextByCol(prev => ({ ...prev, [col.id]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === 'Enter') addIdea(col.id) }}
-                        placeholder="Add an idea…"
-                        className="flex-1 bg-transparent text-sm text-[#0d0d0f] outline-none placeholder-[#c8cad0]"
-                      />
-                      {colText.trim() && (
-                        <button onClick={() => addIdea(col.id)} className="text-[#00a870] text-xs font-semibold flex-shrink-0">Add</button>
-                      )}
-                    </div>
-                    {/* Active ideas */}
-                    {colActive.length === 0 && colDone.length === 0 && (
-                      <div className="px-4 py-8 text-center text-[#c8cad0] text-xs">Nothing here yet</div>
-                    )}
-                    <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleIdeaDndEnd}>
-                    <SortableContext items={colActive.map(i => i.id)} strategy={rectSortingStrategy}>
-                    {colActive.map(idea => (
-                      <SortableIdeaItem key={idea.id} id={idea.id}>
-                      {(dragListeners) => (
-                      <div className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
-                        <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-                          <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
-                          <button onClick={() => toggleIdea(idea.id, true)}
-                            className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
-                          <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
-                          <button onClick={() => setIdeaNotesOpen(prev => ({ ...prev, [idea.id]: !prev[idea.id] }))}
-                            className={`opacity-0 group-hover:opacity-100 text-[10px] border rounded-md px-1.5 py-0.5 transition-all flex-shrink-0 flex items-center gap-1 ${idea.notes ? 'opacity-100 text-[#6b6b7a] border-[#e2e4e8]' : 'text-[#c8cad0] border-transparent hover:border-[#e2e4e8] hover:text-[#6b6b7a]'}`}>
-                            {ideaNotesOpen[idea.id] ? 'Hide' : <><IconPlus size={10} /> Note</>}
-                          </button>
-                          {ideaDeleteConfirm === idea.id ? (
-                            <span className="flex items-center gap-1.5 flex-shrink-0">
-                              <span className="text-[10px] text-[#6b6b7a]">Delete?</span>
-                              <button onClick={() => { deleteIdea(idea.id); setIdeaDeleteConfirm(null) }}
-                                className="text-[10px] font-bold text-white bg-[#ff5c3a] rounded px-1.5 py-0.5 hover:bg-red-600 transition-colors">Yes</button>
-                              <button onClick={() => setIdeaDeleteConfirm(null)}
-                                className="text-[10px] text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors">No</button>
-                            </span>
-                          ) : (
-                            <button onClick={() => setIdeaDeleteConfirm(idea.id)}
-                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
-                          )}
-                        </div>
-                        {(ideaNotesOpen[idea.id] || idea.notes) && (
-                          <div className="px-11 pb-2">
-                            <textarea
-                              value={idea.notes || ''}
-                              onChange={e => setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, notes: e.target.value } : i))}
-                              onBlur={e => saveIdeaNotes(idea.id, e.target.value)}
-                              placeholder="Add notes…"
-                              rows={2}
-                              className="w-full bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 text-xs text-[#4a4a5a] outline-none focus:border-[#00e5a0] resize-none placeholder-[#c8cad0]"
-                            />
-                          </div>
-                        )}
-                        {/* Link — always below notes */}
-                        <div className="px-11 pb-2.5">
-                          {idea.url ? (
-                            <span className="flex items-center gap-1">
-                              <a href={idea.url} target="_blank" rel="noopener noreferrer"
-                                className="text-[10px] text-[#00a870] border border-[#00e5a0]/40 rounded-md px-1.5 py-0.5 hover:bg-[#00e5a0]/10 transition-colors max-w-[200px] flex items-center gap-1">
-                                <IconLink size={12} className="flex-shrink-0" /> <span className="truncate">{getDomain(idea.url)}</span>
-                              </a>
-                              <button onClick={() => saveIdeaUrl(idea.id, '')}
-                                className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex items-center"><IconX size={12} /></button>
-                            </span>
-                          ) : ideaLinkOpen[idea.id] ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="url"
-                                value={ideaLinkInput[idea.id] || ''}
-                                onChange={e => setIdeaLinkInput(prev => ({ ...prev, [idea.id]: e.target.value }))}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')
-                                  if (e.key === 'Escape') setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))
-                                }}
-                                placeholder="Paste a URL…"
-                                autoFocus
-                                className="flex-1 bg-white border border-[#e2e4e8] rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#00e5a0] placeholder-[#c8cad0]"
-                              />
-                              <button onClick={() => saveIdeaUrl(idea.id, ideaLinkInput[idea.id] || '')}
-                                className="bg-[#00e5a0] text-black text-xs font-bold rounded-lg px-2.5 py-1 hover:bg-[#00ffc0] transition-colors">Save</button>
-                              <button onClick={() => setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: false }))}
-                                className="text-[#6b6b7a] text-xs hover:text-[#0d0d0f] transition-colors">Cancel</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => { setIdeaLinkOpen(prev => ({ ...prev, [idea.id]: true })); setIdeaLinkInput(prev => ({ ...prev, [idea.id]: '' })) }}
-                              className="opacity-0 group-hover:opacity-100 text-[10px] text-[#c8cad0] hover:text-[#00a870] transition-all flex items-center gap-1">
-                              <IconPlus size={10} /> Add link
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      )}
-                      </SortableIdeaItem>
-                    ))}
-                    </SortableContext>
-                    </DndContext>
-                    {/* Done section */}
-                    {colDone.length > 0 && (
-                      <>
-                        <div className="px-4 py-1.5 bg-[#f7f8fa] border-t border-b border-[#e2e4e8]">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#c8cad0]">Done — {colDone.length}</span>
-                        </div>
-                        {colDone.map(idea => (
-                          <div key={idea.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors opacity-50">
-                            <button onClick={() => toggleIdea(idea.id, false)}
-                              className="w-4 h-4 rounded-full bg-[#00e5a0] flex items-center justify-center flex-shrink-0 text-black">
-                              <IconCheck size={10} strokeWidth={3} />
-                            </button>
-                            <span className="flex-1 text-sm text-[#6b6b7a] line-through">{idea.text}</span>
-                            <button onClick={() => deleteIdea(idea.id)}
-                              className="opacity-0 group-hover:opacity-100 text-[#c8cad0] hover:text-[#ff5c3a] transition-all flex-shrink-0 flex items-center"><IconX size={14} /></button>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                  )}
-                  </SortableIdeaItem>
-                )
-              })}
-            </div>
-            </SortableContext>
-            {columns.length === 0 && (
-              <div className="text-center py-14 bg-white border border-[#e2e4e8] rounded-2xl">
-                <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center mx-auto mb-3 text-[#c8cad0]">
-                  <IconLightbulb size={28} />
-                </div>
-                <p className="text-[#6b6b7a] text-sm font-medium mb-1">No columns yet</p>
-                <p className="text-[#c8cad0] text-xs mb-5">Add a column to start collecting and organising show ideas</p>
-                <button onClick={addColumn} className="inline-flex items-center gap-1.5 bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2 text-xs hover:bg-[#00d494] active:scale-[0.99] transition-all"><IconPlus size={13} /> Add first column</button>
-              </div>
-            )}
-            {/* Add column */}
-            {columns.length > 0 && (
-              <button
-                onClick={addColumn}
-                className="w-full py-3 border-2 border-dashed border-[#e2e4e8] rounded-2xl text-sm text-[#c8cad0] hover:border-[#00e5a0]/50 hover:text-[#00a870] transition-colors flex items-center justify-center gap-1.5"
-              ><IconPlus size={13} /> Add column</button>
-            )}
-          </div>
-          </DndContext>
+        {isRadio && activeTab === 'ideas' && (
+          renderIdeasBoard('grid grid-cols-1 sm:grid-cols-2 gap-3')
         )}
 
-        {/* ── Podcast: Current Episode + Whiteboard + Archive ── */}
-        {!isRadio && activeTab === 'runsheet' && (
+        {/* ── Podcast: Current Episode + Whiteboard + Ideas Board + Archive ── */}
+        {!isRadio && (
           <>
             {currentEp ? (
               <div className="relative bg-gradient-to-r from-[#edfdf6] to-white border border-[#00e5a0]/40 rounded-2xl px-6 py-5 flex items-center justify-between overflow-hidden">
@@ -1008,82 +1101,18 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
               </div>
             )}
 
-            {/* Whiteboard */}
-            {currentEp && sections.length > 0 && (
-              <div className="rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
-                style={{ border: '10px solid #2e2e2e', outline: '2px solid #3a3a3a' }}>
-                <div className="h-3 flex items-center px-4 gap-1.5" style={{ background: '#252525' }}>
-                  {['#555','#444','#333'].map((c, i) => (
-                    <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
-                  ))}
+            {/* Whiteboard + Ideas Board side by side */}
+            {(() => {
+              const wb = renderWhiteboard()
+              return wb ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                  <div>{wb}</div>
+                  <div>{renderIdeasBoard('grid grid-cols-1 gap-3')}</div>
                 </div>
-                <div className="px-6 pt-5 pb-8"
-                  style={{ background: '#fafaf7', backgroundImage: 'repeating-linear-gradient(transparent, transparent 39px, #ece8e0 39px, #ece8e0 40px)' }}>
-                  <div className="flex items-center justify-between mb-8">
-                    <p className="text-[10px] uppercase tracking-[0.18em] font-semibold" style={{ color: '#b0a898' }}>
-                      {show?.name} — Episode Board
-                    </p>
-                    <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
-                      className="text-[10px] border rounded-lg px-3 py-1 transition-colors hover:text-[#1a1a1a] flex items-center gap-1"
-                      style={{ color: '#9a9080', borderColor: '#d8d0c4' }}>
-                      Edit in planner <IconArrowRight size={11} />
-                    </a>
-                  </div>
-                  <DndContext sensors={whiteboardSensors} collisionDetection={closestCenter} onDragEnd={handleWhiteboardDndEnd}>
-                    <SortableContext items={sections.map((s: any) => s.id)} strategy={rectSortingStrategy}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {sections.map((section: any, idx: number) => {
-                          const status = getSectionStatus(section.name)
-                          const preview = getSectionPreview(section.name)
-                          const noteColor = idx % 2 === 0 ? '#cdf0e3' : '#f0e2cc'
-                          const href = `/planner/${showId}?episodeId=${currentEp.id}#${section.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-                          const badgeBg = status === 'ready' ? 'rgba(0,168,112,0.18)' : status === 'draft' ? 'rgba(245,194,66,0.22)' : 'rgba(0,0,0,0.10)'
-                          const badgeColor = status === 'ready' ? '#005c38' : status === 'draft' ? '#7a5200' : 'rgba(0,0,0,0.38)'
-                          return (
-                            <SortableNote key={section.id} id={section.id}>
-                              {(dragListeners: any) => (
-                                <div className="relative">
-                                  <span
-                                    {...dragListeners}
-                                    className="absolute top-2 right-2 z-20 text-[rgba(0,0,0,0.2)] hover:text-[rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing select-none touch-none flex items-center"
-                                    title="Drag to reorder"
-                                  ><IconGrip size={13} /></span>
-                                  <a href={href}
-                                    className="sticky-note block rounded-xl"
-                                    style={{ backgroundColor: noteColor, boxShadow: '0 1px 2px rgba(13,13,15,0.04), 0 2px 8px rgba(13,13,15,0.06)' }}>
-                                    <div className="pt-4 px-4 pb-4">
-                                      <div className="flex items-start justify-between gap-2 mb-2">
-                                        <div>
-                                          <p className="text-[8px] font-bold uppercase tracking-[0.16em] mb-1.5" style={{ color: 'rgba(0,0,0,0.25)' }}>
-                                            Segment {idx + 1}
-                                          </p>
-                                          <div className="flex items-center gap-1.5">
-                                            <span className="text-base leading-none">{section.icon}</span>
-                                            <span className="font-bold text-[13px] leading-snug" style={{ color: '#1a1a1a' }}>{section.name}</span>
-                                          </div>
-                                        </div>
-                                        <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
-                                          style={{ backgroundColor: badgeBg, color: badgeColor }}>
-                                          {status}
-                                        </span>
-                                      </div>
-                                      <p className="text-[11px] leading-relaxed line-clamp-4 mt-3" style={{ color: '#3a3028' }}>
-                                        {preview || <span className="italic" style={{ color: 'rgba(0,0,0,0.25)' }}>No notes yet</span>}
-                                      </p>
-                                    </div>
-                                  </a>
-                                </div>
-                              )}
-                            </SortableNote>
-                          )
-                        })}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                </div>
-                <div className="h-5" style={{ background: '#252525' }} />
-              </div>
-            )}
+              ) : (
+                renderIdeasBoard('grid grid-cols-1 sm:grid-cols-2 gap-3')
+              )
+            })()}
 
             {/* Episode Archive */}
             <a
