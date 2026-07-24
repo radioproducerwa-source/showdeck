@@ -20,8 +20,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const PIN_COLORS = ['#ff6b52', '#4a90e2', '#f5b942', '#2ea86a']
-const PIN_SHADOWS = ['#cc3a20', '#2c5aa0', '#c8930f', '#1c7a4a']
+const PIN_COLORS = ['#ff6b52', '#4a90e2']
+const PIN_SHADOWS = ['#cc3a20', '#2c5aa0']
 
 function SortableNote({ id, children }: { id: string; children: (dragListeners: any) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -715,15 +715,15 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         <div className="relative bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">
           {/* Accent stripe using show colour */}
           <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: show?.header_color || '#00e5a0' }} />
-          <div className="px-7 py-5 pl-9">
-            <div className="flex items-center gap-5">
+          <div className="px-7 py-4 pl-9">
+            <div className="flex items-center gap-4">
               {/* Logo */}
-              <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-[#e2e4e8]">
+              <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-[#e2e4e8]">
                 {show?.logo_url ? (
                   <img src={show.logo_url} alt={show.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: (show?.header_color || '#00e5a0') + '20' }}>
-                    <span className="text-2xl font-black" style={{ color: show?.header_color || '#00e5a0' }}>{getInitials(show?.name || '')}</span>
+                    <span className="text-xl font-black" style={{ color: show?.header_color || '#00e5a0' }}>{getInitials(show?.name || '')}</span>
                   </div>
                 )}
               </div>
@@ -1064,7 +1064,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                       </span>
                     )}
                   </div>
-                  <div className="text-xl font-bold leading-snug truncate">{currentEp.title || `Untitled ${epLabel}`}</div>
+                  <div className="text-2xl sm:text-3xl font-bold leading-tight truncate">{currentEp.title || `Untitled ${epLabel}`}</div>
                   <div className="text-sm text-[#6b6b7a] mt-1">{formatDate(currentEp.episode_date)}</div>
                   {sections.length > 0 && (
                     <div className="mt-3">
@@ -1079,8 +1079,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                   )}
                 </div>
                 <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
-                  className="ml-6 bg-[#00e5a0] text-black font-semibold rounded-xl px-6 py-3 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex-shrink-0 shadow-sm flex items-center gap-1.5">
-                  Open planner <IconArrowRight size={13} />
+                  className="ml-6 bg-[#00e5a0] text-black font-semibold rounded-xl px-8 py-4 text-base hover:bg-[#00d494] active:scale-[0.99] transition-all flex-shrink-0 shadow-sm flex items-center gap-2">
+                  Open planner <IconArrowRight size={16} />
                 </a>
               </div>
             ) : (
