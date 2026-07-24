@@ -401,7 +401,8 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
       <Toast toast={toast} />
       {/* Nav */}
-      <header className="bg-white border-b border-[#e2e4e8] px-4 sm:px-8 h-14 flex items-center justify-between gap-2">
+      <header className="bg-white border-b border-[#e2e4e8]">
+        <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 h-14 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <a href="/dashboard" className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors whitespace-nowrap flex items-center gap-1"><IconArrowLeft size={14} /> <span className="hidden sm:inline">Dashboard</span></a>
           <span className="text-[#e2e4e8]">|</span>
@@ -418,9 +419,10 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             )}
           </div>
         )}
+        </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-4">
+      <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-8 space-y-4">
 
         {/* ── Show Header ── */}
         <div className="relative bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden">

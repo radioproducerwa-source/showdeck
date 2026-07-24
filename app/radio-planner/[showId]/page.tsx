@@ -38,7 +38,8 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
 
   return (
     <main className="min-h-screen bg-[#f7f8fa]">
-      <header className="bg-white border-b border-[#e2e4e8] px-3 sm:px-6 h-14 flex items-center justify-between sticky top-0 z-20">
+      <header className="bg-white border-b border-[#e2e4e8] sticky top-0 z-20">
+        <div className="max-w-[2000px] mx-auto px-3 sm:px-6 lg:px-12 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <a href={`/shows/${showId}`} className="text-[#6b6b7a] hover:text-[#0d0d0f] text-sm transition-colors flex-shrink-0">← <span className="hidden sm:inline">Show</span></a>
           <span className="text-[#e2e4e8] hidden sm:inline">|</span>
@@ -49,8 +50,9 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
           <span className="text-[#6b6b7a] text-xs border-l border-[#e2e4e8] pl-2 sm:pl-3 truncate">{show.name}</span>
         </div>
         <GlobalSearch />
+        </div>
       </header>
-      <div className="max-w-5xl mx-auto px-2 sm:px-6 py-4 sm:py-8">
+      <div className="max-w-[2000px] mx-auto px-2 sm:px-6 lg:px-12 py-4 sm:py-8">
         <RadioPlannerPanel showId={showId} show={show} initialDay={initialDay} />
       </div>
     </main>

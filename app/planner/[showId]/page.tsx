@@ -848,7 +848,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
         <input
           type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
           placeholder={show.show_type === 'radio' ? 'BROADCAST TITLE…' : 'EPISODE TITLE…'}

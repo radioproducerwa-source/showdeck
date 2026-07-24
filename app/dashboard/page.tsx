@@ -94,7 +94,8 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#0d0d0f] animate-page-in">
       {/* Nav */}
-      <header className="bg-white border-b border-[#e2e4e8] px-4 sm:px-8 h-14 flex items-center justify-between">
+      <header className="bg-white border-b border-[#e2e4e8]">
+        <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 h-14 flex items-center justify-between">
         <Logo size={0.75} />
         <div className="flex items-center gap-2 sm:gap-4">
           <a href="/profile" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
@@ -116,16 +117,17 @@ export default function Dashboard() {
             <span className="sm:hidden flex items-center"><IconLogOut size={14} /></span>
           </button>
         </div>
+        </div>
       </header>
 
       {loading ? (
-        <div className="max-w-5xl mx-auto px-6 py-10">
+        <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-10">
           <div className="flex items-center justify-between mb-5">
             <div className="h-3 w-20 bg-[#e2e4e8] rounded animate-pulse" />
             <div className="h-9 w-28 bg-[#e2e4e8] rounded-xl animate-pulse" />
           </div>
           <div className="mb-6 h-10 bg-[#e2e4e8] rounded-xl animate-pulse" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="rounded-2xl overflow-hidden border border-[#e2e4e8] bg-white">
                 <div className="aspect-square bg-[#f0f1f3] animate-pulse" />
@@ -179,7 +181,7 @@ export default function Dashboard() {
           </a>
         </div>
       ) : (
-        <div className="max-w-5xl mx-auto px-6 py-10">
+        <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-10">
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-xs font-semibold text-[#6b6b7a] uppercase tracking-widest">Your Shows</h1>
             <a href="/create-show" className="bg-[#00e5a0] text-black font-semibold rounded-xl px-5 py-2.5 text-sm hover:bg-[#00d494] active:scale-[0.99] transition-all flex items-center gap-1.5"><IconPlus size={14} /> New show</a>
@@ -203,7 +205,7 @@ export default function Dashboard() {
           {filteredShows.length === 0 ? (
             <div className="text-center py-16 text-[#6b6b7a] text-sm">No shows match "{search}"</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
               {filteredShows.map(show => (
                 <a
                   key={show.id}
