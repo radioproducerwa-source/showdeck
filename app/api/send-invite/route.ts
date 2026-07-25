@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://showdeck.live'
   const inviteLink = `${origin}/join?token=${encodeURIComponent(invite.token)}`
 
-  const from = process.env.RESEND_FROM || 'Showdeck <onboarding@resend.dev>'
+  const from = process.env.RESEND_FROM || 'Showdeck <team@showdeck.live>'
   const safeShowName = escapeHtml(show.name || 'a show')
   const safeInviter = inviterName ? escapeHtml(inviterName) : undefined
 
