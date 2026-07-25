@@ -780,6 +780,50 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         )
       })()}
 
+      {/* ── Current episode banner (podcast, lighter tint of the show colour) ── */}
+      {!isRadio && currentEp && (() => {
+        const c = show?.header_color || '#00e5a0'
+        return (
+          <div className="border-b border-black/5" style={{ background: `linear-gradient(to right, ${c}24, ${c}0d)` }}>
+            <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-5 flex items-center justify-between gap-6">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-[#6b6b7a]">Current Episode</div>
+                  {isOnAir && (
+                    <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-[#ff5c3a]/10 text-[#ff5c3a] border border-[#ff5c3a]/20 rounded-full px-2 py-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#ff5c3a] animate-pulse" />
+                      On Air
+                    </span>
+                  )}
+                  {!isOnAir && sections.length > 0 && completionPct > 0 && (
+                    <span className="text-[9px] font-semibold text-[#6b6b7a] bg-white/70 border border-black/10 rounded-full px-2 py-0.5">
+                      In Progress
+                    </span>
+                  )}
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold leading-tight truncate text-[#0d0d0f]">{currentEp.title || `Untitled ${epLabel}`}</div>
+                <div className="text-sm text-[#6b6b7a] mt-1">{formatDate(currentEp.episode_date)}</div>
+                {sections.length > 0 && (
+                  <div className="mt-3 max-w-xl">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-[#6b6b7a]">{completedSections}/{sections.length} sections complete</span>
+                      <span className="text-[10px] font-semibold text-[#6b6b7a]">{completionPct}%</span>
+                    </div>
+                    <div className="h-1.5 bg-black/10 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${completionPct}%`, backgroundColor: c }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
+                className="bg-[#00e5a0] text-black font-semibold rounded-xl px-8 py-4 text-base hover:bg-[#00d494] active:scale-[0.99] transition-all flex-shrink-0 shadow-sm flex items-center gap-2">
+                Open planner <IconArrowRight size={16} />
+              </a>
+            </div>
+          </div>
+        )
+      })()}
+
       <div className="max-w-[2000px] mx-auto px-4 sm:px-8 lg:px-12 py-8 space-y-4">
 
         {/* ── Tab switcher (radio only) ── */}
@@ -1057,44 +1101,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         {/* ── Podcast: Current Episode + Whiteboard + Ideas Board + Archive ── */}
         {!isRadio && (
           <>
-            {currentEp ? (
-              <div className="relative bg-gradient-to-r from-[#edfdf6] to-white border border-[#00e5a0]/40 rounded-2xl px-6 py-5 flex items-center justify-between overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#00e5a0] rounded-l-2xl" />
-                <div className="pl-3 flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#00a870]">Current Episode</div>
-                    {isOnAir && (
-                      <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-[#ff5c3a]/10 text-[#ff5c3a] border border-[#ff5c3a]/20 rounded-full px-2 py-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff5c3a] animate-pulse" />
-                        On Air
-                      </span>
-                    )}
-                    {!isOnAir && sections.length > 0 && completionPct > 0 && (
-                      <span className="text-[9px] font-semibold text-[#6b6b7a] bg-[#f7f8fa] border border-[#e2e4e8] rounded-full px-2 py-0.5">
-                        In Progress
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-bold leading-tight truncate">{currentEp.title || `Untitled ${epLabel}`}</div>
-                  <div className="text-sm text-[#6b6b7a] mt-1">{formatDate(currentEp.episode_date)}</div>
-                  {sections.length > 0 && (
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-[#6b6b7a]">{completedSections}/{sections.length} sections complete</span>
-                        <span className="text-[10px] font-semibold text-[#00a870]">{completionPct}%</span>
-                      </div>
-                      <div className="h-1.5 bg-[#e2e4e8] rounded-full overflow-hidden">
-                        <div className="h-full bg-[#00e5a0] rounded-full transition-all duration-500" style={{ width: `${completionPct}%` }} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <a href={`/planner/${showId}?episodeId=${currentEp.id}`}
-                  className="ml-6 bg-[#00e5a0] text-black font-semibold rounded-xl px-8 py-4 text-base hover:bg-[#00d494] active:scale-[0.99] transition-all flex-shrink-0 shadow-sm flex items-center gap-2">
-                  Open planner <IconArrowRight size={16} />
-                </a>
-              </div>
-            ) : (
+            {!currentEp && (
               <div className="bg-white border-2 border-dashed border-[#e2e4e8] rounded-2xl px-6 py-8 flex flex-col items-center text-center gap-3">
                 <div className="w-14 h-14 rounded-2xl bg-[#f7f8fa] border border-[#e2e4e8] flex items-center justify-center text-[#c8cad0]">
                   <IconMic size={28} />
