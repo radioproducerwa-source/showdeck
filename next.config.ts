@@ -6,8 +6,9 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  // Source-map upload is skipped without a SENTRY_AUTH_TOKEN; error capture
-  // still works. Add the token + org/project later to get readable stack traces.
+  org: "showdeck-6h",
+  project: "javascript-nextjs",
+  // Source maps upload during Production/Preview builds using SENTRY_AUTH_TOKEN
+  // (set in Vercel). Falls back to no upload if the token is absent.
   silent: !process.env.CI,
-  disableLogger: true,
 });
