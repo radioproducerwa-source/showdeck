@@ -57,7 +57,7 @@ export default function Home() {
     })
     setForgotLoading(false)
     if (error) { setMessage(friendlyError(error.message)); setIsError(true) }
-    else { setMessage('Check your email — we sent a password reset link.'); setIsError(false); setShowForgot(false) }
+    else { setMessage("Check your email — we sent a password reset link. If it's not in your inbox, check your spam or junk folder."); setIsError(false); setShowForgot(false) }
   }
 
   const handleAuth = async () => {
@@ -67,7 +67,7 @@ export default function Home() {
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) { setMessage(friendlyError(error.message)); setIsError(true) }
-      else { setMessage('Check your email to confirm your account!') }
+      else { setMessage("Check your email to confirm your account! If it's not in your inbox, check your spam or junk folder.") }
     } else {
       const { error, data } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setMessage(friendlyError(error.message)); setIsError(true) }
