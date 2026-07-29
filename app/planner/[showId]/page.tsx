@@ -58,6 +58,17 @@ type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
 
 const ACCENT_COLORS = ['#00e5a0', '#f5c842']
 
+// Pick black or white text for legibility on a given background colour
+function contrastText(hex: string) {
+  const h = (hex || '').replace('#', '')
+  if (h.length < 6) return '#ffffff'
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.55 ? '#0d0d0f' : '#ffffff'
+}
+
 // ── Sortable wrapper ──
 function SortableItem({ id, children }: { id: string; children: (listeners: any) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -848,16 +859,29 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
-        <input
-          type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
-          placeholder={show.show_type === 'radio' ? 'BROADCAST TITLE…' : 'EPISODE TITLE…'}
-          className="bg-transparent border-none text-3xl font-bold text-[#0d0d0f] tracking-widest outline-none w-full mb-1 placeholder-[#c0c2cc]"
-        />
-        {episodeDate && (
-          <p className="text-[#6b6b7a] text-sm mb-6">{formatDate(episodeDate)}</p>
-        )}
+      {/* Episode title banner */}
+      {(() => {
+        const c = show.header_color || '#00e5a0'
+        const onC = contrastText(c)
+        const subtle = onC === '#0d0d0f' ? 'rgba(13,13,15,0.6)' : 'rgba(255,255,255,0.8)'
+        return (
+          <div style={{ backgroundColor: c }} className="border-b border-black/10">
+            <div className="max-w-5xl mx-auto px-3 sm:px-6 py-5">
+              <input
+                type="text" value={epTitle} onChange={e => updateTitle(e.target.value)}
+                placeholder={show.show_type === 'radio' ? 'BROADCAST TITLE…' : 'EPISODE TITLE…'}
+                className={`bg-transparent border-none text-2xl sm:text-3xl font-bold tracking-tight outline-none w-full ${onC === '#ffffff' ? 'placeholder-white/50' : 'placeholder-black/40'}`}
+                style={{ color: onC }}
+              />
+              {episodeDate && (
+                <p className="text-sm mt-1" style={{ color: subtle }}>{formatDate(episodeDate)}</p>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
         {/* Social handles */}
         {(() => {
           const platforms = [
