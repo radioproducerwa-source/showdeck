@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { cookies } from "next/headers";
 import "./globals.css";
-import { THEMES, DEFAULT_THEME, type ThemeKey } from "../lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +16,12 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://showdeck.live"),
   title: "Showdeck — Plan every episode, together",
   description: "The collaborative show planning workspace for podcast and radio teams. Plan segments, manage runsheets, and keep your whole team in sync.",
+  applicationName: "Showdeck",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Showdeck",
+  },
   openGraph: {
     title: "Showdeck — Plan every episode, together",
     description: "The collaborative show planning workspace for podcast and radio teams.",
@@ -26,29 +30,25 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Showdeck — Plan every episode, together",
     description: "The collaborative show planning workspace for podcast and radio teams.",
   },
 };
 
-export default async function RootLayout({
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+};
+
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const rawTheme = cookieStore.get("showdeck_theme")?.value;
-  const themeKey: ThemeKey = (rawTheme && rawTheme in THEMES) ? rawTheme as ThemeKey : DEFAULT_THEME;
-  const themeVars = THEMES[themeKey].vars;
-  const themeStyle = Object.fromEntries(Object.entries(themeVars)) as React.CSSProperties & Record<string, string>;
-
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      data-theme={themeKey}
-      style={themeStyle}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
