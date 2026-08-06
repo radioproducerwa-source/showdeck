@@ -650,9 +650,9 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                           </div>
                           <span
                             {...dragListeners}
-                            className="absolute top-2 right-2 z-20 text-[rgba(0,0,0,0.2)] hover:text-[rgba(0,0,0,0.45)] cursor-grab active:cursor-grabbing select-none touch-none flex items-center"
+                            className="absolute top-0 right-0 z-20 p-3 text-[rgba(0,0,0,0.3)] hover:text-[rgba(0,0,0,0.55)] cursor-grab active:cursor-grabbing select-none touch-none flex items-center justify-center"
                             title="Drag to reorder"
-                          ><IconGrip size={13} /></span>
+                          ><IconGrip size={18} /></span>
                           <a href={href}
                             className="sticky-note wb-note block rounded-xl"
                             style={{ boxShadow: '0 1px 2px rgba(13,13,15,0.04), 0 2px 8px rgba(13,13,15,0.06)' }}>
