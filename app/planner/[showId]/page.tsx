@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
+import ShowChat from '../../../components/ShowChat'
 import Toast, { useToast } from '../../../components/Toast'
 import {
   IconGrip, IconLink, IconArchive, IconDownload, IconChevronDown,
@@ -1152,6 +1153,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           </SortableContext>
         </DndContext>
       </div>
+      <ShowChat showId={showId} />
     </main>
   )
 }

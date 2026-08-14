@@ -5,6 +5,7 @@ import RadioPlannerPanel from '../../../components/RadioPlannerPanel'
 import GlobalSearch from '../../../components/GlobalSearch'
 import { useShowAccess } from '../../../lib/useShowAccess'
 import { PageLoader } from '../../../components/icons'
+import ShowChat from '../../../components/ShowChat'
 
 function getInitialDayFromUrl(): number | undefined {
   if (typeof window === 'undefined') return undefined
@@ -55,6 +56,7 @@ export default function RadioPlannerPage({ params }: { params: Promise<{ showId:
       <div className="max-w-[2000px] mx-auto px-2 sm:px-6 lg:px-12 py-4 sm:py-8">
         <RadioPlannerPanel showId={showId} show={show} initialDay={initialDay} />
       </div>
+      <ShowChat showId={showId} />
     </main>
   )
 }

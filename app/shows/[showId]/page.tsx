@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
+import ShowChat from '../../../components/ShowChat'
 import Toast, { useToast } from '../../../components/Toast'
 import {
   IconMic, IconClipboard, IconLightbulb, IconArchive, IconRadio, IconUsers,
@@ -1152,6 +1153,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
         )}
 
       </div>
+      {show && <ShowChat showId={showId} />}
     </main>
   )
 }
