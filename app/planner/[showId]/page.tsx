@@ -106,6 +106,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [linkInput, setLinkInput] = useState<Record<string, string>>({})
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [expandedRoles, setExpandedRoles] = useState<Set<string>>(new Set())
+  // Which host note panels are shown per section, keyed `${sectionName}-${role}`.
+  // A panel is active once it has been added (or already has saved notes).
+  const [activeRoles, setActiveRoles] = useState<Set<string>>(new Set())
   const [savingTemplate, setSavingTemplate] = useState(false)
   const saveTimers = useRef<Record<string, { id: any; run: () => void }>>({})
   const titleTimer = useRef<{ id: any; run: () => void } | null>(null)
@@ -280,22 +283,23 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         saved.forEach((row: any) => { map[`${row.section_name}-${row.role}`] = row.content })
         setContent(map)
 
-        // Auto-expand roles with no content; collapse those that have content
+        // A host panel is shown if a note row already exists for it (even empty —
+        // an empty row is written when someone adds the panel).
+        const hostRoles = ['host1', 'host2', ...(showData?.has_producer ? ['producer'] : [])]
+        const active = new Set<string>()
+        saved.forEach((row: any) => {
+          if (hostRoles.includes(row.role)) active.add(`${row.section_name}-${row.role}`)
+        })
+        setActiveRoles(active)
+
+        // Expand active panels that are still empty so they're ready to type in
         const toExpand = new Set<string>()
         existingSections?.forEach((section: any) => {
-          const roles = ['host1', 'host2', ...(showData?.has_producer ? ['producer'] : [])]
-          roles.forEach(role => {
+          hostRoles.forEach(role => {
+            if (!active.has(`${section.name}-${role}`)) return
             const c = map[`${section.name}-${role}`]
             if (!c || !c.trim()) toExpand.add(`${section.id}-${role}`)
           })
-        })
-        setExpandedRoles(toExpand)
-      } else {
-        // No content — expand everything
-        const toExpand = new Set<string>()
-        existingSections?.forEach((section: any) => {
-          const roles = ['host1', 'host2', ...(showData?.has_producer ? ['producer'] : [])]
-          roles.forEach(role => toExpand.add(`${section.id}-${role}`))
         })
         setExpandedRoles(toExpand)
       }
@@ -333,6 +337,41 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
   const expandRole = (sectionId: string, role: string) => {
     setExpandedRoles(prev => { const n = new Set(prev); n.add(`${sectionId}-${role}`); return n })
+  }
+
+  // Add a host's note panel to a section. Writes an empty note row so the panel
+  // is still there after a reload.
+  const addRolePanel = async (sectionName: string, sectionId: string, role: string) => {
+    setActiveRoles(prev => new Set(prev).add(`${sectionName}-${role}`))
+    setContent((prev: any) => ({ ...prev, [`${sectionName}-${role}`]: prev[`${sectionName}-${role}`] ?? '' }))
+    expandRole(sectionId, role)
+    if (!episodeId) return
+    const { error } = await supabase.from('section_content').upsert(
+      { episode_id: episodeId, section_name: sectionName, role, content: '' },
+      { onConflict: 'episode_id,section_name,role', ignoreDuplicates: true }
+    )
+    if (error) showToast('Could not add that panel — try again', true)
+  }
+
+  // Remove a host's note panel (and its notes) from a section.
+  const removeRolePanel = async (sectionName: string, sectionId: string, role: string) => {
+    const key = `${sectionName}-${role}`
+    const previous = content[key]
+    setActiveRoles(prev => { const n = new Set(prev); n.delete(key); return n })
+    setContent((prev: any) => { const n = { ...prev }; delete n[key]; return n })
+    setExpandedRoles(prev => { const n = new Set(prev); n.delete(`${sectionId}-${role}`); return n })
+    clearTimeout(saveTimers.current[key]?.id)
+    delete saveTimers.current[key]
+    dirtyKeys.current.delete(key)
+    if (!episodeId) return
+    const { error } = await supabase.from('section_content').delete()
+      .eq('episode_id', episodeId).eq('section_name', sectionName).eq('role', role)
+    if (error) {
+      // Put it back if the delete failed
+      setActiveRoles(prev => new Set(prev).add(key))
+      setContent((prev: any) => ({ ...prev, [key]: previous ?? '' }))
+      showToast('Could not remove that panel — try again', true)
+    }
   }
 
   const collapseRoleOnBlur = (e: React.FocusEvent, sectionId: string, role: string) => {
@@ -414,6 +453,12 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const newContent: any = {}
     prevContent.forEach((r: any) => { newContent[`${r.section_name}-${r.role}`] = r.content })
     setContent((prev: any) => ({ ...prev, ...newContent }))
+    // Reveal the host panels the duplicated notes belong to
+    setActiveRoles(prev => {
+      const n = new Set(prev)
+      prevContent.forEach((r: any) => { if (r.role !== 'communal') n.add(`${r.section_name}-${r.role}`) })
+      return n
+    })
     setDuplicating(false)
     showToast('Duplicated from last week!')
   }
@@ -492,6 +537,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const updateContent = (sectionName: string, role: string, value: string) => {
     setContent((prev: any) => ({ ...prev, [`${sectionName}-${role}`]: value }))
     const key = `${sectionName}-${role}`
+    // Writing notes for a host (e.g. Duplicate last week, imports) reveals their panel
+    if (role !== 'communal') setActiveRoles(prev => prev.has(key) ? prev : new Set(prev).add(key))
     dirtyKeys.current.add(key)
     setStatus('unsaved')
     if (saveTimers.current[key]) clearTimeout(saveTimers.current[key].id)
@@ -975,7 +1022,9 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                               </div>
 
                               <div className="divide-y divide-[#e2e4e8]">
-                                {(['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[]).map((role) => {
+                                {(['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[])
+                                  .filter(role => activeRoles.has(`${section.name}-${role}`))
+                                  .map((role) => {
                                   const isHost1 = role === 'host1'
                                   const isProducer = role === 'producer'
                                   const name = isHost1 ? show.host1_name : isProducer ? show.producer_name : show.host2_name
@@ -993,10 +1042,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                       onBlur={(e) => collapseRoleOnBlur(e, section.id, role)}
                                     >
                                       {/* Host panel header — always visible */}
+                                      <div className="w-full flex items-center group/role">
                                       <button
                                         type="button"
                                         onClick={() => toggleRole(section.id, role)}
-                                        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#f7f8fa] transition-colors text-left"
+                                        className="flex-1 min-w-0 flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#f7f8fa] transition-colors text-left"
                                       >
                                         <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
                                           {avatar
@@ -1021,6 +1071,13 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                           style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
                                         ><IconChevronDown size={14} /></span>
                                       </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeRolePanel(section.name, section.id, role)}
+                                        title={`Remove ${name}'s notes from this segment`}
+                                        className="px-3 py-2.5 text-[#c8cad0] hover:text-[#ff5c3a] transition-colors flex-shrink-0 opacity-100 sm:opacity-0 group-hover/role:opacity-100 focus:opacity-100"
+                                      ><IconX size={14} /></button>
+                                      </div>
 
                                       {/* Expandable textarea — smooth height animation */}
                                       <div
@@ -1047,6 +1104,35 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                   )
                                 })}
                               </div>
+
+                              {/* Add a host's notes to this segment */}
+                              {(() => {
+                                const inactive = (['host1', 'host2', ...(show.has_producer ? ['producer'] : [])] as string[])
+                                  .filter(role => !activeRoles.has(`${section.name}-${role}`))
+                                if (inactive.length === 0) return null
+                                return (
+                                  <div className="border-t border-[#e2e4e8] px-3 py-2.5 flex items-center gap-2 flex-wrap">
+                                    {inactive.map(role => {
+                                      const isHost1 = role === 'host1'
+                                      const isProducer = role === 'producer'
+                                      const name = isHost1 ? show.host1_name : isProducer ? show.producer_name : show.host2_name
+                                      const color = isHost1 ? 'bg-[#00e5a0]' : isProducer ? 'bg-[#a78bfa]' : 'bg-[#ff5c3a]'
+                                      if (!name) return null
+                                      return (
+                                        <button
+                                          key={role}
+                                          type="button"
+                                          onClick={() => addRolePanel(section.name, section.id, role)}
+                                          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6b6b7a] hover:text-[#0d0d0f] bg-white border border-[#e2e4e8] hover:border-[#c8cad0] hover:bg-[#f7f8fa] rounded-full pl-1.5 pr-3 py-1 transition-colors"
+                                        >
+                                          <span className={`w-5 h-5 rounded-full ${color} flex items-center justify-center text-black text-[10px] font-bold flex-shrink-0`}>{name?.[0]}</span>
+                                          <IconPlus size={11} /> {name}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )
+                              })()}
 
                               {/* Links row */}
                               <div className="border-t border-[#e2e4e8] bg-[#fafbfc] px-4 py-2.5 flex items-center gap-2 flex-wrap">
