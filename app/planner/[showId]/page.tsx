@@ -6,6 +6,8 @@ import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import ShowChat from '../../../components/ShowChat'
 import Toast, { useToast } from '../../../components/Toast'
+import RichTextEditor from '../../../components/RichTextEditor'
+import { htmlToPlain, htmlToBlocks, isEmptyNote } from '../../../lib/richText'
 import {
   IconGrip, IconLink, IconArchive, IconDownload, IconChevronDown,
   IconPlus, IconX, IconCopy, PageLoader,
@@ -565,9 +567,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   }
 
   const getContent = (sectionName: string, role: string) => content[`${sectionName}-${role}`] || ''
+  /** Notes are stored as HTML — use the plain text for counts, status and previews. */
+  const getPlain = (sectionName: string, role: string) => htmlToPlain(getContent(sectionName, role))
 
   const getWordCount = (sectionName: string) => {
-    const all = ['communal', 'host1', 'host2', 'producer'].map(r => getContent(sectionName, r)).join(' ')
+    const all = ['communal', 'host1', 'host2', 'producer'].map(r => getPlain(sectionName, r)).join(' ')
     return all.trim().split(/\s+/).filter(Boolean).length
   }
 
@@ -577,7 +581,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   }
 
   const getStatus = (sectionName: string) => {
-    const total = getContent(sectionName, 'communal').length + getContent(sectionName, 'host1').length + getContent(sectionName, 'host2').length + getContent(sectionName, 'producer').length
+    const total = ['communal', 'host1', 'host2', 'producer']
+      .reduce((sum, r) => sum + getPlain(sectionName, r).trim().length, 0)
     if (total === 0) return { label: 'EMPTY', color: '#9a9aaa' }
     if (total < 20) return { label: 'DRAFT', color: '#d49c00' }
     return { label: 'READY', color: '#00a870' }
@@ -656,6 +661,75 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
 
     const estPages = 1 + Math.ceil(sections.length / 3)
     let pageNum = 1
+
+    // Render rich-text note blocks, honouring bold/italic/underline and list
+    // markers, wrapping word by word since styles change mid-line.
+    const renderNoteBlocks = (html: string, indent: number) => {
+      const blocks = htmlToBlocks(html)
+      const fontSize = 9.5
+      const lineH = 5
+
+      for (const block of blocks) {
+        const marker = block.type === 'li' ? (block.marker || '•') : ''
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(fontSize)
+        const markerW = marker ? doc.getTextWidth(marker + ' ') : 0
+        const startX = ml + indent + markerW
+        const maxW = cw - indent - markerW - 4
+
+        pageNum = checkPage(lineH + 2, pageNum, estPages)
+        if (marker) {
+          doc.setTextColor(30, 32, 40)
+          doc.text(marker, ml + indent, y)
+        }
+
+        type Tok = { text: string; bold?: boolean; italic?: boolean; underline?: boolean; br?: boolean }
+        const toks: Tok[] = []
+        for (const run of block.runs) {
+          run.text.split('\n').forEach((part, i) => {
+            if (i > 0) toks.push({ text: '', br: true })
+            part.split(/(\s+)/).forEach(w => {
+              if (w === '') return
+              toks.push({ ...run, text: /^\s+$/.test(w) ? ' ' : w })
+            })
+          })
+        }
+
+        let x = startX
+        const newline = () => {
+          y += lineH
+          x = startX
+          pageNum = checkPage(lineH + 2, pageNum, estPages)
+        }
+
+        for (const tok of toks) {
+          if (tok.br) { newline(); continue }
+          const style = tok.bold && tok.italic ? 'bolditalic'
+            : tok.bold ? 'bold'
+            : tok.italic ? 'italic'
+            : 'normal'
+          doc.setFont('helvetica', style)
+          doc.setFontSize(fontSize)
+          doc.setTextColor(30, 32, 40)
+          const w = doc.getTextWidth(tok.text)
+          if (tok.text === ' ' && x === startX) continue  // drop leading space after a wrap
+          if (tok.text !== ' ' && x > startX && x + w > startX + maxW) {
+            newline()
+            doc.setFont('helvetica', style)
+            doc.setFontSize(fontSize)
+          }
+          doc.text(tok.text, x, y)
+          if (tok.underline && tok.text.trim()) {
+            doc.setDrawColor(30, 32, 40)
+            doc.setLineWidth(0.3)
+            doc.line(x, y + 0.9, x + w, y + 0.9)
+          }
+          x += w
+        }
+        y += lineH + 1.5
+      }
+    }
+
     pageHeader(pageNum, estPages)
     y = 22
 
@@ -715,26 +789,15 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       y += 15
 
       const communalText = getContent(section.name, 'communal')
-      if (communalText.trim()) {
+      if (!isEmptyNote(communalText)) {
         pageNum = checkPage(12, pageNum, estPages)
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(7)
         doc.setTextColor(150, 152, 162)
         doc.text('TOPICS & TALKING POINTS', ml, y)
         y += 4.5
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9.5)
-        doc.setTextColor(30, 32, 40)
-        const communalLines = doc.splitTextToSize(communalText, cw - 4)
-        for (const line of communalLines) {
-          pageNum = checkPage(6, pageNum, estPages)
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(9.5)
-          doc.setTextColor(30, 32, 40)
-          doc.text(line, ml + 2, y)
-          y += 5
-        }
-        y += 4
+        renderNoteBlocks(communalText, 2)
+        y += 2
         doc.setDrawColor(228, 230, 236)
         doc.setLineWidth(0.2)
         doc.line(ml, y, pw - mr, y)
@@ -744,7 +807,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       const roles = ['host1', 'host2', ...(show?.has_producer ? ['producer'] : [])]
       for (const role of roles) {
         const text = getContent(section.name, role)
-        if (!text.trim()) continue
+        if (isEmptyNote(text)) continue
 
         const isHost1 = role === 'host1'
         const isProd  = role === 'producer'
@@ -765,19 +828,8 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
         doc.text(roleLabel, ml, y)
         y += 5.5
 
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9.5)
-        doc.setTextColor(30, 32, 40)
-        const lines = doc.splitTextToSize(text, cw - 4)
-        for (const line of lines) {
-          pageNum = checkPage(6, pageNum, estPages)
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(9.5)
-          doc.setTextColor(30, 32, 40)
-          doc.text(line, ml + 2, y)
-          y += 5
-        }
-        y += 5
+        renderNoteBlocks(text, 2)
+        y += 3.5
       }
 
       const sectionLinks = links[section.name] || []
@@ -1005,19 +1057,13 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                             <div className="bg-white border-t border-[#e2e4e8]">
 
                               {/* Communal / shared topics area */}
-                              <div className="px-3 sm:px-5 pt-3 pb-2.5 border-b border-[#e2e4e8]">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9aaa] mb-1.5">Topics &amp; Talking Points</p>
-                                <textarea
+                              <div className="pt-3 pb-1 border-b border-[#e2e4e8]">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9aaa] mb-1 px-4">Topics &amp; Talking Points</p>
+                                <RichTextEditor
                                   value={getContent(section.name, 'communal')}
-                                  onChange={e => updateContent(section.name, 'communal', e.target.value)}
-                                  onInput={e => {
-                                    const el = e.currentTarget
-                                    el.style.height = 'auto'
-                                    el.style.height = el.scrollHeight + 'px'
-                                  }}
+                                  onChange={html => updateContent(section.name, 'communal', html)}
                                   placeholder="Add the topics and key points for this segment — visible to everyone…"
-                                  className="w-full bg-white text-sm text-[#1a1a1a] outline-none resize-none placeholder-[#b8bac2] block leading-relaxed"
-                                  style={{ minHeight: '52px', overflowY: 'hidden' }}
+                                  minHeight={52}
                                 />
                               </div>
 
@@ -1034,7 +1080,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                   const roleKey = `${section.id}-${role}`
                                   const isExpanded = expandedRoles.has(roleKey)
                                   const noteText = getContent(section.name, role)
-                                  const previewLine = noteText.split('\n')[0].slice(0, 80)
+                                  const previewLine = getPlain(section.name, role).split('\n')[0].slice(0, 80)
 
                                   return (
                                     <div
@@ -1085,18 +1131,13 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                         style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
                                       >
                                         <div className={isExpanded ? '' : 'overflow-hidden'}>
-                                          <textarea
+                                          <RichTextEditor
                                             value={noteText}
-                                            onChange={e => updateContent(section.name, role, e.target.value)}
+                                            onChange={html => updateContent(section.name, role, html)}
                                             onFocus={() => expandRole(section.id, role)}
-                                            onInput={e => {
-                                              const el = e.currentTarget;
-                                              el.style.height = 'auto';
-                                              el.style.height = el.scrollHeight + 'px';
-                                            }}
                                             placeholder="Your notes…"
-                                            className="w-full bg-white text-sm text-[#1a1a1a] px-4 py-3 outline-none resize-none placeholder-[#b8bac2] block border-t border-[#eef0f3]"
-                                            style={{ minHeight: '120px', overflowY: 'hidden' }}
+                                            minHeight={110}
+                                            className="border-t border-[#eef0f3]"
                                           />
                                         </div>
                                       </div>

@@ -64,6 +64,27 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Rich-text notes (Tiptap) ─────────────────────────────────
+   Tailwind's preflight strips list styling, so the editor needs it back. */
+.showdeck-prose {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #1a1a1a;
+}
+.showdeck-prose p { margin: 0 0 0.4em; }
+.showdeck-prose p:last-child { margin-bottom: 0; }
+.showdeck-prose ul,
+.showdeck-prose ol { margin: 0 0 0.4em; padding-left: 1.35em; }
+.showdeck-prose ul { list-style: disc; }
+.showdeck-prose ol { list-style: decimal; }
+.showdeck-prose li { margin: 0.15em 0; }
+.showdeck-prose li p { margin: 0; }
+.showdeck-prose strong { font-weight: 700; }
+.showdeck-prose em { font-style: italic; }
+.showdeck-prose u { text-decoration: underline; }
+.showdeck-prose s { text-decoration: line-through; }
+.showdeck-prose:focus { outline: none; }
+
 /* ── Whiteboard sticky notes + pins ──────────────────────────
    Colours are assigned by CSS so they can respond to the grid's
    column count: simple green/beige alternation in a single column

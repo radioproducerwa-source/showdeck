@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import Logo from '../../../components/Logo'
 import GlobalSearch from '../../../components/GlobalSearch'
 import ShowChat from '../../../components/ShowChat'
+import { htmlToPlain } from '../../../lib/richText'
 import Toast, { useToast } from '../../../components/Toast'
 import {
   IconMic, IconClipboard, IconLightbulb, IconArchive, IconRadio, IconUsers,
@@ -277,12 +278,19 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
     (name || '').split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '??'
 
   const getSectionPreview = (sectionName: string) => {
-    const text = (contentMap[`${sectionName}-host1`] || '') || (contentMap[`${sectionName}-host2`] || '')
-    return text.split('\n')[0].slice(0, 100) || null
+    // Notes are stored as HTML — show the plain text, plus the shared topics
+    // as a fallback so a segment with only communal notes still previews.
+    const raw = contentMap[`${sectionName}-host1`]
+      || contentMap[`${sectionName}-host2`]
+      || contentMap[`${sectionName}-communal`]
+      || ''
+    const text = htmlToPlain(raw)
+    return text.split('\n').find(l => l.trim())?.slice(0, 100) || null
   }
 
   const getSectionStatus = (sectionName: string) => {
-    const total = (contentMap[`${sectionName}-host1`] || '').length + (contentMap[`${sectionName}-host2`] || '').length
+    const total = ['communal', 'host1', 'host2']
+      .reduce((sum, r) => sum + htmlToPlain(contentMap[`${sectionName}-${r}`] || '').trim().length, 0)
     if (total === 0) return 'empty'
     if (total < 20) return 'draft'
     return 'ready'
