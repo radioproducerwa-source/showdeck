@@ -27,7 +27,7 @@ export default function ShowChat({ showId }: { showId: string }) {
   const [sending, setSending] = useState(false)
 
   const openRef = useRef(open)
-  openRef.current = open
+  useEffect(() => { openRef.current = open }, [open])
   const seenIds = useRef<Set<string>>(new Set())
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -79,7 +79,7 @@ export default function ShowChat({ showId }: { showId: string }) {
     }
   }, [messages, open])
 
-  useEffect(() => { if (open) setUnread(0) }, [open])
+  const openChat = () => { setOpen(true); setUnread(0) }
 
   const send = async () => {
     const body = input.trim()
@@ -103,7 +103,7 @@ export default function ShowChat({ showId }: { showId: string }) {
       {/* Floating button */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={openChat}
           className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-[#0d0d0f] text-white shadow-lg hover:bg-[#2a2a2f] active:scale-95 transition-all flex items-center justify-center"
           aria-label="Open show chat"
         >
