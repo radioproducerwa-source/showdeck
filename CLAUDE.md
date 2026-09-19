@@ -54,6 +54,7 @@ Auth supports email/password, Google and Facebook OAuth. New users land on `/pro
 - `radio_templates` / `section_templates` — saved layout templates
 - `show_slot_layout` — per-show radio time-slot customisation
 - `recurring_segments` — segments that auto-populate radio plans
+- `show_pinned_sections` — per-show sections that auto-insert into every episode and can't be deleted in the planner; `import_from` names the sections aggregated into it from the previous episode
 
 ### RLS pattern
 All tables use RLS. The general access pattern:
@@ -85,6 +86,7 @@ Single shared browser client at `lib/supabase.ts`; pages import `{ supabase }` f
 - `/archive/[showId]`, `/guests/[showId]`, `/show-settings/[showId]`, `/join`, `/profile`, `/profile/setup`, `/privacy`, `/terms`
 
 ### Planner behaviour (important)
+- **Pinned sections** (`show_pinned_sections`, managed in Show Settings) are inserted at the bottom of every episode that's missing them, on every load — not just new episodes — and their remove × is hidden (`removeSection` also refuses). Once they exist they drag like any other segment. If the row has `import_from`, the segment gets an "Import last week" button that aggregates those sections' notes from the previous episode, per host, as HTML.
 - **Host note panels are opt-in per segment.** A segment shows the communal topics box plus "+ &lt;host&gt;" buttons; a host's note area appears only once added, or if a note row already exists (so existing episodes are unchanged). Adding one writes an empty `section_content` row so it survives a reload.
 - **Notes are rich text stored as HTML** — see below.
 - `section_content` is keyed by section **name**, not id. Renaming a section orphans its content; duplicate names within an episode collide.
@@ -138,7 +140,8 @@ Sentry (`@sentry/nextjs`) is wired via `instrumentation.ts`, `instrumentation-cl
 `app/opengraph-image.tsx` generates the social share card; `app/manifest.ts`, `app/apple-icon.tsx` and `app/pwa-icon/` make the site installable as a PWA.
 
 ### Known warts
-- **Punt Pals hardcoding.** Show ID `8265f874-9732-4b6b-8617-a6c5918c6ca7` is special-cased in the planner: protected sections that auto-insert and can't be deleted (`Last Week's Betting`, `AFL Multis`, `Racing Bets`) and an "Import last week" button. Generalising this into a per-show `show_section_rules` feature is the obvious next refactor.
+- **Pinned-section protection is client-side only.** Nothing in the database stops a direct delete of a pinned section's `sections` row — the planner just hides the × and guards `removeSection`. Expressing it in RLS would need a trigger joining `sections → episodes → show_pinned_sections`, which isn't worth it.
+- **`removeSection` leaves `section_content` orphaned.** Notes are keyed by section *name*, so deleting a section keeps its rows; re-adding a section with the same name resurrects the old notes.
 - `app/planner/[showId]/page.tsx`, `app/shows/[showId]/page.tsx` and `components/RadioPlannerPanel.tsx` are all very large and would benefit from decomposition.
 
 ### Database migrations

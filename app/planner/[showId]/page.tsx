@@ -7,7 +7,7 @@ import GlobalSearch from '../../../components/GlobalSearch'
 import ShowChat from '../../../components/ShowChat'
 import Toast, { useToast } from '../../../components/Toast'
 import RichTextEditor from '../../../components/RichTextEditor'
-import { htmlToPlain, htmlToBlocks, isEmptyNote } from '../../../lib/richText'
+import { htmlToPlain, htmlToBlocks, isEmptyNote, toEditorHtml, escapeHtml } from '../../../lib/richText'
 import {
   IconGrip, IconLink, IconArchive, IconDownload, IconChevronDown,
   IconPlus, IconX, IconCopy, PageLoader,
@@ -59,6 +59,9 @@ const getDefaultSections = (showType: string) => {
 
 type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error'
 
+/** A row from `show_pinned_sections` — see supabase/migrations/20260919_show_pinned_sections.sql */
+type PinnedSection = { name: string; icon: string; order_index: number; import_from: string[] }
+
 const ACCENT_COLORS = ['#00e5a0', '#f5c842']
 
 // Pick black or white text for legibility on a given background colour
@@ -97,7 +100,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   const [episodeDate, setEpisodeDate] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
   const { toast, showToast } = useToast()
-  const [importingBets, setImportingBets] = useState(false)
+  // Per-show pinned sections: auto-inserted into every episode, can't be
+  // removed here, and optionally aggregate other sections from last episode.
+  const [pinned, setPinned] = useState<PinnedSection[]>([])
+  const [importing, setImporting] = useState<string | null>(null)
+  const pinnedByName = new Map(pinned.map(p => [p.name, p]))
   const [duplicating, setDuplicating] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [addingSection, setAddingSection] = useState<boolean | 'saving'>(false)
@@ -186,7 +193,14 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/'); return }
 
-    const { data: showData } = await supabase.from('shows').select('*').eq('id', showId).single()
+    const [{ data: showData }, { data: pinnedRules }] = await Promise.all([
+      supabase.from('shows').select('*').eq('id', showId).single(),
+      supabase.from('show_pinned_sections')
+        .select('name, icon, order_index, import_from')
+        .eq('show_id', showId)
+        .order('order_index', { ascending: true })
+        .order('name', { ascending: true }),
+    ])
     if (!showData) { router.push('/dashboard'); return }
     if (showData.owner_id !== user.id) {
       const { data: membership } = await supabase.from('show_members').select('id').eq('show_id', showId).eq('user_id', user.id).maybeSingle()
@@ -195,6 +209,11 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       setIsOwner(true)
     }
     setShow(showData)
+
+    // Keep a local copy too — the ensure-exists pass below runs before React
+    // has re-rendered with the new state.
+    const rules: PinnedSection[] = (pinnedRules || []) as PinnedSection[]
+    setPinned(rules)
 
     const searchParams = new URLSearchParams(window.location.search)
     const existingEpisodeId = searchParams.get('episodeId')
@@ -251,6 +270,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
           const { data: prevEps } = await supabase.from('episodes').select('id').eq('show_id', showId).neq('id', episode.id).order('episode_date', { ascending: false }).limit(1)
           if (prevEps && prevEps.length > 0) {
             const { data: prevSections } = await supabase.from('sections').select('name, icon').eq('episode_id', prevEps[0].id)
+              .order('sort_order', { ascending: true }).order('id', { ascending: true })
             if (prevSections && prevSections.length > 0) sectionSource = prevSections
           }
         }
@@ -260,18 +280,22 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
       }
       setSections(existingSections)
 
-      // Punt Pals: ensure protected sections always exist on every episode
-      if (showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7') {
-        const missing = (["Last Week's Betting"] as string[]).filter(
-          name => !(existingSections || []).some((s: any) => s.name === name)
-        )
+      // Pinned sections must exist on every episode, not just new ones — so
+      // this runs on every load, appending any that are missing at the bottom.
+      if (rules.length > 0) {
+        const missing = rules.filter(r => !(existingSections || []).some((s: any) => s.name === r.name))
         if (missing.length > 0) {
           const maxOrder = Math.max(...(existingSections || []).map((s: any) => s.sort_order ?? 0), -1)
           const { data: added } = await supabase.from('sections').insert(
-            missing.map((name, i) => ({ episode_id: episode.id, name, icon: '📊', sort_order: maxOrder + 1 + i }))
+            missing.map((r, i) => ({ episode_id: episode.id, name: r.name, icon: r.icon, sort_order: maxOrder + 1 + i }))
           ).select()
-          if (added) existingSections = [...(existingSections || []), ...added]
-          setSections(existingSections)
+          if (added && added.length > 0) {
+            // Two clients opening the same new episode can both insert — de-dupe by name
+            const byName = new Map<string, any>()
+            for (const s of [...(existingSections || []), ...added]) if (!byName.has(s.name)) byName.set(s.name, s)
+            existingSections = Array.from(byName.values())
+            setSections(existingSections)
+          }
         }
       }
 
@@ -387,6 +411,10 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
   }
 
   const removeSection = async (sectionId: string, sectionName: string) => {
+    if (pinnedByName.has(sectionName)) {
+      showToast('This section is pinned for the show — unpin it in Show settings', true)
+      return
+    }
     if (episodeId) await supabase.from('section_links').delete().eq('episode_id', episodeId).eq('section_name', sectionName)
     const { error } = await supabase.from('sections').delete().eq('id', sectionId)
     if (error) { showToast('Remove failed — check your connection', true); return }
@@ -465,35 +493,47 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
     showToast('Duplicated from last week!')
   }
 
-  const importLastWeeksBets = async () => {
-    if (!episodeId || !episodeDate) return
-    setImportingBets(true)
+  // Pull the previous episode's notes from a pinned section's configured
+  // source sections into that section, one host at a time.
+  const importPinned = async (target: PinnedSection) => {
+    if (!episodeId || !episodeDate || target.import_from.length === 0) return
+    const roles = ['host1', 'host2', ...(show?.has_producer ? ['producer'] : [])]
+
+    // This overwrites, so warn if there's anything to lose
+    const willOverwrite = roles.some(role => !isEmptyNote(content[`${target.name}-${role}`]))
+    if (willOverwrite && !window.confirm(`Replace the existing notes in "${target.name}" with last episode's?`)) return
+
+    setImporting(target.name)
     const { data: prevEps } = await supabase
       .from('episodes').select('id')
       .eq('show_id', showId).lt('episode_date', episodeDate)
-      .order('episode_date', { ascending: false }).limit(1)
-    if (!prevEps?.length) { showToast('No previous bets found'); setImportingBets(false); return }
+      .order('episode_date', { ascending: false }).order('id', { ascending: false }).limit(1)
+    if (!prevEps?.length) { showToast('Nothing to import from last episode'); setImporting(null); return }
 
     const { data: prevContent } = await supabase
       .from('section_content').select('section_name, role, content')
       .eq('episode_id', prevEps[0].id)
-      .in('section_name', ['AFL Multis', 'Racing Bets'])
-      .in('role', ['host1', 'host2'])
-    if (!prevContent?.length) { showToast('No previous bets found'); setImportingBets(false); return }
+      .in('section_name', target.import_from)
+      .in('role', roles)
+    if (!prevContent?.length) { showToast('Nothing to import from last episode'); setImporting(null); return }
 
-    for (const role of ['host1', 'host2']) {
-      const parts = ['AFL Multis', 'Racing Bets']
+    let imported = 0
+    for (const role of roles) {
+      // Notes are HTML, so build HTML — a plain-text heading wouldn't render
+      const html = target.import_from
         .map(name => {
           const row = prevContent.find((r: any) => r.role === role && r.section_name === name)
-          return row?.content ? `${name}:\n${row.content}` : null
+          if (!row?.content || isEmptyNote(row.content)) return ''
+          return `<p><strong>${escapeHtml(name)}</strong></p>${toEditorHtml(row.content)}`
         })
-        .filter(Boolean)
-      if (!parts.length) continue
-      updateContent("Last Week's Betting", role, parts.join('\n\n'))
+        .join('')
+      if (!html) continue
+      updateContent(target.name, role, html)
+      imported += 1
     }
     flushPendingSaves()
-    setImportingBets(false)
-    showToast("Last week's bets imported!")
+    setImporting(null)
+    showToast(imported > 0 ? 'Imported from last episode' : 'Nothing to import from last episode')
   }
 
 
@@ -985,6 +1025,7 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
             <div className="flex flex-col gap-10">
               {sections.map((section, idx) => {
                 const status = getStatus(section.name)
+                const pin = pinnedByName.get(section.name)
                 const isCollapsed = collapsed.has(section.name)
                 const wc = getWordCount(section.name)
                 const accentColor = ACCENT_COLORS[idx % ACCENT_COLORS.length]
@@ -1029,17 +1070,18 @@ export default function Planner({ params }: { params: Promise<{ showId: string }
                                 {status.label}
                               </span>
                             </button>
-                            {showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && section.name === "Last Week's Betting" && (
+                            {pin && pin.import_from.length > 0 && (
                               <button
                                 type="button"
-                                onClick={e => { e.stopPropagation(); importLastWeeksBets() }}
-                                disabled={importingBets}
+                                onClick={e => { e.stopPropagation(); importPinned(pin) }}
+                                disabled={importing === section.name}
+                                title={`Bring last episode's ${pin.import_from.join(' and ')} into this section`}
                                 className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#6b6b7a] hover:text-[#0d0d0f] bg-white border border-[#e2e4e8] hover:border-[#c8cad0] hover:bg-[#f7f8fa] rounded-md px-2 py-1 transition-colors flex-shrink-0 disabled:opacity-40"
                               >
-                                <IconDownload size={12} />{importingBets ? '…' : 'Import last week'}
+                                <IconDownload size={12} />{importing === section.name ? '…' : 'Import last week'}
                               </button>
                             )}
-                            {!(showId === '8265f874-9732-4b6b-8617-a6c5918c6ca7' && (["Last Week's Betting", 'AFL Multis', 'Racing Bets'] as string[]).includes(section.name)) && (
+                            {!pin && (
                               <button type="button" onClick={e => { e.stopPropagation(); removeSection(section.id, section.name) }}
                                 className="text-[#c8cad0] hover:text-[#ff5c3a] transition-colors leading-none flex-shrink-0" title="Remove section">
                                 <IconX size={15} />

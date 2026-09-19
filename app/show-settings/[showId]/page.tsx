@@ -9,6 +9,9 @@ import { IconMic, IconX, IconCopy, IconPlus, IconCheck, PageLoader } from '../..
 
 type AvatarSlot = 'host1' | 'host2' | 'producer' | 'logo'
 
+/** A row from `show_pinned_sections` — see supabase/migrations/20260919_show_pinned_sections.sql */
+type PinnedSection = { id: string; name: string; icon: string; import_from: string[] }
+
 function AvatarUpload({ slot, name, avatar, color, uploading, uploadAvatar }: {
   slot: AvatarSlot
   name: string
@@ -73,6 +76,11 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
   const [episodeNumberStart, setEpisodeNumberStart] = useState(1)
   const [recurringSegments, setRecurringSegments] = useState<{ id: string; name: string }[]>([])
   const [newSegmentName, setNewSegmentName] = useState('')
+  const [pinnedSections, setPinnedSections] = useState<PinnedSection[]>([])
+  const [newPinnedName, setNewPinnedName] = useState('')
+  const [newPinnedIcon, setNewPinnedIcon] = useState('📝')
+  const [editingImports, setEditingImports] = useState<string | null>(null)
+  const [knownSections, setKnownSections] = useState<string[]>([])
   const [ownerProfile, setOwnerProfile] = useState<{ display_name?: string; email?: string } | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('host1')
@@ -104,6 +112,19 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
       supabase.from('recurring_segments').select('id, name').eq('show_id', showId).order('created_at').then(({ data }) => {
         if (data) setRecurringSegments(data)
       })
+      supabase.from('show_pinned_sections').select('id, name, icon, import_from').eq('show_id', showId)
+        .order('order_index').order('created_at').then(({ data }) => {
+          if (data) setPinnedSections(data)
+        })
+      // Section names from recent episodes, to offer as import sources.
+      // Purely a convenience — failing here just leaves a free-text fallback.
+      supabase.from('episodes').select('id').eq('show_id', showId)
+        .order('episode_date', { ascending: false }).limit(5).then(({ data: eps }) => {
+          if (!eps?.length) return
+          supabase.from('sections').select('name').in('episode_id', eps.map(e => e.id)).then(({ data: secs }) => {
+            if (secs) setKnownSections(Array.from(new Set(secs.map(s => s.name))).sort())
+          })
+        })
       supabase.from('show_invites').select('*').eq('show_id', showId).order('created_at', { ascending: false }).then(({ data }) => {
         if (data) setInvites(data)
       })
@@ -126,6 +147,36 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     const { error } = await supabase.from('recurring_segments').delete().eq('id', id)
     if (error) { showToast('Failed to delete segment', true); return }
     setRecurringSegments(prev => prev.filter(s => s.id !== id))
+  }
+
+  const addPinnedSection = async () => {
+    const name = newPinnedName.trim()
+    if (!name) return
+    const { data, error } = await supabase.from('show_pinned_sections')
+      .insert({ show_id: showId, name, icon: newPinnedIcon.trim() || '📝', order_index: pinnedSections.length })
+      .select('id, name, icon, import_from').single()
+    if (error) {
+      showToast(error.code === '23505' ? 'That section is already pinned' : 'Failed to pin section', true)
+      return
+    }
+    setPinnedSections(prev => [...prev, data])
+    setNewPinnedName('')
+    setNewPinnedIcon('📝')
+  }
+
+  const deletePinnedSection = async (id: string) => {
+    const { error } = await supabase.from('show_pinned_sections').delete().eq('id', id)
+    if (error) { showToast('Failed to unpin section', true); return }
+    setPinnedSections(prev => prev.filter(p => p.id !== id))
+    if (editingImports === id) setEditingImports(null)
+    showToast('Unpinned — existing episodes keep the section')
+  }
+
+  const savePinnedImports = async (id: string, importFrom: string[]) => {
+    const previous = pinnedSections
+    setPinnedSections(prev => prev.map(p => (p.id === id ? { ...p, import_from: importFrom } : p)))
+    const { error } = await supabase.from('show_pinned_sections').update({ import_from: importFrom }).eq('id', id)
+    if (error) { setPinnedSections(previous); showToast('Failed to save import sources', true) }
   }
 
   const sendInvite = async () => {
@@ -250,7 +301,8 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
     await supabase.from('show_members').delete().eq('show_id', showId)
 
     // Delete the show — section_templates, radio_templates, recurring_segments,
-    // show_slot_layout, and guests all have ON DELETE CASCADE so they go automatically
+    // show_slot_layout, show_pinned_sections and guests all have ON DELETE CASCADE
+    // so they go automatically
     const { error } = await supabase.from('shows').delete().eq('id', showId)
     if (error) { showToast('Delete failed: ' + error.message, true); setDeleting(false); return }
 
@@ -435,6 +487,104 @@ export default function ShowSettings({ params }: { params: Promise<{ showId: str
               disabled={!newSegmentName.trim()}
               className="bg-[#0d0d0f] text-white font-semibold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-30 flex items-center gap-1.5"
             ><IconPlus size={13} /> Add</button>
+          </div>
+        </div>
+
+        {/* Pinned Sections */}
+        <div className="bg-[#f7f8fa] border border-[#e2e4e8] rounded-2xl p-6 flex flex-col gap-4 mt-6">
+          <div>
+            <label className="text-[#6b6b7a] text-xs uppercase tracking-widest">Pinned Sections</label>
+            <p className="text-[10px] text-[#9a9aaa] mt-1">
+              Segments that appear on every episode of this show and can&apos;t be deleted in the planner.
+              Give one an import source and the planner shows a button that pulls those segments across from last episode.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {pinnedSections.length === 0 && (
+              <p className="text-xs text-[#9a9aaa]">No pinned sections yet.</p>
+            )}
+            {pinnedSections.map(pin => {
+              const sources = knownSections.filter(n => n !== pin.name)
+              const isEditing = editingImports === pin.id
+              return (
+                <div key={pin.id} className="bg-white border border-[#e2e4e8] rounded-lg px-3 py-2 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{pin.icon}</span>
+                    <span className="flex-1 text-sm text-[#0d0d0f]">{pin.name}</span>
+                    <button
+                      onClick={() => setEditingImports(isEditing ? null : pin.id)}
+                      className="text-[10px] font-semibold text-[#6b6b7a] hover:text-[#0d0d0f] transition-colors"
+                    >
+                      {pin.import_from.length > 0 ? `Import from: ${pin.import_from.join(', ')}` : 'Set up import'}
+                    </button>
+                    <button
+                      onClick={() => deletePinnedSection(pin.id)}
+                      className="text-[#c8cad0] hover:text-[#e53935] transition-colors"
+                      title="Unpin"
+                    ><IconX size={13} /></button>
+                  </div>
+                  {isEditing && (
+                    <div className="border-t border-[#eef0f3] pt-2">
+                      <p className="text-[10px] text-[#9a9aaa] mb-2">
+                        Pick the segments whose notes get copied into &ldquo;{pin.name}&rdquo; from the previous episode.
+                      </p>
+                      {sources.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {sources.map(name => {
+                            const selected = pin.import_from.includes(name)
+                            return (
+                              <button
+                                key={name}
+                                onClick={() => savePinnedImports(
+                                  pin.id,
+                                  selected ? pin.import_from.filter(n => n !== name) : [...pin.import_from, name]
+                                )}
+                                className={`text-[11px] rounded-full px-2.5 py-1 border transition-colors ${
+                                  selected
+                                    ? 'bg-[#0d0d0f] text-white border-[#0d0d0f]'
+                                    : 'bg-white text-[#6b6b7a] border-[#e2e4e8] hover:border-[#c8cad0]'
+                                }`}
+                              >{name}</button>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          defaultValue={pin.import_from.join(', ')}
+                          onBlur={e => savePinnedImports(pin.id, e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                          placeholder="Segment names, comma separated"
+                          className="w-full bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2 text-xs outline-none focus:border-[#00e5a0]"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newPinnedIcon}
+              onChange={e => setNewPinnedIcon(e.target.value)}
+              aria-label="Section icon"
+              className="w-14 bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2.5 text-sm text-center outline-none focus:border-[#00e5a0]"
+            />
+            <input
+              type="text"
+              value={newPinnedName}
+              onChange={e => setNewPinnedName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addPinnedSection() }}
+              placeholder="Section name…"
+              className="flex-1 bg-white border border-[#e2e4e8] rounded-lg text-[#0d0d0f] px-3 py-2.5 text-sm outline-none focus:border-[#00e5a0]"
+            />
+            <button
+              onClick={addPinnedSection}
+              disabled={!newPinnedName.trim()}
+              className="bg-[#0d0d0f] text-white font-semibold rounded-lg px-4 py-2.5 text-sm hover:bg-[#1a1a1a] transition-colors disabled:opacity-30 flex items-center gap-1.5"
+            ><IconPlus size={13} /> Pin</button>
           </div>
         </div>
 

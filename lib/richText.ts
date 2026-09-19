@@ -12,7 +12,8 @@ export function isHtml(value: string): boolean {
   return HTML_TAG.test(value || '')
 }
 
-function escapeHtml(s: string): string {
+/** Escape text for safe interpolation into note HTML. */
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

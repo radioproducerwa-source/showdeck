@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       // this route doesn't depend on FK configuration)
       for (const table of ['radio_plans', 'show_invites', 'show_members', 'show_ideas',
         'show_idea_columns', 'guests', 'radio_templates', 'section_templates',
-        'recurring_segments', 'show_slot_layout']) {
+        'recurring_segments', 'show_slot_layout', 'show_pinned_sections']) {
         await admin.from(table).delete().in('show_id', showIds)
       }
       await admin.from('shows').delete().in('id', showIds)
