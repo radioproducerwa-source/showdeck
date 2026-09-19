@@ -424,7 +424,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
             <div className="bg-white border border-[#e2e4e8] rounded-2xl overflow-hidden flex flex-col">
               {/* Column header — drag handle + editable title + delete */}
               <div className="px-3 py-3 border-b border-[#e2e4e8] bg-[#f7f8fa] flex items-center gap-2 group/col">
-                <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
+                <span {...colDragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center p-3 -m-2"><IconGrip size={15} /></span>
                 <input
                   type="text"
                   value={col.title}
@@ -486,7 +486,7 @@ export default function ShowDetail({ params }: { params: Promise<{ showId: strin
                 {(dragListeners) => (
                 <div className="border-b border-[#f0f1f3] group hover:bg-[#f7f8fa] transition-colors">
                   <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-                    <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center"><IconGrip size={13} /></span>
+                    <span {...dragListeners} className="text-[#c8cad0] hover:text-[#6b6b7a] cursor-grab active:cursor-grabbing flex-shrink-0 select-none touch-none flex items-center p-3 -m-2"><IconGrip size={15} /></span>
                     <button onClick={() => toggleIdea(idea.id, true)}
                       className="w-4 h-4 rounded-full border-2 border-[#c8cad0] hover:border-[#00e5a0] transition-colors flex-shrink-0" />
                     <span className="flex-1 text-sm text-[#0d0d0f]">{idea.text}</span>
