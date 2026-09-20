@@ -7,6 +7,9 @@
 -- so both exact names are targeted. It has no code behind it, so this
 -- is pure data cleanup.
 --
+-- When this was applied, the `sections` rows had already been deleted by
+-- hand, so in practice it only swept up orphaned children.
+--
 -- Children go first: section_content and section_links are keyed by
 -- section NAME, not by the sections row id, so deleting the sections
 -- row alone would leave them orphaned (and they'd resurface if a
@@ -45,8 +48,9 @@ WHERE name IN ('Launching Towards the GF Challenge', 'Road to Grand Final')
     SELECT id FROM episodes WHERE show_id = '8265f874-9732-4b6b-8617-a6c5918c6ca7'
   );
 
--- Also drop it from the show's saved template, or the next empty episode
--- would simply re-create it.
-DELETE FROM section_templates
-WHERE show_id = '8265f874-9732-4b6b-8617-a6c5918c6ca7'
-  AND name IN ('Launching Towards the GF Challenge', 'Road to Grand Final');
+-- NOTE: there was a fourth statement here clearing the name out of
+-- section_templates. It was dropped because that table did not exist in
+-- production when this ran (see 20260920_section_templates_apply.sql) —
+-- so there was nothing to clear, and the reference aborted the whole
+-- transaction. If you re-run this file against a database that predates
+-- that fix, add it back.
